@@ -1,0 +1,79 @@
+export type RiskProfile = 'safe' | 'balanced' | 'aggressive';
+export type Goal = 'overall' | 'league' | 'both';
+
+export type UserSettings = {
+  entryId?: string;
+  leagueId?: string;
+  riskProfile: RiskProfile;
+  goal: Goal;
+  lang: 'mn' | 'en';
+};
+
+export type FplPlayer = {
+  id: number;
+  web_name: string;
+  first_name?: string;
+  second_name?: string;
+  team: number;
+  element_type: number;
+  now_cost: number;
+  total_points: number;
+  selected_by_percent: string;
+  minutes: number;
+  form: string;
+  points_per_game: string;
+  ep_next?: string;
+  ep_this?: string;
+  chance_of_playing_next_round?: number | null;
+  chance_of_playing_this_round?: number | null;
+  news?: string;
+  news_added?: string;
+  status?: string;
+  transfers_in_event?: number;
+  transfers_out_event?: number;
+  goals_scored?: number;
+  assists?: number;
+  clean_sheets?: number;
+  goals_conceded?: number;
+  bonus?: number;
+  ict_index?: string;
+};
+
+export type FplTeam = { id: number; name: string; short_name: string; strength?: number; strength_overall_home?: number; strength_overall_away?: number };
+export type FplPosition = { id: number; singular_name_short: string; singular_name: string };
+export type FplEvent = { id: number; name: string; deadline_time: string; finished: boolean; is_current: boolean; is_next: boolean };
+
+export type ModelPlayer = {
+  id: number;
+  name: string;
+  team: string;
+  teamId: number;
+  position: string;
+  positionId: number;
+  price: number;
+  totalPoints: number;
+  form: number;
+  minutes: number;
+  ownership: number;
+  expectedPoints: number;
+  valueScore: number;
+  confidence: number;
+  risk: number;
+  news?: string;
+  status?: string;
+};
+
+export type DraftTeam = {
+  mode: 'Best' | 'Alternative' | 'Differential' | 'Safe';
+  players: ModelPlayer[];
+  validation: SquadValidation;
+  explanation: string[];
+};
+
+export type SquadValidation = {
+  valid: boolean;
+  totalCost: number;
+  errors: string[];
+  positionCounts: Record<string, number>;
+  clubCounts: Record<string, number>;
+};
