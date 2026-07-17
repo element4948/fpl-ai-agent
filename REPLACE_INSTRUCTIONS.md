@@ -1,22 +1,21 @@
-# Replace хийх файл
+# AI Agent v5 суулгах
 
-Project root дээрээс дараах файлуудыг яг энэ zip доторхтой соль:
-
-- app/layout.tsx
-- app/page.tsx
-- app/globals.css
-- components/Card.tsx
-- next.config.mjs
-- tsconfig.json
-
-Дараа нь:
+1. Одоогийн project-оо backup хийнэ.
+2. ZIP доторх source файлуудыг project root дээр replace хийнэ.
+3. Дараах командыг ажиллуулна:
 
 ```bash
-rm -rf .next
+npm install
 npm run dev
 ```
 
-Анхаарах:
-- Tailwind хэрэглэхгүй тул PostCSS/Tailwind алдаа гарахгүй.
-- app/layout.tsx, app/globals.css дутуу байсан асуудлыг бүрэн нөхнө.
-- @/components/Card alias-д tsconfig.json дотор paths нэмсэн.
+4. Шалгах хуудас:
+- `/` — AI Agent
+- `/docs` — Docs (гарын авлага)
+- `/guide` — Docs-ийн нөөц холбоос
+
+5. Deploy хийхийн өмнө:
+
+```bash
+npm run build
+```

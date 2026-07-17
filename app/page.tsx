@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/Card';
 import { Navbar } from '@/components/Navbar';
 import { Metric } from '@/components/Metric';
-import { chipAction, chipReason, decisionActionLabel, decisionStrategyLabel, decisionSummaryLabel, dict, draftExplanation, draftModeLabel, strategyLabel, transferReason } from '@/lib/i18n';
+import { chipAction, chipReason, decisionActionLabel, decisionStrategyLabel, decisionSummaryLabel, dict, draftExplanation, draftModeLabel, strategyLabel, transferReason, signalLabel, riskLevelLabel, actionPlanLabel, decisionStatusLabel } from '@/lib/i18n';
 import { defaultSettings, loadSettings, saveSettings } from '@/lib/storage';
 import type { ModelPlayer, UserSettings } from '@/types/fpl';
 
@@ -17,9 +17,62 @@ function PlayerRow({ p, index, lang }: { p: ModelPlayer; index?: number; lang: '
     <div>
       <div className="row-title">{index ? <span className="badge">#{index}</span> : null}<span>{p.name}</span>{p.risk > 50 ? <span className="badge red">{t.risk}</span> : null}</div>
       <div className="row-meta">{p.team} · {p.position} · £{p.price}m · {t.ownership} {p.ownership}% · {t.confidence} {p.confidence}</div>
+      {p.fixture ? <div className="row-meta fixture-meta">Fixture (тоглолт): {p.fixture.nextOpponent} · {p.fixture.nextIsHome ? 'H (талбайдаа)' : 'A (айлд)'} · FDR {p.fixture.nextDifficulty} · Next 5 (дараагийн 5) {p.fixture.averageDifficulty}</div> : null}
       <div className="bar"><span style={{ ['--w' as string]: `${width}%` }} /></div>
     </div>
     <div className="score">{p.expectedPoints.toFixed(1)}</div>
+  </div>;
+}
+
+
+function DecisionInsight({ player, lang }: { player: ModelPlayer; lang: 'mn' | 'en' }) {
+  const t = dict[lang];
+  const risk = player.riskBreakdown;
+  if (!risk) return null;
+  return <div className="insight-grid">
+    <div className="insight-panel">
+      <h3>{t.aiReason}</h3>
+      <div className="tabs">{player.reasons?.map(key => <span className="tab good-tab" key={key}>✓ {signalLabel(key, lang)}</span>)}</div>
+      <h3>{t.warningSignals}</h3>
+      <div className="tabs">{player.warnings?.map(key => <span className="tab warning-tab" key={key}>! {signalLabel(key, lang)}</span>)}</div>
+    </div>
+    <div className="insight-panel">
+      <div className="row-title">{t.riskBreakdown} <span className={`badge ${risk.level === 'high' ? 'red' : risk.level === 'low' ? 'green' : ''}`}>{riskLevelLabel(risk.level, lang)}</span></div>
+      {[
+        [t.injuryRisk, risk.injury],
+        [t.availabilityRisk, risk.availability],
+        [t.minutesRisk, risk.minutes],
+        [t.rotationRisk, risk.rotation],
+        [t.newsRisk, risk.news],
+      ].map(([label, value]) => <div className="risk-line" key={String(label)}><span>{label}</span><b>{value}%</b></div>)}
+    </div>
+  </div>;
+}
+
+
+function WeeklyActionPlan({ plan, lang }: { plan: Any; lang: 'mn' | 'en' }) {
+  const t = dict[lang];
+  if (!plan) return null;
+  const groups = [
+    { title: t.doNow, items: plan.doNow || [], className: 'good-tab' },
+    { title: t.checkBeforeDeadline, items: plan.checkBeforeDeadline || [], className: '' },
+    { title: t.avoidThisWeek, items: plan.avoid || [], className: 'warning-tab' },
+  ];
+  return <div className="action-plan">
+    <div className="row-title" style={{ marginBottom: 12 }}>
+      {t.weeklyActionPlan}
+      <span className={`badge ${plan.decisionStatus === 'ready' ? 'green' : plan.decisionStatus === 'wait' ? 'red' : ''}`}>
+        {decisionStatusLabel(plan.decisionStatus, lang)}
+      </span>
+    </div>
+    <div className="grid grid-3">
+      {groups.map(group => <div className="insight-panel" key={group.title}>
+        <h3>{group.title}</h3>
+        <div className="action-list">
+          {group.items.map((key: string) => <div className={`action-item ${group.className}`} key={key}>{actionPlanLabel(key, lang)}</div>)}
+        </div>
+      </div>)}
+    </div>
   </div>;
 }
 
@@ -111,7 +164,7 @@ export default function Home() {
     <main id="top">
       <section className="hero">
         <div className="hero-panel">
-          <span className="eyebrow">⚽ FPL AI Agent · Complete v5</span>
+          <span className="eyebrow">⚽ AI Agent · AI Brain v1 (AI тархи v1)</span>
           <h1>{t.heroTitle}</h1>
           <p className="lead">{t.heroLead}</p>
           <div className="actions">
@@ -136,9 +189,15 @@ export default function Home() {
           <Metric label={t.strategy} value={decision ? decisionStrategyLabel(decision.strategy, lang) : '...'} tone="good" />
           <Metric label={t.mode} value={decision ? decisionActionLabel(decision.action, lang) : '...'} />
           <Metric label={t.recommendedCaptain} value={decision?.captain?.name || '—'} />
+          <Metric label={t.recommendedViceCaptain} value={decision?.viceCaptain?.name || '—'} />
+        </div>
+        <div className="grid grid-2" style={{ marginTop: 12 }}>
+          <Metric label={t.decisionStatus} value={decision?.actionPlan ? decisionStatusLabel(decision.actionPlan.decisionStatus, lang) : '—'} tone={decision?.actionPlan?.decisionStatus === 'ready' ? 'good' : ''} />
           <Metric label={t.recommendedChip} value={decision?.chips?.[0]?.chip ? `${decision.chips[0].chip}: ${chipAction(decision.chips[0].action, lang)}` : '—'} />
         </div>
         <p className="muted" style={{ marginTop: 14 }}>{decision ? decisionSummaryLabel(decision.summary, lang) : t.loading}</p>
+        {decision?.actionPlan ? <WeeklyActionPlan plan={decision.actionPlan} lang={lang} /> : null}
+        {decision?.captain ? <DecisionInsight player={decision.captain} lang={lang} /> : null}
         {decision?.transfer ? <div className="transfer-card" style={{ marginTop: 14 }}>
           <div className="row-title">{t.recommendedTransfer}: {decision.transfer.out} → {decision.transfer.in}</div>
           <div className="row-meta">{t.expected}: +{decision.transfer.expectedGain} · {t.cost}: {decision.transfer.costChange}m · {t.hit}: {decision.transfer.hitCost}</div>

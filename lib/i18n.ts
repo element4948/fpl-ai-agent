@@ -2,74 +2,78 @@ export type Lang = 'mn' | 'en';
 
 export const dict = {
   mn: {
-    navDashboard: 'Нүүр', navSettings: 'Тохиргоо', navTeam: 'Миний баг', navLeague: 'Лиг', navDrafts: 'Draft багууд',
-    decisionEngine: 'Decision Engine', decisionSub: 'Энэ долоо хоногийн гол шийдвэрийг нэг дор гаргана.', thisWeekDecision: 'Энэ долоо хоногийн шийдвэр', recommendedCaptain: 'Санал болгож буй captain', recommendedTransfer: 'Санал болгож буй transfer', recommendedChip: 'Chip зөвлөгөө', runDecision: 'Decision гаргах', decisionScore: 'Decision score', buildDraftAction: 'Pre-season draft бүрдүүлэх', makeTransferAction: 'Transfer хийх боломжтой', holdTransferAction: 'Transfer хадгалах', preSeasonBuild: 'Pre-season баг бүрдүүлэх', aggressiveChase: 'Aggressive chase', balancedChase: 'Balanced chase', protectRank: 'Байраа хамгаалах', balancedControl: 'Balanced control', decisionSummaryPre: 'Pre-season: value, minutes, confidence, risk дээр үндэслэж эхний squad бүрдүүлнэ. Chip төлөвлөх болоогүй.', decisionSummaryTransfer: 'Энэ GW: model no-hit transfer санал болгож байна. Deadline-аас өмнө reason-ийг шалга.', decisionSummaryHold: 'Энэ GW: safe no-hit transfer хангалттай ашигтай биш. Captain сонголт дээр төвлөрөөд transfer хадгалах нь дээр.',
+    navDashboard: 'Нүүр', navSettings: 'Тохиргоо', navTeam: 'Миний баг', navLeague: 'Лиг', navDrafts: 'Draft багууд (урьдчилсан бүрэлдэхүүн)',
+    decisionEngine: 'Decision Engine (шийдвэрийн хөдөлгүүр)', decisionSub: 'Энэ долоо хоногийн гол шийдвэрийг нэг дор гаргана.', thisWeekDecision: 'Энэ долоо хоногийн шийдвэр', recommendedCaptain: 'Санал болгож буй captain (ахлагч)', recommendedTransfer: 'Санал болгож буй transfer (солилцоо)', recommendedChip: 'Chip зөвлөгөө (тусгай эрх)', runDecision: 'Decision гаргах (шийдвэр тооцох)', decisionScore: 'Decision score', buildDraftAction: 'Pre-season draft бүрдүүлэх', makeTransferAction: 'Transfer хийх боломжтой', holdTransferAction: 'Transfer хадгалах', preSeasonBuild: 'Pre-season баг бүрдүүлэх', aggressiveChase: 'Aggressive chase', balancedChase: 'Balanced chase', protectRank: 'Байраа хамгаалах', balancedControl: 'Balanced control', decisionSummaryPre: 'Pre-season: value, minutes, confidence, risk дээр үндэслэж эхний squad бүрдүүлнэ. Chip төлөвлөх болоогүй.', decisionSummaryTransfer: 'Энэ GW: model no-hit transfer санал болгож байна. Deadline-аас өмнө reason-ийг шалга.', decisionSummaryHold: 'Энэ GW: safe no-hit transfer хангалттай ашигтай биш. Captain сонголт дээр төвлөрөөд transfer хадгалах нь дээр.',
+    weeklyActionPlan: 'Weekly Action Plan (7 хоногийн үйлдлийн төлөвлөгөө)', doNow: 'Одоо хийх зүйл', checkBeforeDeadline: 'Deadline-аас өмнө дахин шалгах', avoidThisWeek: 'Энэ долоо хоногт зайлсхийх', recommendedViceCaptain: 'Санал болгож буй vice captain (дэд ахлагч)', decisionReady: 'Ready (шийдвэр хэрэгжүүлэхэд бэлэн)', decisionReview: 'Review (дахин хянах шаардлагатай)', decisionWait: 'Wait (мэдээлэл хүлээх шаардлагатай)', decisionStatus: 'Decision status (шийдвэрийн төлөв)',
+    buildInitialSquad: 'Эхний squad (бүрэлдэхүүн)-аа санал болгосон draft-аар бүрдүүлэх', compareDraftVariants: 'Best/Safe/Differential draft (хувилбар)-уудыг харьцуулах', saveEntryIdLater: 'FPL нээгдэхэд Entry ID-гаа Settings (тохиргоо)-д хадгалах', confirmPlayerAvailability: 'Player availability (тоглох боломж)-г шалгах', reviewLateTransfers: 'Late transfer (сүүлийн мөчийн шилжилт)-ийн мэдээг шалгах', refreshFinalDraft: 'Final draft (эцсийн бүрэлдэхүүн)-аа дахин тооцоолох', avoidEarlyChipPlan: 'Chip (тусгай эрх)-ийг хэт эрт төлөвлөхгүй байх', avoidSingleSourceDecision: 'Нэг л source (эх сурвалж)-д тулгуурлан шийдэхгүй байх', setRecommendedCaptain: 'Санал болгосон captain (ахлагч)-ийг сонгох', setRecommendedViceCaptain: 'Санал болгосон vice captain (дэд ахлагч)-ийг сонгох', reviewRecommendedTransfer: 'Санал болгосон transfer (солилцоо)-ийн шалтгаан, мэдээг нягтлах', holdTransfer: 'Ашигтай transfer байхгүй бол free transfer (үнэгүй солилцоо)-ээ хадгалах', reviewPressConference: 'Press conference (дасгалжуулагчийн хэвлэлийн хурал)-ийн мэдээллийг шалгах', refreshFinalDecision: 'Deadline-аас өмнө final decision (эцсийн шийдвэр)-ийг дахин тооцоолох', avoidEmotionalTransfer: 'Сэтгэл хөдлөлөөр transfer (солилцоо) хийхгүй байх', avoidUnnecessaryHit: 'Тодорхой ашиггүй бол hit (онооны хасалт) авахгүй байх',
     heroTitle: 'FPL шийдвэрээ дата дээр үндэслэж гарга.',
     heroLead: 'Pre-season үед Entry ID шаардахгүй draft, risk, captain, transfer model ажиллана. FPL нээгдээд Entry ID/League ID ормогц live analysis асна.',
     preSeason: '2026/27 Pre-Season Mode', live: 'Live Season Mode', optionalIds: 'Entry ID / League ID одоогоор optional.',
     seasonStatus: 'Улирлын төлөв', nextDeadline: 'Дараагийн deadline', notPublished: 'Одоогоор зарлагдаагүй',
     bestDraft: 'Best Draft', alternativeDraft: 'Alternative Draft', differentialDraft: 'Differential Draft', safeDraft: 'Safe Draft',
-    topTargets: 'Top Targets', riskMonitor: 'Risk Monitor', captainModel: 'Captain Model', transferEngine: 'Transfer Engine', chipPlanner: 'Chip Planner',
-    settings: 'Тохиргоо', save: 'Хадгалах', saved: 'Хадгаллаа', entryId: 'FPL Entry ID', leagueId: 'League ID', riskProfile: 'Risk Profile', goal: 'Зорилго', language: 'Хэл',
+    topTargets: 'Top Targets', riskMonitor: 'Risk Monitor', captainModel: 'Captain Model (ахлагчийн загвар)', transferEngine: 'Transfer Engine (солилцооны хөдөлгүүр)', chipPlanner: 'Chip Planner (тусгай эрхийн төлөвлөгч)',
+    settings: 'Тохиргоо', save: 'Хадгалах', saved: 'Хадгаллаа', entryId: 'FPL Entry ID', leagueId: 'League ID', riskProfile: 'Risk Profile (эрсдэлийн төлөв)', goal: 'Зорилго', language: 'Хэл',
     safe: 'Safe', balanced: 'Balanced', aggressive: 'Aggressive', overall: 'Overall Rank', league: 'Mini League түрүүлэх', both: 'Аль аль нь',
     noId: 'ID байхгүй тул pre-season demo mode ажиллаж байна.', addLater: 'FPL нээгдсэний дараа Settings дээр ID-гаа нэмээрэй.',
     squadRules: 'Squad Rules', budget: 'Budget', clubLimit: 'Club limit', valid: 'Valid', invalid: 'Invalid',
-    expected: 'Expected', confidence: 'Confidence', risk: 'Risk', ownership: 'Ownership', price: 'Price', minutes: 'Minutes', form: 'Form',
+    expected: 'Expected points (таамаг оноо)', confidence: 'Confidence (итгэлцлийн хувь)', risk: 'Risk (эрсдэл)', ownership: 'Ownership (эзэмшил)', price: 'Price (үнэ)', minutes: 'Minutes (тоглосон минут)', form: 'Form (сүүлийн үзүүлэлт)',
     captainShortlist: 'Captain shortlist', transferSuggestions: 'Transfer suggestions', noSafeTransfer: 'Одоогоор hit авахгүйгээр safe transfer санал алга.',
-    leagueIntelligence: 'League Intelligence', managersAbove: 'Миний дээр байгаа manager', gap: 'Gap', strategy: 'Strategy',
+    leagueIntelligence: 'League Intelligence', managersAbove: 'Миний дээр байгаа manager', gap: 'Gap', strategy: 'Strategy (тактик)',
     waitingFixtures: 'Fixture болон 2026/27 official schedule бүрэн нээгдэхийг хүлээж байна.',
-    dataFoundation: 'Data Foundation', dataText: 'Official FPL API дээр price, ownership, form, injuries, suspension, team/player stats татна. Friendly, national team, press/news signal нь дараагийн external connector layer.',
-    ruleEngine: 'Rule Engine', ruleText: 'Budget, squad structure, max 3 per club, free transfer first, no-hit default, chips planning-г тусдаа шалгана.',
-    riskEngine: 'Risk Engine', riskText: 'Injury/news/status/minutes/rotation/ownership дээр confidence ба risk оноо гаргана.',
+    dataFoundation: 'Data Foundation (өгөгдлийн суурь)', dataText: 'Official FPL API дээр price, ownership, form, injuries, suspension, team/player stats татна. Friendly, national team, press/news signal нь дараагийн external connector layer.',
+    ruleEngine: 'Rule Engine (дүрмийн хөдөлгүүр)', ruleText: 'Budget, squad structure, max 3 per club, free transfer first, no-hit default, chips planning-г тусдаа шалгана.',
+    riskEngine: 'Risk Engine (эрсдэлийн хөдөлгүүр)', riskText: 'Injury/news/status/minutes/rotation/ownership дээр confidence ба risk оноо гаргана.',
     noData: 'Дата олдсонгүй эсвэл FPL API түр unavailable байна.',
-    noHitDefault: 'No-hit default', budgetGuard: 'Budget guard', riskScore: 'Risk score', chipHoldLogic: 'Chip hold logic', mode: 'Mode', playersLoaded: 'Уншсан тоглогч', officialApi: 'Official FPL bootstrap-static API.', output: 'Гаралт',
+    noHitDefault: 'No-hit default', budgetGuard: 'Budget guard', riskScore: 'Risk score', chipHoldLogic: 'Chip hold logic', mode: 'Mode (горим)', playersLoaded: 'Уншсан тоглогч', officialApi: 'Official FPL bootstrap-static API.', output: 'Output (гаралт)',
     liveTeamSub: 'Entry ID байвал live team уншина. ID байхгүй бол model output харуулна.', runTeamAnalysis: 'Баг анализ хийх', loading: 'Уншиж байна...', gwRank: 'GW Rank', teamValue: 'Team Value', bank: 'Bank', captainSub: 'Fixture layer-ийг fixture баталгаажсаны дараа нэмнэ.',
     transferSub: 'Default policy: оноо хасахгүй. Budget, position, club limit шалгана.', cost: 'Cost', hit: 'Hit', chipSub: 'Зөвхөн double gameweek биш: gap, rival chips, fixtures, form, risk бүгдийг тооцох бүтэцтэй.',
     leagueSub: 'Зөвхөн leader биш — чиний дээр байгаа бүх manager-ийг analyze хийх бүтэцтэй.', runLeagueAnalysis: 'Лиг анализ хийх', points: 'оноо', positionTargets: 'Position Targets', positionTargetsSub: 'Position бүрийн model-оор эрэмбэлсэн target тоглогчид.', topTargetsSub: 'Price, ownership, form, minutes, confidence, risk-ийг хослуулсан эхний target ranking.', draftTeams: 'Draft Teams', draftTeamsSub: 'Best, Alternative, Differential, Safe draft хувилбарууд rule validation-тай.',
     addLaterPlaceholder: 'Дараа нэмнэ', allGood: 'Хэвийн', check: 'Шалгах',
     chipWildcardPre: 'Үнэ, fixture, injury, GW1 мэдээлэл баталгаажихыг хүлээнэ.', chipTcPre: 'Fixture болон captain candidate баталгаажаагүй үед TC төлөвлөхгүй.', chipBbPre: 'Bench value болон fixture density хэрэгтэй.', chipFhPre: 'Blank/chaotic gameweek-д хадгалах нь зөв.',
     chipWildcardLive: 'Squad weakness, fixture swing, league gap баталгаажсаны дараа шийднэ.', chipTcLive: 'Elite captain + хүчтэй fixture эсвэл double fixture context хүлээнэ.', chipBbLive: 'Bench тоглогчид minutes болон fixture сайн үед л хэрэглэнэ.', chipFhLive: 'Blank gameweek эсвэл emergency үед хадгална.',
-    hold: 'Hold', considerLater: 'Дараа бодолцох',
+    hold: 'Hold (хадгалах)', considerLater: 'Дараа бодолцох',
     draftBest1: 'Projected points өндөр', draftBest2: 'Price/value/risk хамтад нь ашигласан', draftBest3: 'Үндсэн санал болгож буй draft',
     draftAlt1: 'Value-first бүтэц', draftAlt2: 'Үнэний өөр хуваарилалт', draftAlt3: 'Best Draft-ийн backup хувилбар',
     draftDiff1: 'Ownership багатай тоглогч руу bias-тай', draftDiff2: 'Mini-league gap нөхөхөд ашигтай', draftDiff3: 'Safe draft-аас илүү эрсдэлтэй',
     draftSafe1: 'Minutes болон availability bias-тай', draftSafe2: 'Injury/news risk багатай', draftSafe3: 'Early season-д тохиромжтой default',
-    fplUnavailable: 'FPL API түр unavailable байна.', noIdLeague: 'Entry ID эсвэл League ID байхгүй тул live league analysis ажиллахгүй. Одоогоор pre-season mode хэвийн.', noIdTeam: 'Entry ID байхгүй тул live team analysis ажиллахгүй. Одоогоор pre-season model ашиглана.'
+    aiReason: 'AI reason (шийдвэрийн үндэслэл)', riskBreakdown: 'Risk breakdown (эрсдэлийн задлал)', positiveSignals: 'Positive signals (эерэг дохио)', warningSignals: 'Warnings (анхааруулга)', injuryRisk: 'Injury risk (гэмтлийн эрсдэл)', availabilityRisk: 'Availability risk (тоглох боломж)', minutesRisk: 'Minutes risk (минутын эрсдэл)', rotationRisk: 'Rotation risk (сэлгээний эрсдэл)', newsRisk: 'News risk (мэдээний эрсдэл)', lowRisk: 'Low (бага)', mediumRisk: 'Medium (дунд)', highRisk: 'High (өндөр)', highExpectedPoints: 'Expected points өндөр', strongForm: 'Form сайн', goodFixtures: 'Fixture (тоглолтын хуваарь) таатай', hardFixtures: 'Fixture (тоглолтын хуваарь) хүнд', secureMinutes: 'Minutes тогтвортой', goodValue: 'Үнэ цэн сайн', rankProtection: 'Overall rank хамгаалах ownership өндөр', differentialUpside: 'Differential боломжтой ownership бага', balancedProfile: 'Үзүүлэлтүүд тэнцвэртэй', injuryConcern: 'Гэмтлийн мэдээлэлтэй', rotationConcern: 'Rotation эрсдэлтэй', minutesConcern: 'Minutes баталгаагүй', newsConcern: 'Анхаарах news байна', lowProjection: 'Таамаг оноо бага', noMajorWarning: 'Томоохон анхааруулга алга', fplUnavailable: 'FPL API түр unavailable байна.', noIdLeague: 'Entry ID эсвэл League ID байхгүй тул live league analysis ажиллахгүй. Одоогоор pre-season mode хэвийн.', noIdTeam: 'Entry ID байхгүй тул live team analysis ажиллахгүй. Одоогоор pre-season model ашиглана.'
   },
   en: {
     navDashboard: 'Dashboard', navSettings: 'Settings', navTeam: 'My Team', navLeague: 'League', navDrafts: 'Drafts',
-    decisionEngine: 'Decision Engine', decisionSub: 'One place for the main weekly decision.', thisWeekDecision: 'This Gameweek Decision', recommendedCaptain: 'Recommended captain', recommendedTransfer: 'Recommended transfer', recommendedChip: 'Chip advice', runDecision: 'Run decision', decisionScore: 'Decision score', buildDraftAction: 'Build pre-season draft', makeTransferAction: 'Transfer available', holdTransferAction: 'Hold transfer', preSeasonBuild: 'Pre-season build', aggressiveChase: 'Aggressive chase', balancedChase: 'Balanced chase', protectRank: 'Protect rank', balancedControl: 'Balanced control', decisionSummaryPre: 'Pre-season: build the first squad from value, minutes, confidence and risk. Do not plan chips yet.', decisionSummaryTransfer: 'This GW: the model found a no-hit transfer. Check the reason before the deadline.', decisionSummaryHold: 'This GW: no safe no-hit transfer is clearly profitable. Focus on captain and save transfer if possible.',
+    decisionEngine: 'Decision Engine (шийдвэрийн хөдөлгүүр)', decisionSub: 'One place for the main weekly decision.', thisWeekDecision: 'This Gameweek Decision', recommendedCaptain: 'Recommended captain', recommendedTransfer: 'Recommended transfer', recommendedChip: 'Chip advice', runDecision: 'Run decision', decisionScore: 'Decision score', buildDraftAction: 'Build pre-season draft', makeTransferAction: 'Transfer available', holdTransferAction: 'Hold transfer', preSeasonBuild: 'Pre-season build', aggressiveChase: 'Aggressive chase', balancedChase: 'Balanced chase', protectRank: 'Protect rank', balancedControl: 'Balanced control', decisionSummaryPre: 'Pre-season: build the first squad from value, minutes, confidence and risk. Do not plan chips yet.', decisionSummaryTransfer: 'This GW: the model found a no-hit transfer. Check the reason before the deadline.', decisionSummaryHold: 'This GW: no safe no-hit transfer is clearly profitable. Focus on captain and save transfer if possible.',
+    weeklyActionPlan: 'Weekly Action Plan (7 хоногийн үйлдлийн төлөвлөгөө)', doNow: 'Do now', checkBeforeDeadline: 'Check before deadline', avoidThisWeek: 'Avoid this week', recommendedViceCaptain: 'Recommended vice captain (дэд ахлагч)', decisionReady: 'Ready (шийдвэр хэрэгжүүлэхэд бэлэн)', decisionReview: 'Review (дахин хянах шаардлагатай)', decisionWait: 'Wait (мэдээлэл хүлээх шаардлагатай)', decisionStatus: 'Decision status (шийдвэрийн төлөв)',
+    buildInitialSquad: 'Build the initial squad (эхний бүрэлдэхүүн) from the recommended draft', compareDraftVariants: 'Compare Best/Safe/Differential drafts (хувилбарууд)', saveEntryIdLater: 'Save Entry ID in Settings (тохиргоо) when FPL opens', confirmPlayerAvailability: 'Confirm player availability (тоглох боломж)', reviewLateTransfers: 'Review late transfer news (сүүлийн мөчийн шилжилтийн мэдээ)', refreshFinalDraft: 'Refresh the final draft (эцсийн бүрэлдэхүүн)', avoidEarlyChipPlan: 'Do not plan chips (тусгай эрх) too early', avoidSingleSourceDecision: 'Do not decide from one source (эх сурвалж) only', setRecommendedCaptain: 'Set the recommended captain (ахлагч)', setRecommendedViceCaptain: 'Set the recommended vice captain (дэд ахлагч)', reviewRecommendedTransfer: 'Review the recommended transfer (солилцоо) and its reasons', holdTransfer: 'Hold the free transfer (үнэгүй солилцоо) when no clear gain exists', reviewPressConference: 'Review press conference news (дасгалжуулагчийн мэдээлэл)', refreshFinalDecision: 'Refresh the final decision (эцсийн шийдвэр) before deadline', avoidEmotionalTransfer: 'Avoid emotional transfers (сэтгэл хөдлөлийн солилцоо)', avoidUnnecessaryHit: 'Avoid an unnecessary hit (онооны хасалт)',
     heroTitle: 'Make FPL decisions with data.',
     heroLead: 'Pre-season mode works without Entry ID. Once FPL opens, add Entry ID/League ID to unlock live team and league intelligence.',
     preSeason: '2026/27 Pre-Season Mode', live: 'Live Season Mode', optionalIds: 'Entry ID / League ID are optional for now.',
     seasonStatus: 'Season status', nextDeadline: 'Next deadline', notPublished: 'Not published yet',
     bestDraft: 'Best Draft', alternativeDraft: 'Alternative Draft', differentialDraft: 'Differential Draft', safeDraft: 'Safe Draft',
-    topTargets: 'Top Targets', riskMonitor: 'Risk Monitor', captainModel: 'Captain Model', transferEngine: 'Transfer Engine', chipPlanner: 'Chip Planner',
-    settings: 'Settings', save: 'Save', saved: 'Saved', entryId: 'FPL Entry ID', leagueId: 'League ID', riskProfile: 'Risk Profile', goal: 'Goal', language: 'Language',
+    topTargets: 'Top Targets', riskMonitor: 'Risk Monitor', captainModel: 'Captain Model (ахлагчийн загвар)', transferEngine: 'Transfer Engine (солилцооны хөдөлгүүр)', chipPlanner: 'Chip Planner (тусгай эрхийн төлөвлөгч)',
+    settings: 'Settings', save: 'Save', saved: 'Saved', entryId: 'FPL Entry ID', leagueId: 'League ID', riskProfile: 'Risk Profile (эрсдэлийн төлөв)', goal: 'Goal', language: 'Language',
     safe: 'Safe', balanced: 'Balanced', aggressive: 'Aggressive', overall: 'Overall Rank', league: 'Mini League Win', both: 'Both',
     noId: 'No IDs yet, so pre-season demo mode is active.', addLater: 'Add your IDs in Settings after FPL opens.',
     squadRules: 'Squad Rules', budget: 'Budget', clubLimit: 'Club limit', valid: 'Valid', invalid: 'Invalid',
-    expected: 'Expected', confidence: 'Confidence', risk: 'Risk', ownership: 'Ownership', price: 'Price', minutes: 'Minutes', form: 'Form',
+    expected: 'Expected points (таамаг оноо)', confidence: 'Confidence (итгэлцлийн хувь)', risk: 'Risk (эрсдэл)', ownership: 'Ownership (эзэмшил)', price: 'Price (үнэ)', minutes: 'Minutes (тоглосон минут)', form: 'Form (сүүлийн үзүүлэлт)',
     captainShortlist: 'Captain shortlist', transferSuggestions: 'Transfer suggestions', noSafeTransfer: 'No useful safe transfer without a hit yet.',
-    leagueIntelligence: 'League Intelligence', managersAbove: 'Managers above me', gap: 'Gap', strategy: 'Strategy',
+    leagueIntelligence: 'League Intelligence', managersAbove: 'Managers above me', gap: 'Gap', strategy: 'Strategy (тактик)',
     waitingFixtures: 'Waiting for the full 2026/27 fixture and official schedule.',
-    dataFoundation: 'Data Foundation', dataText: 'Official FPL API pulls prices, ownership, form, injuries, suspension, and player/team stats. Friendly, national team and press/news signals belong to the next external connector layer.',
-    ruleEngine: 'Rule Engine', ruleText: 'Budget, squad structure, max 3 per club, free transfer first, no-hit default, and chip planning are checked separately.',
-    riskEngine: 'Risk Engine', riskText: 'Injury/news/status/minutes/rotation/ownership generate confidence and risk scores.',
+    dataFoundation: 'Data Foundation (өгөгдлийн суурь)', dataText: 'Official FPL API pulls prices, ownership, form, injuries, suspension, and player/team stats. Friendly, national team and press/news signals belong to the next external connector layer.',
+    ruleEngine: 'Rule Engine (дүрмийн хөдөлгүүр)', ruleText: 'Budget, squad structure, max 3 per club, free transfer first, no-hit default, and chip planning are checked separately.',
+    riskEngine: 'Risk Engine (эрсдэлийн хөдөлгүүр)', riskText: 'Injury/news/status/minutes/rotation/ownership generate confidence and risk scores.',
     noData: 'No data found or FPL API is temporarily unavailable.',
-    noHitDefault: 'No-hit default', budgetGuard: 'Budget guard', riskScore: 'Risk score', chipHoldLogic: 'Chip hold logic', mode: 'Mode', playersLoaded: 'Players loaded', officialApi: 'Official FPL bootstrap-static API.', output: 'Output',
+    noHitDefault: 'No-hit default', budgetGuard: 'Budget guard', riskScore: 'Risk score', chipHoldLogic: 'Chip hold logic', mode: 'Mode (горим)', playersLoaded: 'Players loaded', officialApi: 'Official FPL bootstrap-static API.', output: 'Output',
     liveTeamSub: 'Live team uses Entry ID when available. Without ID it shows model output.', runTeamAnalysis: 'Run team analysis', loading: 'Loading...', gwRank: 'GW Rank', teamValue: 'Team Value', bank: 'Bank', captainSub: 'Fixture layer can be added after fixtures are confirmed.',
     transferSub: 'Default policy: no points hit. Budget, position and club limit checked.', cost: 'Cost', hit: 'Hit', chipSub: 'Not only double gameweek: gap, rival chips, fixtures, form and risk will be considered.',
     leagueSub: 'Not leader-only — this is structured to analyze every manager above you.', runLeagueAnalysis: 'Run league analysis', points: 'pts', positionTargets: 'Position Targets', positionTargetsSub: 'Top model players grouped by position.', topTargetsSub: 'Price, ownership, form, minutes, confidence, and risk combined.', draftTeams: 'Draft Teams', draftTeamsSub: 'Best, Alternative, Differential, and Safe draft variants with rule validation.',
     addLaterPlaceholder: 'Add later', allGood: 'Valid', check: 'Check',
     chipWildcardPre: 'Wait for prices, fixtures, injuries, and GW1 information.', chipTcPre: 'Do not plan TC before confirmed fixtures and captain candidates.', chipBbPre: 'Needs bench value and fixture density.', chipFhPre: 'Best saved for blank/chaotic gameweeks.',
     chipWildcardLive: 'Needs squad weakness, fixture swing, and league gap confirmation.', chipTcLive: 'Wait for elite captain + strong fixture or double fixture context.', chipBbLive: 'Use only when bench has strong fixtures and minutes.', chipFhLive: 'Save for blank gameweek or emergency.',
-    hold: 'Hold', considerLater: 'Consider later',
+    hold: 'Hold (хадгалах)', considerLater: 'Consider later',
     draftBest1: 'Highest projected points bias', draftBest2: 'Uses price/value/risk together', draftBest3: 'Main recommended draft',
     draftAlt1: 'Value-first structure', draftAlt2: 'Different price distribution', draftAlt3: 'Backup to Best Draft',
     draftDiff1: 'Lower ownership bias', draftDiff2: 'Useful when chasing mini-league gaps', draftDiff3: 'Higher risk than Safe draft',
     draftSafe1: 'Minutes and availability bias', draftSafe2: 'Avoids injury/news risk', draftSafe3: 'Good default for early season',
-    fplUnavailable: 'FPL API is temporarily unavailable.', noIdLeague: 'Entry ID or League ID is missing, so live league analysis is disabled. Pre-season mode is still active.', noIdTeam: 'Entry ID is missing, so live team analysis is disabled. Pre-season model will be used.'
+    aiReason: 'AI reasoning', riskBreakdown: 'Risk breakdown', positiveSignals: 'Positive signals', warningSignals: 'Warnings', injuryRisk: 'Injury risk', availabilityRisk: 'Availability risk', minutesRisk: 'Minutes risk', rotationRisk: 'Rotation risk', newsRisk: 'News risk', lowRisk: 'Low', mediumRisk: 'Medium', highRisk: 'High', highExpectedPoints: 'High expected points', strongForm: 'Strong form (сайн форм)', goodFixtures: 'Good fixtures (таатай тоглолтын хуваарь)', hardFixtures: 'Hard fixtures (хүнд тоглолтын хуваарь)', secureMinutes: 'Secure minutes', goodValue: 'Good value', rankProtection: 'High ownership protects rank', differentialUpside: 'Low-ownership differential upside', balancedProfile: 'Balanced player profile', injuryConcern: 'Injury concern', rotationConcern: 'Rotation concern', minutesConcern: 'Minutes are not secure', newsConcern: 'Player news requires attention', lowProjection: 'Low points projection', noMajorWarning: 'No major warning', fplUnavailable: 'FPL API is temporarily unavailable.', noIdLeague: 'Entry ID or League ID is missing, so live league analysis is disabled. Pre-season mode is still active.', noIdTeam: 'Entry ID is missing, so live team analysis is disabled. Pre-season model will be used.'
   }
 } as const;
 
@@ -152,4 +156,29 @@ export function decisionSummaryLabel(summary: string, lang: Lang) {
   if (summary.startsWith('This week: one no-hit')) return t.decisionSummaryTransfer;
   if (summary.startsWith('This week: no safe')) return t.decisionSummaryHold;
   return summary;
+}
+
+export function signalLabel(key: string, lang: Lang) {
+  const t = dict[lang] as Record<string, string>;
+  return t[key] || key;
+}
+
+export function riskLevelLabel(level: string, lang: Lang) {
+  const t = dict[lang];
+  if (level === 'high') return t.highRisk;
+  if (level === 'medium') return t.mediumRisk;
+  return t.lowRisk;
+}
+
+
+export function actionPlanLabel(key: string, lang: Lang) {
+  const t = dict[lang] as Record<string, string>;
+  return t[key] || key;
+}
+
+export function decisionStatusLabel(status: string, lang: Lang) {
+  const t = dict[lang];
+  if (status === 'ready') return t.decisionReady;
+  if (status === 'wait') return t.decisionWait;
+  return t.decisionReview;
 }

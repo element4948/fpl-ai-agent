@@ -1,6 +1,6 @@
 {
-  "name": "fpl-ai-agent",
-  "version": "3.0.0",
+  "name": "ai-agent",
+  "version": "5.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
