@@ -43,6 +43,28 @@ export type FplTeam = { id: number; name: string; short_name: string; strength?:
 export type FplPosition = { id: number; singular_name_short: string; singular_name: string };
 export type FplEvent = { id: number; name: string; deadline_time: string; finished: boolean; is_current: boolean; is_next: boolean };
 
+export type FplFixture = {
+  id: number;
+  event: number | null;
+  kickoff_time: string | null;
+  finished: boolean;
+  started: boolean;
+  team_h: number;
+  team_a: number;
+  team_h_difficulty: number;
+  team_a_difficulty: number;
+};
+
+export type FixtureSummary = {
+  nextOpponent: string;
+  nextOpponentId: number | null;
+  nextDifficulty: number;
+  nextIsHome: boolean | null;
+  averageDifficulty: number;
+  fixtureScore: number;
+  fixtures: Array<{ opponent: number; opponentName: string; difficulty: number; isHome: boolean; event: number | null }>;
+};
+
 export type ModelPlayer = {
   id: number;
   name: string;
@@ -61,6 +83,19 @@ export type ModelPlayer = {
   risk: number;
   news?: string;
   status?: string;
+  riskBreakdown?: {
+    injury: number;
+    availability: number;
+    minutes: number;
+    rotation: number;
+    news: number;
+    total: number;
+    level: 'low' | 'medium' | 'high';
+  };
+  reasons?: string[];
+  warnings?: string[];
+  fixture?: FixtureSummary;
+  fixtureScore?: number;
 };
 
 export type DraftTeam = {

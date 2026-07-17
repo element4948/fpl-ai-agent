@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'FPL AI Agent',
+  title: 'AI Agent',
   description: 'AI-powered Fantasy Premier League assistant',
 };
 

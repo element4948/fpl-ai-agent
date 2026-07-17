@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { currentEvent, getBootstrap, getEntry, getEntryPicks, nextEvent, toModelPlayers } from '@/lib/fpl';
+import { currentEvent, getBootstrap, getEntry, getEntryPicks, getFixtures, nextEvent, toModelPlayers } from '@/lib/fpl';
 import { buildDecision } from '@/lib/decision';
 import type { Goal, RiskProfile } from '@/types/fpl';
 
@@ -9,11 +9,11 @@ export async function POST(req: Request) {
   const riskProfile = (body.riskProfile || 'balanced') as RiskProfile;
   const goal = (body.goal || 'both') as Goal;
   const freeTransfers = Number(body.freeTransfers || 1);
-  const boot = await getBootstrap();
+  const [boot, fixtures] = await Promise.all([getBootstrap(), getFixtures()]);
   if (!boot) return NextResponse.json({ error: 'FPL API unavailable' }, { status: 200 });
 
-  const allPlayers = toModelPlayers(boot.elements, boot.teams, boot.element_types);
   const next = nextEvent(boot.events);
+  const allPlayers = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], next?.id);
   const oldGw38 = next?.name?.includes('38') && next?.deadline_time && new Date(next.deadline_time).getTime() < Date.now();
   const isPreSeason = !next || !next.deadline_time || !!oldGw38;
 
