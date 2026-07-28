@@ -176,9 +176,16 @@ function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
                     <div key={item}>✓ {item}</div>
                 ))}
             </div>
+            <div className="notice" style={{ marginBottom: 12 }}>
+                <strong>Formation (Гарааны байрлал): {draft.formation || '—'}</strong>
+
+                <div style={{ marginTop: 6 }}>Starting XI (Гарааны 11): {draft.startingXI?.length || 0}/11</div>
+            </div>
+
+            <h4>Starting XI (Гарааны 11)</h4>
 
             <div className="draft-list">
-                {draft.players?.map((player: ModelPlayer) => (
+                {draft.startingXI?.map((player: ModelPlayer) => (
                     <div className="draft-player" key={player.id}>
                         <strong>{player.name}</strong>
 
@@ -186,7 +193,8 @@ function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
                             {player.position}
                             {' · '}
                             {player.team}
-                            {' · '}£{player.price.toFixed(1)}m
+                            {' · '}£{player.price.toFixed(1)}m{' · '}
+                            Risk {player.risk}%
                         </span>
 
                         {player.fixture ? (
@@ -200,6 +208,26 @@ function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
                                 Next 5 avg {player.fixture.averageDifficulty}
                             </small>
                         ) : null}
+                    </div>
+                ))}
+            </div>
+
+            <h4 style={{ marginTop: 18 }}>Bench (Сэлгээ)</h4>
+
+            <div className="draft-list">
+                {draft.bench?.map((player: ModelPlayer, index: number) => (
+                    <div className="draft-player" key={player.id}>
+                        <strong>
+                            {index + 1}. {player.name}
+                        </strong>
+
+                        <span>
+                            {player.position}
+                            {' · '}
+                            {player.team}
+                            {' · '}£{player.price.toFixed(1)}m{' · '}
+                            Risk {player.risk}%
+                        </span>
                     </div>
                 ))}
             </div>
@@ -448,21 +476,86 @@ export default function Home() {
                         <button className="btn" disabled={loading} onClick={runAnalyze}>
                             {loading ? t.loading : t.runTeamAnalysis}
                         </button>
-                        {analysis?.summary && (
+
+                        {analysis?.summary ? (
                             <div className="grid grid-4" style={{ marginTop: 16 }}>
-                                <Metric label={t.overall} value={analysis.summary.overallRank} />
-                                <Metric label={t.gwRank} value={analysis.summary.gwRank} />
-                                <Metric label={t.teamValue} value={`£${analysis.summary.value}m`} />
-                                <Metric label={t.bank} value={`£${analysis.summary.bank}m`} />
+                                <Metric label={t.overall} value={analysis.summary.overallRank ?? '—'} />
+
+                                <Metric label={t.gwRank} value={analysis.summary.gwRank ?? '—'} />
+
+                                <Metric label={t.teamValue} value={analysis.summary.value != null ? `£${analysis.summary.value}m` : '—'} />
+
+                                <Metric label={t.bank} value={analysis.summary.bank != null ? `£${analysis.summary.bank}m` : '—'} />
                             </div>
-                        )}
-                        {analysis?.validation && (
+                        ) : null}
+
+                        {analysis?.validation ? (
                             <div className="notice" style={{ marginTop: 14 }}>
                                 {t.squadRules}: {analysis.validation.valid ? t.valid : t.invalid}
                             </div>
-                        )}
-                        {analysis?.error && <p className="bad">{analysis.error === 'FPL API unavailable' ? t.fplUnavailable : analysis.error}</p>}
-                        {analysis?.message && <p className="muted">{t.noIdTeam}</p>}
+                        ) : null}
+
+                        {analysis?.error ? (
+                            <div className="warning-box" style={{ marginTop: 14 }}>
+                                <strong>{analysis.error === 'FPL API unavailable' ? t.fplUnavailable : analysis.error}</strong>
+
+                                {analysis.help ? <div style={{ marginTop: 8 }}>{analysis.help}</div> : null}
+                            </div>
+                        ) : null}
+
+                        {analysis?.message ? <p className="muted">{t.noIdTeam}</p> : null}
+
+                        {analysis?.recommendedLineup ? (
+                            <div style={{ marginTop: 20 }}>
+                                <div className="section-heading">
+                                    <div>
+                                        <h3>Recommended Lineup (Санал болгож буй гараа)</h3>
+
+                                        <p>
+                                            Formation (Байрлал): <strong>{analysis.recommendedLineup.formation}</strong>
+                                        </p>
+                                    </div>
+
+                                    <span className="badge green">{analysis.recommendedLineup.startingXI?.length || 0}/11</span>
+                                </div>
+
+                                <h4 style={{ marginTop: 16 }}>Starting XI (Гарааны 11)</h4>
+
+                                <div className="draft-list">
+                                    {analysis.recommendedLineup.startingXI?.map((player: ModelPlayer, index: number) => (
+                                        <PlayerRow key={player.id} p={player} index={index + 1} lang={lang} />
+                                    ))}
+                                </div>
+
+                                <h4 style={{ marginTop: 18 }}>Bench (Сэлгээ)</h4>
+
+                                <div className="draft-list">
+                                    {analysis.recommendedLineup.bench?.map((player: ModelPlayer, index: number) => (
+                                        <div className="draft-player" key={player.id}>
+                                            <strong>
+                                                {index + 1}. {player.name}
+                                            </strong>
+
+                                            <span>
+                                                {player.position}
+                                                {' · '}
+                                                {player.team}
+                                                {' · '}£{player.price.toFixed(1)}m{' · '}
+                                                Risk {player.risk}%
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {analysis.recommendedLineup.warnings?.length ? (
+                                    <div className="warning-box" style={{ marginTop: 14 }}>
+                                        {analysis.recommendedLineup.warnings.map((warning: string) => (
+                                            <div key={warning}>• {warning}</div>
+                                        ))}
+                                    </div>
+                                ) : null}
+                            </div>
+                        ) : null}
                     </Card>
                     <Card title={t.captainModel} subtitle={t.captainSub}>
                         {captain?.length ? (

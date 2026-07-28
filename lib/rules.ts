@@ -1,3 +1,4 @@
+import { likelyStarterCount, selectBestLineup } from '@/lib/lineup';
 import type { DraftTeam, ModelPlayer, SquadValidation } from '@/types/fpl';
 
 const TOTAL_BUDGET = 100;
@@ -243,7 +244,9 @@ function baseDraftExplanation(mode: DraftMode): string[] {
 }
 
 export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
-    const availablePlayers = players.filter((player) => ['GKP', 'DEF', 'MID', 'FWD'].includes(player.position) && player.price > 0);
+    const availablePlayers = players.filter(
+        (player) => ['GKP', 'DEF', 'MID', 'FWD'].includes(player.position) && player.price > 0 && player.status !== 'u',
+    );
 
     const baseSquad = buildCheapestValidBase(availablePlayers);
 
@@ -253,6 +256,11 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
         return {
             mode,
             players: baseSquad,
+
+            startingXI: [],
+            bench: baseSquad,
+            formation: '4-4-2',
+
             validation,
             explanation: [...baseDraftExplanation(mode), 'Could not create a complete 15-player squad from current API data'],
         };
@@ -277,10 +285,45 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
         return playerScore(b, mode) - playerScore(a, mode);
     });
 
+    const lineup = selectBestLineup(sortedSquad);
+
+    const playableDefenders = likelyStarterCount(sortedSquad, 'DEF');
+
+    const playableGoalkeepers = likelyStarterCount(sortedSquad, 'GKP');
+
+    const validation = validateSquad(sortedSquad);
+
+    if (playableDefenders < 3) {
+        validation.valid = false;
+        validation.errors.push(`Only ${playableDefenders} defenders are likely to start. Minimum 3 required.`);
+    }
+
+    if (playableGoalkeepers < 1) {
+        validation.valid = false;
+        validation.errors.push('No goalkeeper is currently likely to start.');
+    }
+
+    if (lineup.startingXI.length !== 11) {
+        validation.valid = false;
+        validation.errors.push(`Starting XI must have 11 players. Current: ${lineup.startingXI.length}`);
+    }
+
     return {
         mode,
         players: sortedSquad,
-        validation: validateSquad(sortedSquad),
-        explanation: [...baseDraftExplanation(mode), ...fixtureDraftExplanation(sortedSquad)],
+
+        startingXI: lineup.startingXI,
+        bench: lineup.bench,
+        formation: lineup.formation,
+
+        validation,
+
+        explanation: [
+            ...baseDraftExplanation(mode),
+            ...fixtureDraftExplanation(sortedSquad),
+            `Best formation: ${lineup.formation}`,
+            `${playableDefenders}/5 defenders are likely starters`,
+            ...lineup.warnings,
+        ],
     };
 }
