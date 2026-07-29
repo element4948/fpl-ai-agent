@@ -36,7 +36,14 @@ export function playerDecisionScore(p: ModelPlayer, riskProfile: RiskProfile = '
   const ownershipWeight = goal === 'league' && riskProfile !== 'safe' ? -0.018 : goal === 'overall' ? 0.018 : 0;
   const valueWeight = riskProfile === 'safe' ? 1.15 : riskProfile === 'aggressive' ? 0.75 : 0.95;
   const fixtureWeight = inputFixtureWeight(riskProfile);
-  const upside = p.expectedPoints * 2.35 + p.form * 0.7 + p.confidence * 0.06 + p.valueScore * valueWeight + p.minutes / 1150 + (p.fixtureScore || 3) * fixtureWeight;
+  const upside =
+    p.expectedPoints * 2.35 +
+    p.form * 0.7 +
+    p.confidence * 0.06 +
+    p.valueScore * valueWeight +
+    p.starterConfidence * 0.08 +
+    p.predictedMinutes * 0.05 +
+    (p.fixtureScore || 3) * fixtureWeight;
   const penalty = p.risk * riskWeight + p.price * 0.035 + p.ownership * ownershipWeight;
   return Number((upside - penalty).toFixed(2));
 }

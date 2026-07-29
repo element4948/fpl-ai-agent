@@ -26,20 +26,24 @@ function playerScore(player: ModelPlayer, mode: DraftMode): number {
     const homeBonus = player.fixture?.nextIsHome ? 0.15 : 0;
 
     const fixtureContribution = fixtureScore * 0.9 + nextFixtureBonus + fixtureRunBonus + homeBonus;
+    const starterContribution =
+        player.starterConfidence * 0.22 +
+        player.predictedMinutes * 0.16 -
+        (player.dataQuality === 'unknown' ? 24 : player.dataQuality === 'limited' ? 6 : 0);
 
     if (mode === 'Differential') {
-        return player.expectedPoints * 1.15 + player.valueScore * 2.2 + fixtureContribution * 1.05 - player.ownership * 0.075 - player.risk * 0.035;
+        return player.expectedPoints * 1.15 + player.valueScore * 2.2 + fixtureContribution * 1.05 + starterContribution - player.ownership * 0.075 - player.risk * 0.035;
     }
 
     if (mode === 'Safe') {
-        return player.expectedPoints * 1.2 + player.confidence * 0.055 + player.minutes / 900 + fixtureContribution * 0.9 - player.risk * 0.075;
+        return player.expectedPoints * 1.2 + player.confidence * 0.055 + starterContribution * 1.25 + fixtureContribution * 0.9 - player.risk * 0.075;
     }
 
     if (mode === 'Alternative') {
-        return player.expectedPoints * 0.9 + player.valueScore * 3 + fixtureContribution * 0.95 - player.ownership * 0.012 - player.risk * 0.035;
+        return player.expectedPoints * 0.9 + player.valueScore * 3 + starterContribution + fixtureContribution * 0.95 - player.ownership * 0.012 - player.risk * 0.035;
     }
 
-    return player.expectedPoints * 1.55 + player.valueScore * 1.1 + fixtureContribution - player.risk * 0.05;
+    return player.expectedPoints * 1.55 + player.valueScore * 1.1 + starterContribution + fixtureContribution - player.risk * 0.05;
 }
 
 export function validateSquad(players: ModelPlayer[], budget = TOTAL_BUDGET): SquadValidation {
@@ -290,17 +294,29 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
     const playableDefenders = likelyStarterCount(sortedSquad, 'DEF');
 
     const playableGoalkeepers = likelyStarterCount(sortedSquad, 'GKP');
+    const playableMidfielders = likelyStarterCount(sortedSquad, 'MID');
+    const playableForwards = likelyStarterCount(sortedSquad, 'FWD');
 
     const validation = validateSquad(sortedSquad);
 
-    if (playableDefenders < 3) {
+    if (playableDefenders < 4) {
         validation.valid = false;
-        validation.errors.push(`Only ${playableDefenders} defenders are likely to start. Minimum 3 required.`);
+        validation.errors.push(`Only ${playableDefenders} defenders are reliable starters. Minimum 4 required for safe cover.`);
     }
 
     if (playableGoalkeepers < 1) {
         validation.valid = false;
         validation.errors.push('No goalkeeper is currently likely to start.');
+    }
+
+    if (playableMidfielders < 4) {
+        validation.valid = false;
+        validation.errors.push(`Only ${playableMidfielders} midfielders are reliable starters. Minimum 4 required.`);
+    }
+
+    if (playableForwards < 2) {
+        validation.valid = false;
+        validation.errors.push(`Only ${playableForwards} forwards are reliable starters. Minimum 2 required.`);
     }
 
     if (lineup.startingXI.length !== 11) {
@@ -322,7 +338,8 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
             ...baseDraftExplanation(mode),
             ...fixtureDraftExplanation(sortedSquad),
             `Best formation: ${lineup.formation}`,
-            `${playableDefenders}/5 defenders are likely starters`,
+            `${playableDefenders}/5 defenders are reliable starters`,
+            `${playableMidfielders}/5 midfielders and ${playableForwards}/3 forwards are reliable starters`,
             ...lineup.warnings,
         ],
     };

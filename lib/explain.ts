@@ -30,7 +30,7 @@ export function explainPlayer(player: ModelPlayer, risk: RiskBreakdown): Explana
         warnings.push('hardFixtures');
     }
 
-    if (player.minutes >= 1800) {
+    if (player.starterConfidence >= 75 && player.predictedMinutes >= 70) {
         positives.push('secureMinutes');
     }
 
@@ -58,6 +58,10 @@ export function explainPlayer(player: ModelPlayer, risk: RiskBreakdown): Explana
         warnings.push('minutesConcern');
     }
 
+    if (player.dataQuality === 'unknown' || player.starterConfidence < 50) {
+        warnings.push('minutesConcern');
+    }
+
     if (risk.news >= 30) {
         warnings.push('newsConcern');
     }
@@ -75,7 +79,7 @@ export function explainPlayer(player: ModelPlayer, risk: RiskBreakdown): Explana
     }
 
     return {
-        positives: positives.slice(0, 5),
-        warnings: warnings.slice(0, 3),
+        positives: [...new Set(positives)].slice(0, 5),
+        warnings: [...new Set(warnings)].slice(0, 3),
     };
 }

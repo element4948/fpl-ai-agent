@@ -1,4 +1,5 @@
 import { buildFixtureMap } from './fixtures';
+import { projectStarter } from './starter';
 
 import type { FplEvent, FplFixture, FplPlayer, FplPosition, FplTeam, ModelPlayer } from '@/types/fpl';
 
@@ -138,6 +139,8 @@ export function toModelPlayers(
         const ownership = Number(player.selected_by_percent || 0);
 
         const minutes = player.minutes || 0;
+        const starts = player.starts || 0;
+        const starter = projectStarter(player);
 
         const minutesScore = Math.min(1, minutes / 2500);
 
@@ -148,8 +151,17 @@ export function toModelPlayers(
         const newsRisk = player.news ? 0.15 : 0;
 
         const lowMinutesRisk = minutes > 0 && minutesScore < 0.25 ? 0.15 : 0;
+        const starterUncertaintyRisk =
+            starter.dataQuality === 'unknown'
+                ? 0.35
+                : Math.max(0, (60 - starter.confidence) / 100);
 
-        const risk = Math.round(Math.min(100, (injuryRisk + statusRisk + newsRisk + lowMinutesRisk) * 100));
+        const risk = Math.round(
+            Math.min(
+                100,
+                (injuryRisk + statusRisk + newsRisk + lowMinutesRisk + starterUncertaintyRisk) * 100,
+            ),
+        );
 
         const fixture = fixtureMap.get(player.team);
 
@@ -192,11 +204,16 @@ export function toModelPlayers(
             totalPoints: player.total_points,
             form,
             minutes,
+            starts,
             ownership,
             expectedPoints,
             valueScore: Number((expectedPoints / Math.max(price, 1)).toFixed(2)),
             confidence,
             risk,
+            starterConfidence: starter.confidence,
+            predictedMinutes: starter.predictedMinutes,
+            starterLabel: starter.label,
+            dataQuality: starter.dataQuality,
             news: player.news || '',
             status: player.status || 'a',
             fixture,

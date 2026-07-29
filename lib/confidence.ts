@@ -12,7 +12,8 @@ export function calculateConfidence(player: ModelPlayer, riskProfile: RiskProfil
     28 +
     player.expectedPoints * 5.2 +
     player.form * 2.2 +
-    Math.min(18, player.minutes / 120) +
+    Math.min(18, player.predictedMinutes / 5) +
+    player.starterConfidence * 0.16 +
     Math.min(8, player.ownership / 5) -
     risk.total * 0.36 +
     profileAdjustment;

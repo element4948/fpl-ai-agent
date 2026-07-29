@@ -36,12 +36,13 @@ function PlayerRow({ p, index, lang }: { p: ModelPlayer; index?: number; lang: '
                     {p.risk > 50 ? <span className="badge red">{t.risk}</span> : null}
                 </div>
                 <div className="row-meta">
-                    {p.team} · {p.position} · £{p.price}m · {t.ownership} {p.ownership}% · {t.confidence} {p.confidence}
+                    {p.team} · {p.position} · £{p.price}m · Starter confidence (гарааны магадлал) {p.starterConfidence}% · Predicted minutes
+                    (таамаг минут) {p.predictedMinutes} · {t.confidence} {p.confidence}
                 </div>
                 {p.fixture ? (
                     <div className="row-meta fixture-meta">
                         Fixture (тоглолт): {p.fixture.nextOpponent} · {p.fixture.nextIsHome ? 'H (талбайдаа)' : 'A (айлд)'} · FDR{' '}
-                        {p.fixture.nextDifficulty} · Next 5 (дараагийн 5) {p.fixture.averageDifficulty}
+                        {p.fixture.nextDifficulty}/5 (1 хялбар, 5 хүнд) · Next 5 average (дараагийн 5-ын дундаж) {p.fixture.averageDifficulty}/5
                     </div>
                 ) : null}
                 <div className="bar">
@@ -180,6 +181,10 @@ function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
                 <strong>Formation (Гарааны байрлал): {draft.formation || '—'}</strong>
 
                 <div style={{ marginTop: 6 }}>Starting XI (Гарааны 11): {draft.startingXI?.length || 0}/11</div>
+                <div style={{ marginTop: 6 }}>
+                    FDR (тоглолтын хүндрэлийн үнэлгээ): 1 = хамгийн хялбар, 5 = хамгийн хүнд. Next 5 average (дараагийн 5-ын
+                    дундаж) бага байх тусам хуваарь илүү таатай.
+                </div>
             </div>
 
             <h4>Starting XI (Гарааны 11)</h4>
@@ -194,7 +199,8 @@ function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
                             {' · '}
                             {player.team}
                             {' · '}£{player.price.toFixed(1)}m{' · '}
-                            Risk {player.risk}%
+                            Starter confidence (гарааны магадлал) {player.starterConfidence}% · Predicted minutes (таамаг минут){' '}
+                            {player.predictedMinutes} · Risk (эрсдэл) {player.risk}%
                         </span>
 
                         {player.fixture ? (
@@ -203,9 +209,9 @@ function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
                                 {' · '}
                                 {player.fixture.nextIsHome ? 'H' : 'A'}
                                 {' · '}
-                                FDR {player.fixture.nextDifficulty}
+                                FDR {player.fixture.nextDifficulty}/5
                                 {' · '}
-                                Next 5 avg {player.fixture.averageDifficulty}
+                                Next 5 average {player.fixture.averageDifficulty}/5
                             </small>
                         ) : null}
                     </div>
@@ -226,7 +232,8 @@ function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
                             {' · '}
                             {player.team}
                             {' · '}£{player.price.toFixed(1)}m{' · '}
-                            Risk {player.risk}%
+                            Starter confidence (гарааны магадлал) {player.starterConfidence}% · Predicted minutes (таамаг минут){' '}
+                            {player.predictedMinutes} · Risk (эрсдэл) {player.risk}%
                         </span>
                     </div>
                 ))}
@@ -327,7 +334,7 @@ export default function Home() {
             <main id="top">
                 <section className="hero">
                     <div className="hero-panel">
-                        <span className="eyebrow">⚽ AI Agent · AI Brain v1 (AI тархи v1)</span>
+                        <span className="eyebrow">⚽ AI Agent · AI Brain v2 (Starter + Formation Intelligence)</span>
                         <h1>{t.heroTitle}</h1>
                         <p className="lead">{t.heroLead}</p>
                         <div className="actions">
@@ -540,8 +547,9 @@ export default function Home() {
                                                 {player.position}
                                                 {' · '}
                                                 {player.team}
-                                                {' · '}£{player.price.toFixed(1)}m{' · '}
-                                                Risk {player.risk}%
+                                                {' · '}£{player.price.toFixed(1)}m{' · '}Starter confidence (гарааны магадлал){' '}
+                                                {player.starterConfidence}% · Predicted minutes (таамаг минут) {player.predictedMinutes} · Risk
+                                                (эрсдэл) {player.risk}%
                                             </span>
                                         </div>
                                     ))}

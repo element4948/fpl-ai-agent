@@ -17,14 +17,41 @@ function clamp(value: number, min = 0, max = 100) {
 export function calculateRisk(player: ModelPlayer): RiskBreakdown {
   const status = player.status || 'a';
   const injury = status === 'i' ? 85 : status === 'd' ? 45 : status === 'u' ? 70 : 0;
-  const availability = player.risk >= 70 ? 55 : player.risk >= 45 ? 30 : player.risk >= 20 ? 12 : 0;
-  const minutes = player.minutes < 90 ? 55 : player.minutes < 450 ? 35 : player.minutes < 900 ? 18 : 5;
-  const rotation = player.minutes < 450 && player.form > 0 ? 38 : player.minutes < 900 ? 22 : 8;
+  const availability =
+    player.starterLabel === 'unavailable'
+      ? 90
+      : player.starterLabel === 'bench'
+        ? 65
+        : player.starterLabel === 'unknown'
+          ? 45
+          : player.starterConfidence < 60
+            ? 35
+            : 8;
+  const minutes =
+    player.dataQuality === 'unknown'
+      ? 55
+      : player.predictedMinutes < 30
+        ? 70
+        : player.predictedMinutes < 55
+          ? 45
+          : player.predictedMinutes < 70
+            ? 22
+            : 6;
+  const rotation =
+    player.starterLabel === 'unknown'
+      ? 50
+      : player.starterLabel === 'bench'
+        ? 70
+        : player.starterLabel === 'rotation'
+          ? 45
+          : player.starterLabel === 'likely'
+            ? 18
+            : 6;
   const news = player.news?.trim() ? 45 : 0;
 
   const total = clamp(
-    injury * 0.3 +
-    availability * 0.2 +
+    injury * 0.25 +
+    availability * 0.25 +
     minutes * 0.2 +
     rotation * 0.2 +
     news * 0.1,

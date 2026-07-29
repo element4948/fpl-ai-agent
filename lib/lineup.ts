@@ -1,4 +1,5 @@
 import type { Formation, ModelPlayer } from '@/types/fpl';
+import { isReliableStarter } from './starter';
 
 type FormationRule = {
     formation: Formation;
@@ -75,26 +76,6 @@ export type LineupResult = {
     warnings: string[];
 };
 
-function isLikelyStarter(player: ModelPlayer): boolean {
-    if (player.status && player.status !== 'a') {
-        return false;
-    }
-
-    if (player.risk >= 55) {
-        return false;
-    }
-
-    if (player.riskBreakdown?.availability != null && player.riskBreakdown.availability >= 50) {
-        return false;
-    }
-
-    if (player.riskBreakdown?.minutes != null && player.riskBreakdown.minutes >= 60) {
-        return false;
-    }
-
-    return true;
-}
-
 function lineupScore(player: ModelPlayer): number {
     const nextFdr = player.fixture?.nextDifficulty ?? 3;
 
@@ -102,9 +83,19 @@ function lineupScore(player: ModelPlayer): number {
 
     const fixtureBonus = (6 - nextFdr) * 0.55 + (6 - averageFdr) * 0.3 + (player.fixture?.nextIsHome ? 0.25 : 0);
 
-    const availabilityPenalty = isLikelyStarter(player) ? 0 : 15;
+    const reliable = isReliableStarter(player);
+    const availabilityPenalty = reliable ? 0 : 30;
 
-    return player.expectedPoints * 2 + player.confidence * 0.055 + fixtureBonus + player.form * 0.25 - player.risk * 0.09 - availabilityPenalty;
+    return (
+        player.expectedPoints * 2 +
+        player.confidence * 0.04 +
+        player.starterConfidence * 0.12 +
+        player.predictedMinutes * 0.1 +
+        fixtureBonus +
+        player.form * 0.25 -
+        player.risk * 0.09 -
+        availabilityPenalty
+    );
 }
 
 function playersByPosition(squad: ModelPlayer[], position: string): ModelPlayer[] {
@@ -142,9 +133,9 @@ function chooseFormation(squad: ModelPlayer[], rule: FormationRule): LineupResul
             return lineupScore(b) - lineupScore(a);
         });
 
-    const unavailableStarters = startingXI.filter((player) => !isLikelyStarter(player));
+    const unavailableStarters = startingXI.filter((player) => !isReliableStarter(player));
 
-    const playableDefenders = startingXI.filter((player) => player.position === 'DEF' && isLikelyStarter(player)).length;
+    const playableDefenders = startingXI.filter((player) => player.position === 'DEF' && isReliableStarter(player)).length;
 
     const warnings: string[] = [];
 
@@ -190,5 +181,5 @@ export function selectBestLineup(squad: ModelPlayer[]): LineupResult {
 }
 
 export function likelyStarterCount(players: ModelPlayer[], position?: string): number {
-    return players.filter((player) => (!position || player.position === position) && isLikelyStarter(player)).length;
+    return players.filter((player) => (!position || player.position === position) && isReliableStarter(player)).length;
 }
