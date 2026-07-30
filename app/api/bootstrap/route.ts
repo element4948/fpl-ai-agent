@@ -3,6 +3,7 @@ import { getBootstrap, getFixtures, nextEvent, toModelPlayers } from '@/lib/fpl'
 import { buildDraft } from '@/lib/rules';
 import { rankCaptainCandidates, topTargetsByPosition } from '@/lib/scoring';
 import { chipPlanner } from '@/lib/chips';
+import { buildRiskMonitor } from '@/lib/risk-monitor';
 
 export async function GET() {
   const [boot, fixtures] = await Promise.all([getBootstrap(), getFixtures()]);
@@ -23,6 +24,7 @@ export async function GET() {
     topPlayers,
     topTargets: topTargetsByPosition(players),
     captainShortlist: rankCaptainCandidates(players, 10),
+    riskMonitor: buildRiskMonitor(players).slice(0, 30),
     drafts,
     chips: chipPlanner({ hasEntry: false, isPreSeason }),
   });

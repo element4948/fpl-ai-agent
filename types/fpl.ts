@@ -76,6 +76,59 @@ export type FplFixture = {
   team_a_difficulty: number;
 };
 
+export type FplPlayerHistoryItem = {
+  element: number;
+  fixture: number;
+  opponent_team: number;
+  total_points: number;
+  was_home: boolean;
+  kickoff_time: string;
+  round: number;
+  minutes: number;
+  starts?: number;
+  goals_scored: number;
+  assists: number;
+  clean_sheets: number;
+  goals_conceded: number;
+  bonus: number;
+  bps: number;
+  expected_goals?: string;
+  expected_assists?: string;
+  expected_goal_involvements?: string;
+  expected_goals_conceded?: string;
+};
+
+export type FplPlayerSummary = {
+  fixtures: FplFixture[];
+  history: FplPlayerHistoryItem[];
+  history_past: Array<{
+    season_name: string;
+    minutes: number;
+    starts?: number;
+    total_points: number;
+  }>;
+};
+
+export type PlayerHistoryAnalysis = {
+  sampleSize: number;
+  starts: number;
+  startRate: number;
+  averageMinutes: number;
+  sixtyPlusRate: number;
+  averagePoints: number;
+  recentMinutes: number[];
+  recentPoints: number[];
+  trend: 'improving' | 'stable' | 'declining' | 'unknown';
+  dataQuality: 'good' | 'limited' | 'unknown';
+};
+
+export type PlayerSignal = {
+  type: 'injury' | 'availability' | 'news' | 'transfer';
+  severity: 'low' | 'medium' | 'high';
+  message: string;
+  source: 'Official FPL';
+};
+
 export type FixtureSummary = {
   nextOpponent: string;
   nextOpponentId: number | null;
@@ -115,6 +168,7 @@ export type ModelPlayer = {
   predictedMinutes: number;
   starterLabel: StarterLabel;
   dataQuality: 'good' | 'limited' | 'unknown';
+  signals: PlayerSignal[];
   news?: string;
   status?: string;
   riskBreakdown?: {

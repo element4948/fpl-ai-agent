@@ -25,6 +25,169 @@ import { useEffect, useState } from 'react';
 
 type Any = any;
 
+function openPlayerDetail(playerId: number) {
+    window.dispatchEvent(new CustomEvent('open-player-detail', { detail: playerId }));
+}
+
+function PlayerDetailButton({ playerId }: { playerId: number }) {
+    return (
+        <button
+            type="button"
+            className="player-detail-button"
+            onClick={() => openPlayerDetail(playerId)}
+            aria-label="Тоглогчийн дэлгэрэнгүй анализ харах"
+        >
+            Дэлгэрэнгүй ↗
+        </button>
+    );
+}
+
+function PlayerDetailModal() {
+    const [playerId, setPlayerId] = useState<number | null>(null);
+    const [detail, setDetail] = useState<Any>(null);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const open = (event: Event) => setPlayerId((event as CustomEvent<number>).detail);
+        window.addEventListener('open-player-detail', open);
+        return () => window.removeEventListener('open-player-detail', open);
+    }, []);
+
+    useEffect(() => {
+        if (!playerId) return;
+        setLoading(true);
+        setDetail(null);
+        fetch(`/api/player/${playerId}`)
+            .then(async (response) => {
+                const body = await response.json();
+                if (!response.ok) throw new Error(body.error || 'Player data unavailable');
+                setDetail(body);
+            })
+            .catch((error) => setDetail({ error: error.message }))
+            .finally(() => setLoading(false));
+    }, [playerId]);
+
+    useEffect(() => {
+        if (!playerId) return;
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') setPlayerId(null);
+        };
+        document.body.style.overflow = 'hidden';
+        window.addEventListener('keydown', closeOnEscape);
+        return () => {
+            document.body.style.overflow = '';
+            window.removeEventListener('keydown', closeOnEscape);
+        };
+    }, [playerId]);
+
+    if (!playerId) return null;
+
+    const player = detail?.player as ModelPlayer | undefined;
+    const recent = detail?.recent;
+
+    return (
+        <div className="player-modal-backdrop" role="presentation" onMouseDown={() => setPlayerId(null)}>
+            <section
+                className="player-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Тоглогчийн дэлгэрэнгүй анализ"
+                onMouseDown={(event) => event.stopPropagation()}
+            >
+                <div className="player-modal-head">
+                    <div>
+                        <span className="eyebrow">Official FPL data</span>
+                        <h2>{player?.name || 'Тоглогчийн анализ'}</h2>
+                        {player ? <p>{player.team} · {player.position} · £{player.price.toFixed(1)}m</p> : null}
+                    </div>
+                    <button className="player-modal-close" type="button" onClick={() => setPlayerId(null)} aria-label="Хаах">×</button>
+                </div>
+
+                {loading ? <div className="skeleton player-modal-loading" /> : null}
+                {detail?.error ? <div className="warning-box">{detail.error}</div> : null}
+
+                {player && recent ? (
+                    <>
+                        <div className="player-detail-summary">
+                            <div><small>Starter confidence ↑</small><strong>{player.starterConfidence}%</strong></div>
+                            <div><small>Predicted minutes ↑</small><strong>{player.predictedMinutes}</strong></div>
+                            <div><small>Expected points ↑</small><strong>{player.expectedPoints.toFixed(1)}</strong></div>
+                            <div><small>Risk ↓</small><strong>{player.risk}%</strong></div>
+                        </div>
+
+                        <div className="player-detail-quality">
+                            <DataQualityBadge quality={recent.dataQuality} />
+                            <span>Сүүлийн {recent.sampleSize} тоглолтын бодит мэдээлэлд тулгуурлав.</span>
+                        </div>
+
+                        <div className="player-history-grid">
+                            <div><small>Гараанд эхэлсэн</small><strong>{recent.starts}/{recent.sampleSize}</strong><span>{recent.startRate}%</span></div>
+                            <div><small>Дундаж минут</small><strong>{recent.averageMinutes}</strong><span>60+ минут: {recent.sixtyPlusRate}%</span></div>
+                            <div><small>Дундаж оноо</small><strong>{recent.averagePoints}</strong><span>Trend: {recent.trend}</span></div>
+                        </div>
+
+                        <div className="player-recent-bars">
+                            <h3>Сүүлийн тоглолтууд</h3>
+                            {recent.recentMinutes.map((minutes: number, index: number) => (
+                                <div key={`${minutes}-${index}`}>
+                                    <span>GW {detail.history?.slice(-recent.sampleSize)[index]?.round || index + 1}</span>
+                                    <div><i style={{ width: `${Math.min(100, (minutes / 90) * 100)}%` }} /></div>
+                                    <b>{minutes} мин · {recent.recentPoints[index]} оноо</b>
+                                </div>
+                            ))}
+                        </div>
+
+                        {player.signals?.length ? (
+                            <div className="player-official-signals">
+                                <h3>Official warning / news</h3>
+                                {player.signals.map((signal, index) => (
+                                    <div className={`signal-${signal.severity}`} key={`${signal.type}-${index}`}>
+                                        <strong>{signal.type}</strong>
+                                        <span>{signal.message}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="notice player-no-signal">Official FPL дээр одоогоор injury/news warning алга.</div>
+                        )}
+
+                        <div className="player-upcoming">
+                            <h3>Дараагийн тоглолтууд</h3>
+                            <div>
+                                {player.fixture?.fixtures?.slice(0, 5).map((fixture, index) => (
+                                    <span key={`${fixture.opponent}-${index}`}>
+                                        <b>{fixture.opponentName} {fixture.isHome ? 'H' : 'A'}</b>
+                                        <small className={`fdr fdr-${fixture.difficulty}`}>FDR {fixture.difficulty}/5 ↓</small>
+                                    </span>
+                                ))}
+                            </div>
+                            <p>FDR бага байх тусам хялбар. Expected points, Starter confidence өндөр байх тусам сайн.</p>
+                        </div>
+                    </>
+                ) : null}
+            </section>
+        </div>
+    );
+}
+
+function DataQualityBadge({ quality }: { quality: ModelPlayer['dataQuality'] }) {
+    const label = quality === 'good' ? 'Good data' : quality === 'limited' ? 'Limited data' : 'Unknown data';
+    return (
+        <span
+            className={`data-quality data-quality-${quality}`}
+            title={
+                quality === 'good'
+                    ? 'Бодит минут, гарааны мэдээлэл хангалттай.'
+                    : quality === 'limited'
+                      ? 'Өгөгдөл хязгаарлагдмал тул нэмэлт мэдээ шалгана.'
+                      : 'Найдвартай минутын өгөгдөл байхгүй. Шууд сонгохоос болгоомжилно.'
+            }
+        >
+            {label}
+        </span>
+    );
+}
+
 function PlayerRow({ p, index, lang }: { p: ModelPlayer; index?: number; lang: 'mn' | 'en' }) {
     const t = dict[lang];
     const width = Math.min(100, Math.max(8, p.expectedPoints * 12));
@@ -35,6 +198,10 @@ function PlayerRow({ p, index, lang }: { p: ModelPlayer; index?: number; lang: '
                     {index ? <span className="badge">#{index}</span> : null}
                     <span>{p.name}</span>
                     {p.risk > 50 ? <span className="badge red">{t.risk}</span> : null}
+                    {p.signals?.some((signal) => signal.severity === 'high') ? (
+                        <span className="badge red" title={p.signals.map((signal) => signal.message).join(' · ')}>Official warning</span>
+                    ) : null}
+                    <DataQualityBadge quality={p.dataQuality} />
                 </div>
                 <div className="row-meta">
                     {p.team} · {p.position} · £{p.price}m ·{' '}
@@ -59,6 +226,7 @@ function PlayerRow({ p, index, lang }: { p: ModelPlayer; index?: number; lang: '
                 <div className="bar">
                     <span style={{ ['--w' as string]: `${width}%` }} />
                 </div>
+                <PlayerDetailButton playerId={p.id} />
             </div>
             <div className="score" title="Expected Points: их байх тусам сайн">
                 {p.expectedPoints.toFixed(1)}
@@ -162,8 +330,13 @@ function DraftPlayerTile({ player }: { player: ModelPlayer }) {
             </div>
 
             <div className="draft-player-team">
-                {player.team} · {player.position}
+                {player.team} · {player.position} · <DataQualityBadge quality={player.dataQuality} />
             </div>
+            {player.signals?.length ? (
+                <div className="player-signal" title={player.signals.map((signal) => signal.message).join(' · ')}>
+                    ! Official signal
+                </div>
+            ) : null}
 
             <div className="draft-player-metrics">
                 <span title="Starter confidence — гарааны магадлал">Starter {player.starterConfidence}%</span>
@@ -187,6 +360,7 @@ function DraftPlayerTile({ player }: { player: ModelPlayer }) {
                     <span>Fixture тодорхойгүй</span>
                 </div>
             )}
+            <PlayerDetailButton playerId={player.id} />
         </div>
     );
 }
@@ -203,6 +377,7 @@ function TargetRow({ player, rank, lang }: { player: ModelPlayer; rank: number; 
                 <div className="row-title">
                     <strong>{player.name}</strong>
                     <span className="badge">{player.position}</span>
+                    <DataQualityBadge quality={player.dataQuality} />
                 </div>
                 <div className="row-meta">
                     {player.team} · £{player.price.toFixed(1)}m · {t.ownership} {player.ownership}%
@@ -236,7 +411,88 @@ function TargetRow({ player, rank, lang }: { player: ModelPlayer; rank: number; 
                 </small>
                 <strong>{player.expectedPoints.toFixed(1)} ↑</strong>
             </div>
+            <PlayerDetailButton playerId={player.id} />
         </div>
+    );
+}
+
+function RiskMonitor({ items }: { items: Any[] }) {
+    const [filter, setFilter] = useState<'all' | 'high' | 'starter' | 'data'>('all');
+    const visible = items
+        .filter((item) => {
+            if (filter === 'high') return item.severity === 'high';
+            if (filter === 'starter') return item.reasons?.includes('low-starter-confidence');
+            if (filter === 'data') return item.reasons?.includes('unknown-data');
+            return true;
+        })
+        .slice(0, 12);
+
+    return (
+        <Card
+            id="risk-monitor"
+            title="Risk & News Monitor (эрсдэл, мэдээ)"
+            subtitle="Official FPL warning болон гарааны эргэлзээтэй тоглогчдыг хамгийн ноцтойгоос нь эрэмбэлэв."
+            helpHref="/docs#risk"
+        >
+            <div className="risk-monitor-head">
+                <div className="risk-monitor-counts">
+                    <span><b>{items.filter((item) => item.severity === 'high').length}</b> өндөр</span>
+                    <span><b>{items.filter((item) => item.reasons?.includes('low-starter-confidence')).length}</b> starter эргэлзээтэй</span>
+                    <span><b>{items.filter((item) => item.reasons?.includes('unknown-data')).length}</b> data unknown</span>
+                </div>
+                <div className="risk-monitor-filters">
+                    {[
+                        ['all', 'Бүгд'],
+                        ['high', 'Өндөр'],
+                        ['starter', 'Starter'],
+                        ['data', 'Data'],
+                    ].map(([value, label]) => (
+                        <button
+                            type="button"
+                            className={filter === value ? 'active' : ''}
+                            onClick={() => setFilter(value as typeof filter)}
+                            key={value}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {visible.length ? (
+                <div className="risk-monitor-list">
+                    {visible.map((item) => {
+                        const player = item.player as ModelPlayer;
+                        return (
+                            <div className={`risk-monitor-row risk-monitor-${item.severity}`} key={player.id}>
+                                <span className="risk-monitor-level">
+                                    {item.severity === 'high' ? '!' : item.severity === 'medium' ? '△' : 'i'}
+                                </span>
+                                <div className="risk-monitor-copy">
+                                    <div>
+                                        <strong>{player.name}</strong>
+                                        <span>{player.team} · {player.position}</span>
+                                        <DataQualityBadge quality={player.dataQuality} />
+                                    </div>
+                                    <p>{item.summary}</p>
+                                </div>
+                                <div className="risk-monitor-metrics">
+                                    <span>Starter <b>{player.starterConfidence}%</b></span>
+                                    <span>Risk <b>{player.risk}%</b></span>
+                                </div>
+                                <PlayerDetailButton playerId={player.id} />
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : (
+                <div className="notice">Энэ шүүлтүүрт тохирох warning алга.</div>
+            )}
+
+            <p className="risk-monitor-note">
+                “Warning алга” нь гараанд баталгаатай гэсэн үг биш. Data Quality болон Starter confidence-ийг хамтад нь шалгана.
+            </p>
+        </Card>
     );
 }
 
@@ -507,6 +763,7 @@ export default function Home() {
     return (
         <>
             <Navbar lang={lang} onLang={() => updateSettings({ lang: lang === 'mn' ? 'en' : 'mn' })} />
+            <PlayerDetailModal />
             <main id="top">
                 <section className="hero">
                     <div className="hero-panel">
@@ -630,6 +887,8 @@ export default function Home() {
                         <p className="engine-footnote">Өгөгдөл дутуу үед Risk 0% гэж үзэхгүй; Unknown/limited penalty хэрэглэнэ.</p>
                     </Card>
                 </section>
+
+                <RiskMonitor items={boot?.riskMonitor || []} />
 
                 <Card id="settings" title={t.settings} subtitle={t.optionalIds} helpHref="/docs#start">
                     <div className="grid grid-3">

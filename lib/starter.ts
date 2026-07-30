@@ -11,7 +11,10 @@ function clamp(value: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, Math.round(value)));
 }
 
-export function projectStarter(player: FplPlayer): StarterProjection {
+export function projectStarter(
+  player: FplPlayer,
+  completedGameweeks = 0,
+): StarterProjection {
   const status = player.status || 'a';
   const starts = player.starts || 0;
   const minutes = player.minutes || 0;
@@ -38,15 +41,17 @@ export function projectStarter(player: FplPlayer): StarterProjection {
   }
 
   if (hasLiveMinutes) {
+    const teamMatches = Math.max(1, completedGameweeks);
     const minutesPerStart = starts > 0 ? minutes / starts : minutes;
-    const startVolume = Math.min(1, starts / 8);
-    const minutesQuality = Math.min(1, minutesPerStart / 80);
+    const startRate = Math.min(1, starts / teamMatches);
+    const minutesPerMatch = Math.min(90, minutes / teamMatches);
     const availability = chance == null ? 1 : chance / 100;
     const confidence = clamp(
-      (30 + startVolume * 42 + minutesQuality * 25) * availability,
+      (15 + startRate * 58 + (minutesPerMatch / 90) * 24) * availability,
     );
     const predictedMinutes = clamp(
-      Math.min(90, minutesPerStart || minutes / Math.max(starts, 1)) *
+      (minutesPerMatch * 0.7 +
+        Math.min(90, minutesPerStart) * 0.3) *
         availability,
       0,
       90,
@@ -63,7 +68,7 @@ export function projectStarter(player: FplPlayer): StarterProjection {
             : confidence >= 42
               ? 'rotation'
               : 'bench',
-      dataQuality: starts >= 3 ? 'good' : 'limited',
+      dataQuality: teamMatches >= 3 && (starts >= 2 || minutes >= 120) ? 'good' : 'limited',
     };
   }
 

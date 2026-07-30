@@ -1,7 +1,8 @@
 import { buildFixtureMap } from './fixtures';
+import { buildOfficialSignals } from './signals';
 import { projectStarter } from './starter';
 
-import type { FplEvent, FplFixture, FplPlayer, FplPosition, FplTeam, ModelPlayer } from '@/types/fpl';
+import type { FplEvent, FplFixture, FplPlayer, FplPlayerSummary, FplPosition, FplTeam, ModelPlayer } from '@/types/fpl';
 
 const FPL_BASE = 'https://fantasy.premierleague.com/api';
 
@@ -34,6 +35,10 @@ export async function getBootstrap() {
 
 export async function getFixtures() {
     return safeFetch<FplFixture[]>(`${FPL_BASE}/fixtures/`);
+}
+
+export async function getPlayerSummary(playerId: number) {
+    return safeFetch<FplPlayerSummary>(`${FPL_BASE}/element-summary/${playerId}/`);
 }
 
 export type FplEntryResponse = {
@@ -140,7 +145,9 @@ export function toModelPlayers(
 
         const minutes = player.minutes || 0;
         const starts = player.starts || 0;
-        const starter = projectStarter(player);
+        const completedGameweeks = eventId && eventId > 1 ? eventId - 1 : 0;
+        const starter = projectStarter(player, completedGameweeks);
+        const signals = buildOfficialSignals(player);
 
         const minutesScore = Math.min(1, minutes / 2500);
 
@@ -214,6 +221,7 @@ export function toModelPlayers(
             predictedMinutes: starter.predictedMinutes,
             starterLabel: starter.label,
             dataQuality: starter.dataQuality,
+            signals,
             news: player.news || '',
             status: player.status || 'a',
             fixture,

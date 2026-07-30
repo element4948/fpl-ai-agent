@@ -47,7 +47,14 @@ export function calculateRisk(player: ModelPlayer): RiskBreakdown {
           : player.starterLabel === 'likely'
             ? 18
             : 6;
-  const news = player.news?.trim() ? 45 : 0;
+  const signalSeverity = player.signals.some((signal) => signal.severity === 'high')
+    ? 75
+    : player.signals.some((signal) => signal.severity === 'medium')
+      ? 45
+      : player.signals.length
+        ? 15
+        : 0;
+  const news = Math.max(player.news?.trim() ? 45 : 0, signalSeverity);
 
   const total = clamp(
     injury * 0.25 +

@@ -298,6 +298,9 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
     const playableForwards = likelyStarterCount(sortedSquad, 'FWD');
 
     const validation = validateSquad(sortedSquad);
+    const unknownStartingPlayers = lineup.startingXI.filter(
+        (player) => player.dataQuality === 'unknown',
+    );
 
     if (playableDefenders < 4) {
         validation.valid = false;
@@ -324,6 +327,15 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
         validation.errors.push(`Starting XI must have 11 players. Current: ${lineup.startingXI.length}`);
     }
 
+    if (unknownStartingPlayers.length > 0) {
+        validation.valid = false;
+        validation.errors.push(
+            `${unknownStartingPlayers.length} Starting XI players have unknown minutes data: ${unknownStartingPlayers
+                .map((player) => player.name)
+                .join(', ')}.`,
+        );
+    }
+
     return {
         mode,
         players: sortedSquad,
@@ -340,6 +352,7 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
             `Best formation: ${lineup.formation}`,
             `${playableDefenders}/5 defenders are reliable starters`,
             `${playableMidfielders}/5 midfielders and ${playableForwards}/3 forwards are reliable starters`,
+            `${sortedSquad.filter((player) => player.dataQuality === 'good').length}/15 players have good data quality`,
             ...lineup.warnings,
         ],
     };

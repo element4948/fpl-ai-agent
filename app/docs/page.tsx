@@ -122,9 +122,11 @@ export default function DocsPage() {
           <div className="doc-card"><h3>Predicted Minutes (Таамаг минут)</h3><p>Дараагийн тоглолтод талбайд өнгөрүүлэх боломжит минут. Fixture сайн байсан ч таамаг минут бага бол тоглогчийн нийт үнэлгээ буурна.</p></div>
           <div className="doc-card"><h3>Expected Points (Хүлээгдэж буй оноо)</h3><p>Form, points per game, fixture, starter confidence, predicted minutes болон risk-ийг нэгтгэсэн ойролцоолсон FPL оноо.</p></div>
           <div className="doc-card"><h3>Value Score (Үнэ цэнийн оноо)</h3><p>Expected points-ийг тоглогчийн үнэд харьцуулна. Хямд тоглогч бүр сайн value биш; гарааны магадлал хангалттай байх ёстой.</p></div>
+          <div className="doc-card"><h3>Data Quality (Өгөгдлийн чанар)</h3><p>Good нь хангалттай бодит минуттай, Limited нь цөөн тоглолтын мэдээлэлтэй, Unknown нь найдвартай минутын нотолгоогүй гэсэн үг. Unknown тоглогч Starting XI-д орвол draft invalid болно.</p></div>
+          <div className="doc-card"><h3>Official Signals (Албан ёсны дохио)</h3><p>Official FPL-ийн injury, doubtful, suspension, availability, player news болон онцгой transfer-out хөдөлгөөнийг Risk Engine-д оруулна.</p></div>
         </div>
         <div className="decision-flow"><span>Starter<br/><small>Гарааны магадлал</small></span><b>+</b><span>Minutes<br/><small>Таамаг минут</small></span><b>+</b><span>Fixture<br/><small>Хуваарь</small></span><b>+</b><span>Value<br/><small>Үнэ цэнэ</small></span><b>−</b><span>Risk<br/><small>Эрсдэл</small></span></div>
-        <p className="doc-note">Pre-season үед бодит минутын мэдээлэл дутуу байдаг. Энэ үед Starter Confidence нь ownership болон үнэд хэсэгчлэн тулгуурладаг тул “limited” буюу хязгаарлагдмал үнэлгээ гэж ойлгоно.</p>
+        <p className="doc-note">Pre-season үед бодит минутын мэдээлэл дутуу байдаг. Энэ үед Starter Confidence нь ownership болон үнэд хэсэгчлэн тулгуурладаг тул “limited” буюу хязгаарлагдмал үнэлгээ гэж ойлгоно. Тоглогчийн detail API нь сүүлийн 5 тоглолтын start rate, average minutes, 60+ minute rate болон trend-ийг тусад нь тооцно.</p>
       </section>
 
       <section className="doc-section" id="targets">
