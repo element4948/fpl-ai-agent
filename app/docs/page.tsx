@@ -9,6 +9,9 @@ const sections = [
   ['dashboard', 'Dashboard тайлбар'],
   ['decision', 'AI шийдвэрийг унших'],
   ['risk', 'Risk ба Confidence'],
+  ['player-evaluation', 'Тоглогчийн үнэлгээ'],
+  ['targets', 'Targets жагсаалт'],
+  ['drafts', 'Draft баг'],
   ['team', 'My Team'],
   ['league', 'Mini League'],
   ['chips', 'Chip стратеги'],
@@ -109,6 +112,46 @@ export default function DocsPage() {
           <div className="doc-card"><h3>Risk (Эрсдэл)</h3><ul><li><b>0–20%</b> — Бага эрсдэл</li><li><b>21–40%</b> — Дунд эрсдэл</li><li><b>41–60%</b> — Өндөр эрсдэл</li><li><b>61%+</b> — Маш өндөр эрсдэл</li></ul></div>
         </div>
         <p className="doc-note">Confidence өндөр байсан ч Risk өндөр байж болно. Жишээ нь тогловол өндөр оноо авах магадлалтай боловч гараанд гарах эсэх нь эргэлзээтэй тоглогч.</p>
+      </section>
+
+      <section className="doc-section" id="player-evaluation">
+        <h2>Тоглогчийг хэрхэн үнэлдэг вэ?</h2>
+        <p>AI Agent нэг үзүүлэлтээр тоглогч сонгодоггүй. Official FPL data (албан ёсны өгөгдөл)-г дараах үнэлгээнүүд болгон нэгтгэнэ.</p>
+        <div className="docs-grid two">
+          <div className="doc-card"><h3>Starter Confidence (Гарааны магадлал)</h3><p>Өмнөх гараа, тоглосон минут, гэмтэл, official status, ownership болон үнийг ашиглан 0–100% үнэлнэ. 75%+ хүчтэй, 55–74% дунд, 55%-аас доош эргэлзээтэй.</p></div>
+          <div className="doc-card"><h3>Predicted Minutes (Таамаг минут)</h3><p>Дараагийн тоглолтод талбайд өнгөрүүлэх боломжит минут. Fixture сайн байсан ч таамаг минут бага бол тоглогчийн нийт үнэлгээ буурна.</p></div>
+          <div className="doc-card"><h3>Expected Points (Хүлээгдэж буй оноо)</h3><p>Form, points per game, fixture, starter confidence, predicted minutes болон risk-ийг нэгтгэсэн ойролцоолсон FPL оноо.</p></div>
+          <div className="doc-card"><h3>Value Score (Үнэ цэнийн оноо)</h3><p>Expected points-ийг тоглогчийн үнэд харьцуулна. Хямд тоглогч бүр сайн value биш; гарааны магадлал хангалттай байх ёстой.</p></div>
+        </div>
+        <div className="decision-flow"><span>Starter<br/><small>Гарааны магадлал</small></span><b>+</b><span>Minutes<br/><small>Таамаг минут</small></span><b>+</b><span>Fixture<br/><small>Хуваарь</small></span><b>+</b><span>Value<br/><small>Үнэ цэнэ</small></span><b>−</b><span>Risk<br/><small>Эрсдэл</small></span></div>
+        <p className="doc-note">Pre-season үед бодит минутын мэдээлэл дутуу байдаг. Энэ үед Starter Confidence нь ownership болон үнэд хэсэгчлэн тулгуурладаг тул “limited” буюу хязгаарлагдмал үнэлгээ гэж ойлгоно.</p>
+      </section>
+
+      <section className="doc-section" id="targets">
+        <h2>Top Targets ба Position Targets</h2>
+        <div className="docs-grid two">
+          <div className="doc-card"><h3>Top Targets (Нийт шилдэг сонголтууд)</h3><p>Бүх байрлалын тоглогчдыг Expected Points, Value, Starter Confidence, Predicted Minutes, Fixture болон Risk-ийн нийлбэрээр эрэмбэлсэн товч жагсаалт.</p></div>
+          <div className="doc-card"><h3>Position Targets (Байрлалын шилдэг сонголтууд)</h3><p>GKP, DEF, MID, FWD тус бүрийг зөвхөн ижил байрлалын тоглогчидтой нь харьцуулна. Starter Confidence 50%-аас доош эсвэл Predicted Minutes 45-аас доош тоглогчийг жагсаалтаас хасна.</p></div>
+        </div>
+        <div className="glossary-table">
+          <div><b>GKP</b><span>Goalkeeper — хаалгач</span></div>
+          <div><b>DEF</b><span>Defender — хамгаалагч</span></div>
+          <div><b>MID</b><span>Midfielder — хагас хамгаалагч</span></div>
+          <div><b>FWD</b><span>Forward — довтлогч</span></div>
+          <div><b>FDR</b><span>Fixture Difficulty Rating — тоглолтын хүндрэлийн үнэлгээ. 1 хамгийн хялбар, 5 хамгийн хүнд.</span></div>
+          <div><b>H / A</b><span>Home / Away — талбайдаа / айлд тоглох</span></div>
+        </div>
+      </section>
+
+      <section className="doc-section" id="drafts">
+        <h2>Draft Team (Анхны баг)-ийг хэрхэн бүрдүүлдэг вэ?</h2>
+        <p>Draft Builder эхлээд FPL-ийн үндсэн дүрмийг хангасан 15 тоглогчийн баг үүсгээд, дараа нь төсвөөс хэтрүүлэхгүйгээр илүү өндөр үнэлгээтэй тоглогчдоор сольж сайжруулна.</p>
+        <ul className="check-list"><li>2 GKP, 5 DEF, 5 MID, 3 FWD</li><li>Нийт үнэ £100.0m-оос хэтрэхгүй</li><li>Нэг багаас хамгийн ихдээ 3 тоглогч</li><li>Хамгийн багадаа 1 найдвартай GKP, 4 DEF, 4 MID, 2 FWD</li><li>Найман зөв formation-ийг харьцуулж хамгийн өндөр оноотой Starting XI сонгоно</li></ul>
+        <div className="docs-grid two">
+          <div className="doc-card"><h3>Best / Safe</h3><p>Best нь нийт хүлээгдэж буй оноог, Safe нь гарааны магадлал, минут болон эрсдэлийн хамгаалалтыг илүү өндөр жинлэнэ.</p></div>
+          <div className="doc-card"><h3>Alternative / Differential</h3><p>Alternative нь үнэ цэнэ ба өөр төсвийн бүтцийг, Differential нь ownership багатай өсөх боломжийг илүү өндөр жинлэнэ.</p></div>
+        </div>
+        <p className="doc-note">Draft баг “valid” байсан ч deadline-ийн өмнө injury news, transfer news болон manager comments-ийг заавал дахин шалгана.</p>
       </section>
 
       <section className="doc-section" id="team">

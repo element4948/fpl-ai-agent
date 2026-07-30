@@ -3,6 +3,7 @@
 import { Card } from '@/components/Card';
 import { Metric } from '@/components/Metric';
 import { Navbar } from '@/components/Navbar';
+import { TermTip } from '@/components/TermTip';
 import {
     actionPlanLabel,
     chipAction,
@@ -36,12 +37,22 @@ function PlayerRow({ p, index, lang }: { p: ModelPlayer; index?: number; lang: '
                     {p.risk > 50 ? <span className="badge red">{t.risk}</span> : null}
                 </div>
                 <div className="row-meta">
-                    {p.team} · {p.position} · £{p.price}m · Starter confidence (гарааны магадлал) {p.starterConfidence}% · Predicted minutes
-                    (таамаг минут) {p.predictedMinutes} · {t.confidence} {p.confidence}
+                    {p.team} · {p.position} · £{p.price}m ·{' '}
+                    <TermTip description="Тухайн тоглогч гарааны бүрэлдэхүүнд эхлэх магадлал. 75%+ хүчтэй, 55%-аас доош эргэлзээтэй.">
+                        Starter confidence
+                    </TermTip>{' '}
+                    {p.starterConfidence}% ·{' '}
+                    <TermTip description="Дараагийн тоглолтод талбайд өнгөрүүлэхээр таамагласан минут. 70+ минут бол тоглох боломж харьцангуй өндөр.">
+                        Predicted minutes
+                    </TermTip>{' '}
+                    {p.predictedMinutes} · {t.confidence} {p.confidence}
                 </div>
                 {p.fixture ? (
                     <div className="row-meta fixture-meta">
-                        Fixture (тоглолт): {p.fixture.nextOpponent} · {p.fixture.nextIsHome ? 'H (талбайдаа)' : 'A (айлд)'} · FDR{' '}
+                        Fixture (тоглолт): {p.fixture.nextOpponent} · {p.fixture.nextIsHome ? 'H (талбайдаа)' : 'A (айлд)'} ·{' '}
+                        <TermTip description="Fixture Difficulty Rating буюу тоглолтын хүндрэлийн үнэлгээ. 1 хамгийн хялбар, 5 хамгийн хүнд.">
+                            FDR
+                        </TermTip>{' '}
                         {p.fixture.nextDifficulty}/5 (1 хялбар, 5 хүнд) · Next 5 average (дараагийн 5-ын дундаж) {p.fixture.averageDifficulty}/5
                     </div>
                 ) : null}
@@ -49,7 +60,10 @@ function PlayerRow({ p, index, lang }: { p: ModelPlayer; index?: number; lang: '
                     <span style={{ ['--w' as string]: `${width}%` }} />
                 </div>
             </div>
-            <div className="score">{p.expectedPoints.toFixed(1)}</div>
+            <div className="score" title="Expected Points: их байх тусам сайн">
+                {p.expectedPoints.toFixed(1)}
+                <small className="score-direction">↑ сайн</small>
+            </div>
         </div>
     );
 }
@@ -136,109 +150,268 @@ function WeeklyActionPlan({ plan, lang }: { plan: Any; lang: 'mn' | 'en' }) {
     );
 }
 
-function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
-    const t = dict[lang];
-
-    const totalCost = draft.validation?.totalCost || 0;
-
-    const remainingBudget = Number(Math.max(0, 100 - totalCost).toFixed(1));
-
-    const playerCount = draft.players?.length || 0;
+function DraftPlayerTile({ player }: { player: ModelPlayer }) {
+    const starterTone =
+        player.starterConfidence >= 75 ? 'draft-confidence-good' : player.starterConfidence >= 55 ? 'draft-confidence-medium' : 'draft-confidence-low';
 
     return (
-        <Card>
-            <div className="section-heading">
-                <div>
-                    <h3>{draftModeLabel(draft.mode, lang)}</h3>
-
-                    <p>
-                        £{totalCost.toFixed(1)}m used
-                        {' · '}£{remainingBudget.toFixed(1)}m remaining
-                        {' · '}
-                        {playerCount}/15 players
-                    </p>
-                </div>
-
-                <span className={draft.validation.valid ? 'status good-tab' : 'status warning-tab'}>
-                    {draft.validation.valid ? t.allGood : t.check}
-                </span>
+        <div className={`draft-player-tile ${starterTone}`}>
+            <div className="draft-player-topline">
+                <strong>{player.name}</strong>
+                <span>£{player.price.toFixed(1)}m</span>
             </div>
 
-            {!draft.validation.valid && draft.validation.errors?.length ? (
-                <div className="warning-box">
-                    {draft.validation.errors.map((error: string) => (
-                        <div key={error}>• {error}</div>
+            <div className="draft-player-team">
+                {player.team} · {player.position}
+            </div>
+
+            <div className="draft-player-metrics">
+                <span title="Starter confidence — гарааны магадлал">Starter {player.starterConfidence}%</span>
+                <span title="Predicted minutes — таамаг минут">{player.predictedMinutes} min</span>
+            </div>
+
+            {player.fixture ? (
+                <div className="draft-fixture">
+                    <span>
+                        {player.fixture.nextOpponent} {player.fixture.nextIsHome ? '(H)' : '(A)'}
+                    </span>
+                    <b
+                        className={`fdr fdr-${Math.round(player.fixture.nextDifficulty)}`}
+                        title="FDR: 1 хамгийн хялбар, 5 хамгийн хүнд"
+                    >
+                        FDR {player.fixture.nextDifficulty} ↓
+                    </b>
+                </div>
+            ) : (
+                <div className="draft-fixture">
+                    <span>Fixture тодорхойгүй</span>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function TargetRow({ player, rank, lang }: { player: ModelPlayer; rank: number; lang: 'mn' | 'en' }) {
+    const t = dict[lang];
+    const starterTone = player.starterConfidence >= 75 ? 'green' : player.starterConfidence < 55 ? 'red' : '';
+
+    return (
+        <div className="target-row">
+            <span className="target-rank">{rank}</span>
+
+            <div className="target-identity">
+                <div className="row-title">
+                    <strong>{player.name}</strong>
+                    <span className="badge">{player.position}</span>
+                </div>
+                <div className="row-meta">
+                    {player.team} · £{player.price.toFixed(1)}m · {t.ownership} {player.ownership}%
+                </div>
+            </div>
+
+            <div className="target-fixture">
+                <small>Дараагийн тоглолт</small>
+                {player.fixture ? (
+                    <strong>
+                        {player.fixture.nextOpponent} {player.fixture.nextIsHome ? '(H)' : '(A)'}
+                        <span className={`fdr fdr-${Math.round(player.fixture.nextDifficulty)}`}>FDR {player.fixture.nextDifficulty} ↓</span>
+                    </strong>
+                ) : (
+                    <strong>Тодорхойгүй</strong>
+                )}
+            </div>
+
+            <div className="target-stat">
+                <small>
+                    <TermTip description="Тоглогч гарааны бүрэлдэхүүнд эхлэх магадлал.">Starter</TermTip>
+                </small>
+                <span className={`badge ${starterTone}`}>{player.starterConfidence}%</span>
+            </div>
+
+            <div className="target-stat target-points">
+                <small>
+                    <TermTip description="Form, fixture, минут, гарааны магадлал болон эрсдэлд үндэслэсэн дараагийн Gameweek-ийн таамаг оноо.">
+                        Expected points
+                    </TermTip>
+                </small>
+                <strong>{player.expectedPoints.toFixed(1)} ↑</strong>
+            </div>
+        </div>
+    );
+}
+
+function PositionTargetGroup({ position, players, lang }: { position: string; players: ModelPlayer[]; lang: 'mn' | 'en' }) {
+    const labels: Record<string, { title: string; icon: string }> = {
+        GKP: { title: 'Goalkeeper (Хаалгач)', icon: '🧤' },
+        DEF: { title: 'Defender (Хамгаалагч)', icon: '🛡️' },
+        MID: { title: 'Midfielder (Хагас хамгаалагч)', icon: '🎯' },
+        FWD: { title: 'Forward (Довтлогч)', icon: '⚡' },
+    };
+    const label = labels[position] || { title: position, icon: '•' };
+
+    return (
+        <div className="position-target-group">
+            <div className="position-target-head">
+                <span>{label.icon}</span>
+                <div>
+                    <h3>{label.title}</h3>
+                    <p>Тухайн байрлалын шилдэг сонголтууд</p>
+                </div>
+            </div>
+
+            <div className="position-target-list">
+                {players.slice(0, 4).map((player, index) => (
+                    <div className="position-target-row" key={player.id}>
+                        <span className="position-rank">{index + 1}</span>
+                        <div>
+                            <strong>{player.name}</strong>
+                            <small>
+                                {player.team} · £{player.price.toFixed(1)}m
+                            </small>
+                        </div>
+                        <div className="position-target-score">
+                            <strong>{player.expectedPoints.toFixed(1)}</strong>
+                            <small>
+                                <TermTip description="Дараагийн Gameweek-д авах хүлээгдэж буй таамаг оноо.">Expected</TermTip>
+                            </small>
+                        </div>
+                        <div className="position-target-signal">
+                            <span>{player.starterConfidence}% starter</span>
+                            {player.fixture ? (
+                                <span className={`fdr fdr-${Math.round(player.fixture.nextDifficulty)}`}>
+                                    FDR {player.fixture.nextDifficulty} ↓
+                                </span>
+                            ) : null}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
+    const t = dict[lang];
+    const totalCost = draft.validation?.totalCost || 0;
+    const remainingBudget = Number(Math.max(0, 100 - totalCost).toFixed(1));
+    const playerCount = draft.players?.length || 0;
+    const positions = ['GKP', 'DEF', 'MID', 'FWD'];
+
+    return (
+        <details className="draft-team-card" open={draft.mode === 'Best'}>
+            <summary className="draft-team-summary">
+                <div className="draft-team-title">
+                    <span className="draft-chevron">›</span>
+                    <div>
+                        <h3>{draftModeLabel(draft.mode, lang)}</h3>
+                        <p>{draft.formation || '—'} formation · Гарааны {draft.startingXI?.length || 0}/11</p>
+                    </div>
+                </div>
+
+                <div className="draft-summary-metrics">
+                    <span>
+                        <small>Нийт үнэ</small>
+                        <b>£{totalCost.toFixed(1)}m</b>
+                    </span>
+                    <span>
+                        <small>Үлдэгдэл</small>
+                        <b>£{remainingBudget.toFixed(1)}m</b>
+                    </span>
+                    <span>
+                        <small>Тоглогч</small>
+                        <b>{playerCount}/15</b>
+                    </span>
+                    <span className={draft.validation.valid ? 'draft-valid' : 'draft-invalid'}>
+                        {draft.validation.valid ? `✓ ${t.allGood}` : `! ${t.check}`}
+                    </span>
+                </div>
+            </summary>
+
+            <div className="draft-team-body">
+                <div className="draft-toolbar">
+                    <div>
+                        <span className="draft-toolbar-label">Сонгосон formation (байрлал)</span>
+                        <strong>{draft.formation || '—'}</strong>
+                    </div>
+                    <div>
+                        <span className="draft-toolbar-label">Төсвийн ашиглалт</span>
+                        <strong>{totalCost.toFixed(1)}%</strong>
+                    </div>
+                    <div className="draft-budget-track" aria-label={`Budget used £${totalCost.toFixed(1)}m`}>
+                        <span style={{ width: `${Math.min(100, totalCost)}%` }} />
+                    </div>
+                </div>
+
+                {!draft.validation.valid && draft.validation.errors?.length ? (
+                    <div className="warning-box draft-warning">
+                        <strong>Багийг баталгаажуулахаас өмнө шалгах зүйлс</strong>
+                        {draft.validation.errors.map((error: string) => (
+                            <div key={error}>• {error}</div>
+                        ))}
+                    </div>
+                ) : null}
+
+                <div className="draft-layout">
+                    <div>
+                        <div className="draft-section-title">
+                            <div>
+                                <span>Starting XI</span>
+                                <h4>Гарааны 11</h4>
+                            </div>
+                            <span className="badge green">{draft.startingXI?.length || 0}/11</span>
+                        </div>
+
+                        <div className="football-pitch">
+                            {positions.map((position) => {
+                                const players = (draft.startingXI || []).filter((player: ModelPlayer) => player.position === position);
+                                if (!players.length) return null;
+                                return (
+                                    <div className={`pitch-line pitch-${position.toLowerCase()}`} key={position}>
+                                        {players.map((player: ModelPlayer) => (
+                                            <DraftPlayerTile player={player} key={player.id} />
+                                        ))}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <aside className="draft-sidebar">
+                        <div className="draft-section-title">
+                            <div>
+                                <span>Bench</span>
+                                <h4>Сэлгээ</h4>
+                            </div>
+                            <span className="badge">{draft.bench?.length || 0}/4</span>
+                        </div>
+
+                        <div className="draft-bench-list">
+                            {draft.bench?.map((player: ModelPlayer, index: number) => (
+                                <div className="draft-bench-player" key={player.id}>
+                                    <span className="bench-order">{index + 1}</span>
+                                    <DraftPlayerTile player={player} />
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="draft-legend">
+                            <h4>Үзүүлэлтийг унших</h4>
+                            <p><b>Starter ↑</b> — их байх тусам сайн.</p>
+                            <p><b>Minutes ↑</b> — их байх тусам тоглох боломж өндөр.</p>
+                            <p><b>FDR ↓</b> — бага байх тусам сайн. 1 хялбар, 5 хүнд.</p>
+                            <p><b>Next 5 average ↓</b> — бага байх тусам хуваарь таатай.</p>
+                            <p><b>Risk ↓</b> — бага байх тусам сайн.</p>
+                        </div>
+                    </aside>
+                </div>
+
+                <div className="draft-reasons">
+                    {draft.explanation?.map((item: string) => (
+                        <span key={item}>✓ {item}</span>
                     ))}
                 </div>
-            ) : null}
-
-            <div className="draft-explanation">
-                {draft.explanation?.map((item: string) => (
-                    <div key={item}>✓ {item}</div>
-                ))}
             </div>
-            <div className="notice" style={{ marginBottom: 12 }}>
-                <strong>Formation (Гарааны байрлал): {draft.formation || '—'}</strong>
-
-                <div style={{ marginTop: 6 }}>Starting XI (Гарааны 11): {draft.startingXI?.length || 0}/11</div>
-                <div style={{ marginTop: 6 }}>
-                    FDR (тоглолтын хүндрэлийн үнэлгээ): 1 = хамгийн хялбар, 5 = хамгийн хүнд. Next 5 average (дараагийн 5-ын
-                    дундаж) бага байх тусам хуваарь илүү таатай.
-                </div>
-            </div>
-
-            <h4>Starting XI (Гарааны 11)</h4>
-
-            <div className="draft-list">
-                {draft.startingXI?.map((player: ModelPlayer) => (
-                    <div className="draft-player" key={player.id}>
-                        <strong>{player.name}</strong>
-
-                        <span>
-                            {player.position}
-                            {' · '}
-                            {player.team}
-                            {' · '}£{player.price.toFixed(1)}m{' · '}
-                            Starter confidence (гарааны магадлал) {player.starterConfidence}% · Predicted minutes (таамаг минут){' '}
-                            {player.predictedMinutes} · Risk (эрсдэл) {player.risk}%
-                        </span>
-
-                        {player.fixture ? (
-                            <small>
-                                Next: {player.fixture.nextOpponent}
-                                {' · '}
-                                {player.fixture.nextIsHome ? 'H' : 'A'}
-                                {' · '}
-                                FDR {player.fixture.nextDifficulty}/5
-                                {' · '}
-                                Next 5 average {player.fixture.averageDifficulty}/5
-                            </small>
-                        ) : null}
-                    </div>
-                ))}
-            </div>
-
-            <h4 style={{ marginTop: 18 }}>Bench (Сэлгээ)</h4>
-
-            <div className="draft-list">
-                {draft.bench?.map((player: ModelPlayer, index: number) => (
-                    <div className="draft-player" key={player.id}>
-                        <strong>
-                            {index + 1}. {player.name}
-                        </strong>
-
-                        <span>
-                            {player.position}
-                            {' · '}
-                            {player.team}
-                            {' · '}£{player.price.toFixed(1)}m{' · '}
-                            Starter confidence (гарааны магадлал) {player.starterConfidence}% · Predicted minutes (таамаг минут){' '}
-                            {player.predictedMinutes} · Risk (эрсдэл) {player.risk}%
-                        </span>
-                    </div>
-                ))}
-            </div>
-        </Card>
+        </details>
     );
 }
 
@@ -327,6 +500,9 @@ export default function Home() {
     const transfers = analysis?.transferSuggestions || [];
     const chips = analysis?.chips || boot?.chips || [];
     const topTargets = boot?.topTargets || {};
+    const primaryChip = decision?.chips?.[0] || chips[0];
+    const captainPick = captain?.[0] || decision?.captain;
+    const viceCaptainPick = captain?.[1] || decision?.viceCaptain;
 
     return (
         <>
@@ -334,9 +510,18 @@ export default function Home() {
             <main id="top">
                 <section className="hero">
                     <div className="hero-panel">
-                        <span className="eyebrow">⚽ AI Agent · AI Brain v2 (Starter + Formation Intelligence)</span>
+                        <div className="hero-product-line">
+                            <span className="eyebrow">⚽ AI Agent</span>
+                            <span className="version-badge">AI Brain v2</span>
+                            <a className="help-button" href="/docs#player-evaluation" aria-label="AI Brain v2 тайлбар">?</a>
+                        </div>
                         <h1>{t.heroTitle}</h1>
                         <p className="lead">{t.heroLead}</p>
+                        <div className="brain-capabilities">
+                            <span>✓ Starter Intelligence (гарааны магадлал)</span>
+                            <span>✓ Formation Optimizer (байрлал сонголт)</span>
+                            <span>✓ Fixture & Risk (хуваарь ба эрсдэл)</span>
+                        </div>
                         <div className="actions">
                             <a className="button-link" href="#drafts">
                                 {t.navDrafts}
@@ -345,20 +530,22 @@ export default function Home() {
                                 {t.navSettings}
                             </a>
                         </div>
-                        <div className="pill-row">
-                            <span className="pill">{t.noHitDefault}</span>
-                            <span className="pill">{t.budgetGuard}</span>
-                            <span className="pill">{t.riskScore}</span>
-                            <span className="pill">{t.chipHoldLogic}</span>
-                        </div>
                     </div>
-                    <Card title={t.seasonStatus} subtitle={t.optionalIds}>
-                        <div className="grid grid-2">
-                            <Metric label={t.mode} value={statusTitle} tone={isPreSeason ? '' : 'good'} />
-                            <Metric label={t.nextDeadline} value={deadline} />
+                    <Card title={t.seasonStatus} subtitle={t.optionalIds} helpHref="/docs#start">
+                        <div className="season-status-main">
+                            <span className={`season-orb ${isPreSeason ? 'season-waiting' : 'season-live'}`} />
+                            <div>
+                                <small>{t.mode}</small>
+                                <strong>{statusTitle}</strong>
+                            </div>
+                        </div>
+                        <div className="season-facts">
+                            <div><span>{t.nextDeadline}</span><b>{deadline}</b></div>
+                            <div><span>Fixture data</span><b className={boot?.fixtureReady ? 'good' : 'yellow'}>{boot?.fixtureReady ? 'Ready (бэлэн)' : 'Waiting'}</b></div>
+                            <div><span>Entry ID</span><b className={settings.entryId ? 'good' : 'yellow'}>{settings.entryId ? 'Connected' : 'Optional'}</b></div>
                         </div>
                         {!settings.entryId && (
-                            <div className="notice" style={{ marginTop: 14 }}>
+                            <div className="season-note">
                                 {t.noId} {t.addLater}
                             </div>
                         )}
@@ -366,69 +553,85 @@ export default function Home() {
                     </Card>
                 </section>
 
-                <Card title={t.thisWeekDecision} subtitle={t.decisionSub}>
-                    <div className="grid grid-4">
-                        <Metric label={t.strategy} value={decision ? decisionStrategyLabel(decision.strategy, lang) : '...'} tone="good" />
-                        <Metric label={t.mode} value={decision ? decisionActionLabel(decision.action, lang) : '...'} />
-                        <Metric label={t.recommendedCaptain} value={decision?.captain?.name || '—'} />
-                        <Metric label={t.recommendedViceCaptain} value={decision?.viceCaptain?.name || '—'} />
+                <Card title={t.thisWeekDecision} subtitle={t.decisionSub} helpHref="/docs#decision">
+                    <div className="decision-status-line">
+                        <span className={`decision-dot ${decision?.actionPlan?.decisionStatus === 'ready' ? 'ready' : ''}`} />
+                        <strong>{decision?.actionPlan ? decisionStatusLabel(decision.actionPlan.decisionStatus, lang) : t.loading}</strong>
+                        <span>{decision ? decisionStrategyLabel(decision.strategy, lang) : '—'}</span>
                     </div>
-                    <div className="grid grid-2" style={{ marginTop: 12 }}>
-                        <Metric
-                            label={t.decisionStatus}
-                            value={decision?.actionPlan ? decisionStatusLabel(decision.actionPlan.decisionStatus, lang) : '—'}
-                            tone={decision?.actionPlan?.decisionStatus === 'ready' ? 'good' : ''}
-                        />
-                        <Metric
-                            label={t.recommendedChip}
-                            value={decision?.chips?.[0]?.chip ? `${decision.chips[0].chip}: ${chipAction(decision.chips[0].action, lang)}` : '—'}
-                        />
+
+                    <div className="decision-glance-grid">
+                        <div className="decision-glance primary">
+                            <span>©</span>
+                            <small>Captain (Ахлагч)</small>
+                            <strong>{decision?.captain?.name || '—'}</strong>
+                            <p>{decision?.captain ? `${decision.captain.expectedPoints.toFixed(1)} expected ↑ · ${decision.captain.starterConfidence}% starter` : 'Мэдээлэл хүлээж байна'}</p>
+                        </div>
+                        <div className="decision-glance">
+                            <span>⇄</span>
+                            <small>Transfer (Солилцоо)</small>
+                            <strong>{decision?.transfer ? `${decision.transfer.out} → ${decision.transfer.in}` : decision ? decisionActionLabel(decision.action, lang) : '—'}</strong>
+                            <p>{decision?.transfer ? `+${decision.transfer.expectedGain} expected gain` : 'No-hit шийдвэр'}</p>
+                        </div>
+                        <div className="decision-glance">
+                            <span>◆</span>
+                            <small>Chip (Тусгай эрх)</small>
+                            <strong>{primaryChip?.chip || '—'}</strong>
+                            <p>{primaryChip ? chipAction(primaryChip.action, lang) : 'Мэдээлэл хүлээж байна'}</p>
+                        </div>
+                        <div className="decision-glance">
+                            <span>◎</span>
+                            <small>Vice Captain (Дэд ахлагч)</small>
+                            <strong>{decision?.viceCaptain?.name || '—'}</strong>
+                            <p>Captain тоглохгүй үед орлоно</p>
+                        </div>
                     </div>
-                    <p className="muted" style={{ marginTop: 14 }}>
+
+                    <p className="decision-summary">
                         {decision ? decisionSummaryLabel(decision.summary, lang) : t.loading}
                     </p>
-                    {decision?.actionPlan ? <WeeklyActionPlan plan={decision.actionPlan} lang={lang} /> : null}
-                    {decision?.captain ? <DecisionInsight player={decision.captain} lang={lang} /> : null}
-                    {decision?.transfer ? (
-                        <div className="transfer-card" style={{ marginTop: 14 }}>
-                            <div className="row-title">
-                                {t.recommendedTransfer}: {decision.transfer.out} → {decision.transfer.in}
-                            </div>
-                            <div className="row-meta">
-                                {t.expected}: +{decision.transfer.expectedGain} · {t.cost}: {decision.transfer.costChange}m · {t.hit}:{' '}
-                                {decision.transfer.hitCost}
-                            </div>
-                            <div className="tabs" style={{ marginTop: 10 }}>
-                                {decision.transfer.reasons.map((r: string) => (
-                                    <span className="tab" key={r}>
-                                        {transferReason(r, lang)}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    ) : null}
-                    <div className="actions" style={{ marginTop: 16 }}>
+
+                    <div className="decision-footer">
                         <button className="btn" disabled={loading} onClick={runDecision}>
                             {loading ? t.loading : t.runDecision}
                         </button>
+                        <details className="decision-details">
+                            <summary>Дэлгэрэнгүй үндэслэл харах</summary>
+                            {decision?.actionPlan ? <WeeklyActionPlan plan={decision.actionPlan} lang={lang} /> : null}
+                            {decision?.captain ? <DecisionInsight player={decision.captain} lang={lang} /> : null}
+                        </details>
                     </div>
                 </Card>
 
                 <section className="grid grid-3">
-                    <Card title={t.dataFoundation} subtitle={t.dataText}>
-                        <Metric label={t.playersLoaded} value={boot?.playerCount ?? '...'} />
-                        <p className="muted">{t.officialApi}</p>
+                    <Card title={t.dataFoundation} subtitle={t.dataText} helpHref="/docs#player-evaluation">
+                        <div className="engine-status good-engine"><span>✓</span><strong>Official FPL API</strong><small>Үндсэн өгөгдлийн эх сурвалж</small></div>
+                        <div className="engine-facts">
+                            <div><span>Players</span><b>{boot?.playerCount ?? '...'}</b></div>
+                            <div><span>Teams</span><b>{boot?.teamCount ?? '...'}</b></div>
+                            <div><span>Fixtures</span><b>{boot?.fixtureCount ?? '...'}</b></div>
+                        </div>
+                        <p className="engine-footnote">Player, team, price, fixture болон status мэдээлэл 15 минутын cache ашиглана.</p>
                     </Card>
-                    <Card title={t.ruleEngine} subtitle={t.ruleText}>
-                        <Metric label={t.budget} value="£100.0m" />
-                        <Metric label={t.clubLimit} value="Max 3" />
+                    <Card title={t.ruleEngine} subtitle={t.ruleText} helpHref="/docs#drafts">
+                        <div className="rule-checklist">
+                            <div><span>✓</span><p><b>£100.0m</b><small>Нийт төсвийн хязгаар</small></p></div>
+                            <div><span>✓</span><p><b>15 players</b><small>2 GKP · 5 DEF · 5 MID · 3 FWD</small></p></div>
+                            <div><span>✓</span><p><b>Max 3</b><small>Нэг клубээс авах дээд тоо</small></p></div>
+                            <div><span>✓</span><p><b>Valid XI</b><small>Зөв formation ба найдвартай гараа</small></p></div>
+                        </div>
                     </Card>
-                    <Card title={t.riskEngine} subtitle={t.riskText}>
-                        <Metric label={t.output} value={`${t.confidence} + ${t.risk}`} tone="good" />
+                    <Card title={t.riskEngine} subtitle={t.riskText} helpHref="/docs#risk">
+                        <div className="risk-direction-grid">
+                            <div><small>Confidence</small><strong>↑ Их = сайн</strong><span>Саналд итгэх түвшин</span></div>
+                            <div><small>Risk</small><strong>↓ Бага = сайн</strong><span>Биелэхгүй байх эрсдэл</span></div>
+                        </div>
+                        <div className="risk-inputs"><span>Injury</span><span>Minutes</span><span>Rotation</span><span>News</span></div>
+                        <p className="engine-footnote">Өгөгдөл дутуу үед Risk 0% гэж үзэхгүй; Unknown/limited penalty хэрэглэнэ.</p>
                     </Card>
                 </section>
 
-                <Card id="settings" title={t.settings} subtitle={t.optionalIds}>
+                <Card id="settings" title={t.settings} subtitle={t.optionalIds} helpHref="/docs#start">
                     <div className="grid grid-3">
                         <label className="field">
                             <span>{t.entryId}</span>
@@ -479,7 +682,7 @@ export default function Home() {
                 </Card>
 
                 <section id="team" className="grid grid-2">
-                    <Card title={t.navTeam} subtitle={t.liveTeamSub}>
+                    <Card title={t.navTeam} subtitle={t.liveTeamSub} helpHref="/docs#team">
                         <button className="btn" disabled={loading} onClick={runAnalyze}>
                             {loading ? t.loading : t.runTeamAnalysis}
                         </button>
@@ -565,9 +768,44 @@ export default function Home() {
                             </div>
                         ) : null}
                     </Card>
-                    <Card title={t.captainModel} subtitle={t.captainSub}>
-                        {captain?.length ? (
-                            captain.slice(0, 6).map((p: Any, i: number) => <PlayerRow key={p.id} p={p} index={i + 1} lang={lang} />)
+                    <Card title={t.captainModel} subtitle={t.captainSub} helpHref="/docs#decision">
+                        {captainPick ? (
+                            <>
+                                <div className="captain-primary">
+                                    <div className="captain-mark">©</div>
+                                    <div className="captain-primary-name">
+                                        <small>№1 санал</small>
+                                        <strong>{captainPick.name}</strong>
+                                        <span>{captainPick.team} · {captainPick.position}</span>
+                                    </div>
+                                    <div className="captain-primary-score">
+                                        <strong>{captainPick.expectedPoints.toFixed(1)} ↑</strong>
+                                        <small>Expected Points</small>
+                                    </div>
+                                </div>
+                                <div className="captain-signals">
+                                    <span>Starter ↑ <b>{captainPick.starterConfidence}%</b></span>
+                                    <span>Minutes ↑ <b>{captainPick.predictedMinutes}</b></span>
+                                    <span>Risk ↓ <b>{captainPick.risk}%</b></span>
+                                    {captainPick.fixture ? <span>FDR ↓ <b>{captainPick.fixture.nextDifficulty}</b></span> : null}
+                                </div>
+                                {viceCaptainPick ? (
+                                    <div className="vice-captain-line">
+                                        <span>VC</span>
+                                        <div><small>Vice Captain (Дэд ахлагч)</small><strong>{viceCaptainPick.name}</strong></div>
+                                        <b>{viceCaptainPick.expectedPoints.toFixed(1)} expected</b>
+                                    </div>
+                                ) : null}
+                                <div className="captain-shortlist">
+                                    {captain.slice(1, 5).map((player: ModelPlayer, index: number) => (
+                                        <div key={player.id}>
+                                            <span>{index + 2}</span>
+                                            <div><strong>{player.name}</strong><small>{player.team} · {player.starterConfidence}% starter</small></div>
+                                            <b>{player.expectedPoints.toFixed(1)}</b>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
                         ) : (
                             <p className="muted">{t.noData}</p>
                         )}
@@ -575,7 +813,7 @@ export default function Home() {
                 </section>
 
                 <section className="grid grid-2">
-                    <Card title={t.transferEngine} subtitle={t.transferSub}>
+                    <Card title={t.transferEngine} subtitle={t.transferSub} helpHref="/docs#decision">
                         {transfers.length ? (
                             transfers.map((x: Any, i: number) => (
                                 <div className="transfer-card" key={i} style={{ marginBottom: 12 }}>
@@ -598,21 +836,29 @@ export default function Home() {
                             <p className="muted">{t.noSafeTransfer}</p>
                         )}
                     </Card>
-                    <Card title={t.chipPlanner} subtitle={t.chipSub}>
-                        <div className="grid grid-2">
+                    <Card title={t.chipPlanner} subtitle={t.chipSub} helpHref="/docs#chips">
+                        <div className="chip-planner-list">
                             {chips.map((c: Any) => (
-                                <div className="chip-card" key={c.chip}>
-                                    <span className="badge green">{chipAction(c.action, lang)}</span>
-                                    <h3>{c.chip}</h3>
-                                    <p className="muted">{chipReason(c.chip, isPreSeason, lang)}</p>
-                                    <Metric label={t.confidence} value={`${c.confidence}%`} />
+                                <div className="chip-plan-row" key={c.chip}>
+                                    <div className="chip-symbol">
+                                        {c.chip === 'Wildcard' ? 'W' : c.chip === 'Free Hit' ? 'FH' : c.chip === 'Bench Boost' ? 'BB' : 'TC'}
+                                    </div>
+                                    <div className="chip-plan-copy">
+                                        <div><strong>{c.chip}</strong><span className="badge green">{chipAction(c.action, lang)}</span></div>
+                                        <p>{chipReason(c.chip, isPreSeason, lang)}</p>
+                                    </div>
+                                    <div className="chip-confidence">
+                                        <strong>{c.confidence}%</strong>
+                                        <small>Confidence ↑</small>
+                                    </div>
                                 </div>
                             ))}
                         </div>
+                        <div className="chip-rule-note">Chip-ийг зөвхөн Double Gameweek биш, fixture, багийн бэлэн байдал, лигийн зөрүү болон ирээдүйн боломжтой хамт үнэлнэ.</div>
                     </Card>
                 </section>
 
-                <Card id="league" title={t.leagueIntelligence} subtitle={t.leagueSub}>
+                <Card id="league" title={t.leagueIntelligence} subtitle={t.leagueSub} helpHref="/docs#league">
                     <button className="btn secondary" disabled={loading} onClick={runLeague}>
                         {loading ? t.loading : t.runLeagueAnalysis}
                     </button>
@@ -644,33 +890,58 @@ export default function Home() {
                 </Card>
 
                 <section id="drafts" className="grid grid-2">
-                    <Card title={t.topTargets} subtitle={t.topTargetsSub}>
-                        {top.length ? (
-                            top.map((p: ModelPlayer, i: number) => <PlayerRow p={p} index={i + 1} key={p.id} lang={lang} />)
-                        ) : (
-                            <div className="skeleton" />
-                        )}
+                    <Card
+                        title={t.topTargets}
+                        subtitle="Бүх байрлалаас хамгийн өндөр үнэлгээтэй shortlist (товч жагсаалт)"
+                        helpHref="/docs#targets"
+                    >
+                        <div className="target-table-head">
+                            <span>Тоглогч</span>
+                            <span>
+                                <TermTip description="Дараагийн өрсөлдөгч болон тоглолтын хүндрэлийн мэдээлэл.">Fixture</TermTip>
+                            </span>
+                            <span>
+                                <TermTip description="Гарааны бүрэлдэхүүнд эхлэх магадлал.">Starter</TermTip>
+                            </span>
+                            <span>
+                                <TermTip description="Дараагийн Gameweek-ийн хүлээгдэж буй таамаг оноо.">Expected</TermTip>
+                            </span>
+                        </div>
+                        <div className="target-list">
+                            {top.length ? (
+                                top.map((player: ModelPlayer, index: number) => (
+                                    <TargetRow player={player} rank={index + 1} key={player.id} lang={lang} />
+                                ))
+                            ) : (
+                                <div className="skeleton" />
+                            )}
+                        </div>
+                        <div className="metric-direction-legend">
+                            <span className="direction-good">Expected Points ↑ их = сайн</span>
+                            <span className="direction-good">Starter ↑ их = сайн</span>
+                            <span className="direction-low">FDR ↓ бага = сайн</span>
+                            <span className="direction-low">Risk ↓ бага = сайн</span>
+                        </div>
                     </Card>
-                    <Card title={t.positionTargets} subtitle={t.positionTargetsSub}>
-                        <div className="split">
-                            {['GKP', 'DEF', 'MID', 'FWD'].map((pos) => (
-                                <div key={pos}>
-                                    <h3>{pos}</h3>
-                                    {(topTargets[pos] || []).slice(0, 4).map((p: ModelPlayer) => (
-                                        <div className="player-chip" key={p.id} style={{ marginBottom: 8 }}>
-                                            <b>{p.name}</b>
-                                            <div className="row-meta">
-                                                {p.team} · £{p.price}m · {t.risk} {p.risk}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                    <Card
+                        title={t.positionTargets}
+                        subtitle="Position (байрлал) бүрээр харьцуулсан шилдэг сонголтууд"
+                        helpHref="/docs#targets"
+                    >
+                        <div className="position-target-grid">
+                            {['GKP', 'DEF', 'MID', 'FWD'].map((position) => (
+                                <PositionTargetGroup
+                                    position={position}
+                                    players={topTargets[position] || []}
+                                    key={position}
+                                    lang={lang}
+                                />
                             ))}
                         </div>
                     </Card>
                 </section>
 
-                <Card title={t.draftTeams} subtitle={t.draftTeamsSub}>
+                <Card title={t.draftTeams} subtitle={t.draftTeamsSub} helpHref="/docs#drafts">
                     {boot?.drafts?.length ? (
                         boot.drafts.map((d: Any) => <DraftCard draft={d} key={d.mode} lang={lang} />)
                     ) : (
