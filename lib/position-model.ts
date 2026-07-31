@@ -1,0 +1,94 @@
+import type { ModelPlayer } from '@/types/fpl';
+
+function per90(value: number, minutes: number) {
+  return minutes >= 90 ? (value / minutes) * 90 : 0;
+}
+
+function primarySetPieceBonus(player: ModelPlayer) {
+  return (
+    (player.setPieceRoles?.corners === 1 ? 0.55 : 0) +
+    (player.setPieceRoles?.directFreeKicks === 1 ? 0.55 : 0) +
+    (player.setPieceRoles?.penalties === 1 ? 0.85 : 0)
+  );
+}
+
+export function positionUpsideScore(player: ModelPlayer): number {
+  const xgi90 = per90(player.expectedGoalInvolvements, player.minutes);
+  const goal90 = per90(player.goalsScored, player.minutes);
+  const assist90 = per90(player.assists, player.minutes);
+  const cleanSheetRate =
+    player.starts > 0 ? player.cleanSheets / player.starts : 0;
+  const setPieces = primarySetPieceBonus(player);
+
+  if (player.position === 'GKP') {
+    return (
+      Math.min(1.5, cleanSheetRate * 2.4) +
+      Math.min(1, per90(player.saves, player.minutes) * 0.16) +
+      Math.min(0.7, player.penaltiesSaved * 0.25) +
+      Math.min(0.6, per90(player.bonus, player.minutes) * 0.3) +
+      Math.max(0, (player.teamDefensiveStrength - 3) * 0.16)
+    );
+  }
+
+  if (player.position === 'DEF') {
+    return (
+      Math.min(1.8, xgi90 * 2.5) +
+      Math.min(1.4, cleanSheetRate * 2.1) +
+      Math.min(1.1, player.defensiveContributionPer90 * 0.09) +
+      Math.min(0.8, goal90 * 2.4 + assist90 * 1.5) +
+      Math.max(0, (player.teamDefensiveStrength - 3) * 0.14) +
+      setPieces
+    );
+  }
+
+  if (player.position === 'MID') {
+    return (
+      Math.min(2.5, xgi90 * 2.8) +
+      Math.min(1.2, goal90 * 2.2 + assist90 * 1.5) +
+      Math.min(0.7, per90(player.creativity, player.minutes) * 0.012) +
+      Math.min(0.7, per90(player.threat, player.minutes) * 0.01) +
+      setPieces
+    );
+  }
+
+  return (
+    Math.min(3, xgi90 * 3) +
+    Math.min(1.4, goal90 * 2.7 + assist90 * 1.2) +
+    Math.min(0.9, per90(player.threat, player.minutes) * 0.012) +
+    setPieces
+  );
+}
+
+export function positionSelectionReasons(player: ModelPlayer): string[] {
+  const reasons: string[] = [];
+  const xgi90 = per90(player.expectedGoalInvolvements, player.minutes);
+  const cleanSheetRate =
+    player.starts > 0 ? player.cleanSheets / player.starts : 0;
+
+  if (player.position === 'GKP') {
+    if (cleanSheetRate >= 0.3) reasons.push(`CS rate ${Math.round(cleanSheetRate * 100)}%`);
+    if (per90(player.saves, player.minutes) >= 3) reasons.push('Save potential');
+    if (player.penaltiesSaved > 0) reasons.push(`${player.penaltiesSaved} penalty save`);
+  }
+
+  if (player.position === 'DEF') {
+    if (cleanSheetRate >= 0.3) reasons.push(`CS rate ${Math.round(cleanSheetRate * 100)}%`);
+    if (xgi90 >= 0.12) reasons.push(`xGI/90 ${xgi90.toFixed(2)}`);
+    if (player.defensiveContributionPer90 >= 8) {
+      reasons.push(`DefCon/90 ${player.defensiveContributionPer90.toFixed(1)}`);
+    }
+  }
+
+  if (player.position === 'MID' || player.position === 'FWD') {
+    if (xgi90 >= 0.3) reasons.push(`xGI/90 ${xgi90.toFixed(2)}`);
+    if (player.goalsScored + player.assists > 0) {
+      reasons.push(`${player.goalsScored} goal · ${player.assists} assist`);
+    }
+  }
+
+  if (player.setPieceRoles?.penalties === 1) reasons.push('1-р penalty taker');
+  if (player.setPieceRoles?.directFreeKicks === 1) reasons.push('1-р free-kick taker');
+  if (player.setPieceRoles?.corners === 1) reasons.push('1-р corner taker');
+
+  return reasons;
+}

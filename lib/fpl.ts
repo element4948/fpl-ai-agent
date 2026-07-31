@@ -1,6 +1,8 @@
 import { buildFixtureMap } from './fixtures';
 import { buildOfficialSignals } from './signals';
 import { projectStarter } from './starter';
+import { applyVerifiedRoleSignal } from './role-signals';
+import { buildPlayerEvidence } from './evidence';
 
 import type { FplEvent, FplFixture, FplPlayer, FplPlayerSummary, FplPosition, FplTeam, ModelPlayer } from '@/types/fpl';
 
@@ -128,6 +130,7 @@ export function toModelPlayers(
     positions: FplPosition[] = [],
     fixtures: FplFixture[] = [],
     eventId?: number | null,
+    completedGameweeks = 0,
 ): ModelPlayer[] {
     const teamMap = new Map(teams.map((team) => [team.id, team]));
 
@@ -142,11 +145,40 @@ export function toModelPlayers(
         const pointsPerGame = Number(player.points_per_game || 0);
 
         const ownership = Number(player.selected_by_percent || 0);
+        const expectedGoals = Number(player.expected_goals || 0);
+        const expectedAssists = Number(player.expected_assists || 0);
+        const expectedGoalInvolvements = Number(
+            player.expected_goal_involvements || expectedGoals + expectedAssists,
+        );
+        const expectedGoalsConceded = Number(player.expected_goals_conceded || 0);
+        const goalsScored = Number(player.goals_scored || 0);
+        const assists = Number(player.assists || 0);
+        const cleanSheets = Number(player.clean_sheets || 0);
+        const goalsConceded = Number(player.goals_conceded || 0);
+        const defensiveContribution = Number(player.defensive_contribution || 0);
+        const defensiveContributionPer90 = Number(
+            player.defensive_contribution_per_90 || 0,
+        );
+        const clearancesBlocksInterceptions = Number(
+            player.clearances_blocks_interceptions || 0,
+        );
+        const recoveries = Number(player.recoveries || 0);
+        const tackles = Number(player.tackles || 0);
+        const saves = Number(player.saves || 0);
+        const penaltiesSaved = Number(player.penalties_saved || 0);
+        const bonus = Number(player.bonus || 0);
+        const influence = Number(player.influence || 0);
+        const creativity = Number(player.creativity || 0);
+        const threat = Number(player.threat || 0);
+        const ictIndex = Number(player.ict_index || 0);
 
         const minutes = player.minutes || 0;
         const starts = player.starts || 0;
-        const completedGameweeks = eventId && eventId > 1 ? eventId - 1 : 0;
-        const starter = projectStarter(player, completedGameweeks);
+        const starterResult = applyVerifiedRoleSignal(
+            player,
+            projectStarter(player, completedGameweeks),
+        );
+        const starter = starterResult.projection;
         const signals = buildOfficialSignals(player);
 
         const minutesScore = Math.min(1, minutes / 2500);
@@ -183,12 +215,49 @@ export function toModelPlayers(
         const team = teamMap.get(player.team);
 
         const teamStrength = Number(team?.strength || 3);
+        const teamDefensiveStrength =
+            (Number(team?.strength_defence_home || teamStrength) +
+                Number(team?.strength_defence_away || teamStrength)) /
+            2;
 
         const hasSeasonData = minutes > 0 || player.total_points > 0 || form > 0;
+        const xgiPer90 = minutes >= 90 ? (expectedGoalInvolvements / minutes) * 90 : 0;
+        const underlyingContribution =
+            Math.min(2.2, xgiPer90 * 1.8) +
+            Math.min(0.8, ictIndex > 0 && minutes > 0 ? (ictIndex / minutes) * 5 : 0);
+        const cleanSheetRate = starts > 0 ? cleanSheets / starts : 0;
+        const setPieceUpside =
+            (player.corners_and_indirect_freekicks_order === 1 ? 0.35 : 0) +
+            (player.direct_freekicks_order === 1 ? 0.35 : 0) +
+            (player.penalties_order === 1 ? 0.55 : 0);
+        const positionUpside =
+            player.element_type === 1
+                ? Math.min(1, cleanSheetRate * 1.8) +
+                  Math.min(0.7, minutes >= 90 ? (saves / minutes) * 90 * 0.14 : 0) +
+                  Math.min(0.5, penaltiesSaved * 0.2)
+                : player.element_type === 2
+                  ? Math.min(1.4, xgiPer90 * 2.2) +
+                    Math.min(0.8, cleanSheetRate * 1.6) +
+                    Math.min(0.7, defensiveContributionPer90 / 14) +
+                    Math.max(0, (teamDefensiveStrength - 3) * 0.12) +
+                    setPieceUpside
+                  : player.element_type === 3
+                    ? Math.min(2, xgiPer90 * 2.4) +
+                      Math.min(0.7, minutes >= 90 ? (creativity / minutes) * 90 * 0.01 : 0) +
+                      Math.min(0.7, minutes >= 90 ? (threat / minutes) * 90 * 0.009 : 0) +
+                      setPieceUpside
+                    : Math.min(2.3, xgiPer90 * 2.7) +
+                      Math.min(0.9, minutes >= 90 ? (threat / minutes) * 90 * 0.011 : 0) +
+                      setPieceUpside;
 
         const preseasonBase = fixtureProjection * 0.9 + teamStrength * 0.25 + Math.min(ownership, 35) * 0.018;
 
-        const liveBase = expectedApiPoints * 0.34 + pointsPerGame * 0.22 + form * 0.15 + fixtureProjection * 0.72;
+        const liveBase =
+            expectedApiPoints * 0.32 +
+            pointsPerGame * 0.2 +
+            form * 0.14 +
+            fixtureProjection * 0.7 +
+            underlyingContribution;
 
         const confidenceBase = hasSeasonData
             ? 36 + minutesScore * 28 + Math.min(18, form * 2.5) + fixtureScore * 2
@@ -196,11 +265,17 @@ export function toModelPlayers(
 
         const confidence = Math.round(clamp(confidenceBase - risk * 0.32, 5, 98));
 
-        const expectedPoints = Number(((hasSeasonData ? liveBase : preseasonBase) + confidence / 125).toFixed(2));
+        const expectedPoints = Number(
+            (
+                (hasSeasonData ? liveBase : preseasonBase) +
+                positionUpside +
+                confidence / 125
+            ).toFixed(2),
+        );
 
         const price = Number((player.now_cost / 10).toFixed(1));
 
-        return {
+        const modelPlayer: ModelPlayer = {
             id: player.id,
             name: player.web_name,
             team: team?.short_name || String(player.team),
@@ -213,6 +288,32 @@ export function toModelPlayers(
             minutes,
             starts,
             ownership,
+            expectedGoals,
+            expectedAssists,
+            expectedGoalInvolvements,
+            expectedGoalsConceded,
+            goalsScored,
+            assists,
+            cleanSheets,
+            goalsConceded,
+            defensiveContribution,
+            defensiveContributionPer90,
+            clearancesBlocksInterceptions,
+            recoveries,
+            tackles,
+            saves,
+            penaltiesSaved,
+            bonus,
+            teamDefensiveStrength,
+            setPieceRoles: {
+                corners: player.corners_and_indirect_freekicks_order ?? null,
+                directFreeKicks: player.direct_freekicks_order ?? null,
+                penalties: player.penalties_order ?? null,
+            },
+            influence,
+            creativity,
+            threat,
+            ictIndex,
             expectedPoints,
             valueScore: Number((expectedPoints / Math.max(price, 1)).toFixed(2)),
             confidence,
@@ -227,6 +328,9 @@ export function toModelPlayers(
             fixture,
             fixtureScore,
         };
+        modelPlayer.roleAssessment = starterResult.assessment;
+        modelPlayer.evidence = buildPlayerEvidence(modelPlayer);
+        return modelPlayer;
     });
 }
 

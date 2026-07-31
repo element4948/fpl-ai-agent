@@ -52,6 +52,33 @@ export function buildFixtureMap(
           return sum + ((6 - item.difficulty) + homeBonus) * recencyWeight;
         }, 0) / list.reduce((sum, _item, index) => sum + Math.max(1, horizon - index), 0)
       : 3;
+    const early = list.slice(0, Math.min(2, list.length));
+    const late = list.slice(Math.max(0, list.length - 2));
+    const earlyAverage = early.length
+      ? early.reduce((sum, item) => sum + item.difficulty, 0) / early.length
+      : 3;
+    const lateAverage = late.length
+      ? late.reduce((sum, item) => sum + item.difficulty, 0) / late.length
+      : 3;
+    const difficultyChange = lateAverage - earlyAverage;
+    const trend =
+      list.length < 3
+        ? 'unknown'
+        : difficultyChange <= -0.5
+          ? 'improving'
+          : difficultyChange >= 0.5
+            ? 'hardening'
+            : 'stable';
+    const rating =
+      averageDifficulty <= 2.2
+        ? 'excellent'
+        : averageDifficulty <= 2.8
+          ? 'good'
+          : averageDifficulty <= 3.3
+            ? 'average'
+            : averageDifficulty <= 4
+              ? 'hard'
+              : 'very-hard';
 
     result.set(team.id, {
       nextOpponent: next?.opponentName || 'TBD',
@@ -60,6 +87,9 @@ export function buildFixtureMap(
       nextIsHome: next?.isHome ?? null,
       averageDifficulty: Number(averageDifficulty.toFixed(2)),
       fixtureScore: Number(fixtureScore.toFixed(2)),
+      trend,
+      rating,
+      homeCount: list.filter((fixture) => fixture.isHome).length,
       fixtures: list,
     });
   }

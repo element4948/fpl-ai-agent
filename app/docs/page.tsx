@@ -124,6 +124,8 @@ export default function DocsPage() {
           <div className="doc-card"><h3>Value Score (Үнэ цэнийн оноо)</h3><p>Expected points-ийг тоглогчийн үнэд харьцуулна. Хямд тоглогч бүр сайн value биш; гарааны магадлал хангалттай байх ёстой.</p></div>
           <div className="doc-card"><h3>Data Quality (Өгөгдлийн чанар)</h3><p>Good нь хангалттай бодит минуттай, Limited нь цөөн тоглолтын мэдээлэлтэй, Unknown нь найдвартай минутын нотолгоогүй гэсэн үг. Unknown тоглогч Starting XI-д орвол draft invalid болно.</p></div>
           <div className="doc-card"><h3>Official Signals (Албан ёсны дохио)</h3><p>Official FPL-ийн injury, doubtful, suspension, availability, player news болон онцгой transfer-out хөдөлгөөнийг Risk Engine-д оруулна.</p></div>
+          <div className="doc-card"><h3>Underlying Data (Суурь үзүүлэлт)</h3><p>Official FPL-ийн xG, xA, xGI, expected goals conceded, Influence, Creativity, Threat болон ICT Index-ийг form, fixture-ээс тусад нь үнэлнэ.</p></div>
+          <div className="doc-card"><h3>Evidence Coverage (Нотолгооны хамрах хүрээ)</h3><p>Үнэ, fixture, минут, гараа, form, xG/xA/xGI, ICT болон official status-аас хэд нь бодитоор байгааг 0–100 оноогоор харуулна. Өгөгдөл байхгүйг 0 утгатай сайн үзүүлэлт гэж ойлгохгүй.</p></div>
         </div>
         <div className="decision-flow"><span>Starter<br/><small>Гарааны магадлал</small></span><b>+</b><span>Minutes<br/><small>Таамаг минут</small></span><b>+</b><span>Fixture<br/><small>Хуваарь</small></span><b>+</b><span>Value<br/><small>Үнэ цэнэ</small></span><b>−</b><span>Risk<br/><small>Эрсдэл</small></span></div>
         <p className="doc-note">Pre-season үед бодит минутын мэдээлэл дутуу байдаг. Энэ үед Starter Confidence нь ownership болон үнэд хэсэгчлэн тулгуурладаг тул “limited” буюу хязгаарлагдмал үнэлгээ гэж ойлгоно. Тоглогчийн detail API нь сүүлийн 5 тоглолтын start rate, average minutes, 60+ minute rate болон trend-ийг тусад нь тооцно.</p>
@@ -148,12 +150,14 @@ export default function DocsPage() {
       <section className="doc-section" id="drafts">
         <h2>Draft Team (Анхны баг)-ийг хэрхэн бүрдүүлдэг вэ?</h2>
         <p>Draft Builder эхлээд FPL-ийн үндсэн дүрмийг хангасан 15 тоглогчийн баг үүсгээд, дараа нь төсвөөс хэтрүүлэхгүйгээр илүү өндөр үнэлгээтэй тоглогчдоор сольж сайжруулна.</p>
-        <ul className="check-list"><li>2 GKP, 5 DEF, 5 MID, 3 FWD</li><li>Нийт үнэ £100.0m-оос хэтрэхгүй</li><li>Нэг багаас хамгийн ихдээ 3 тоглогч</li><li>Хамгийн багадаа 1 найдвартай GKP, 4 DEF, 4 MID, 2 FWD</li><li>Найман зөв formation-ийг харьцуулж хамгийн өндөр оноотой Starting XI сонгоно</li></ul>
+        <ul className="check-list"><li>2 GKP, 5 DEF, 5 MID, 3 FWD</li><li>Нийт үнэ £100.0m-оос хэтрэхгүй</li><li>Best/Safe draft GW1-д £0.5m, Alternative £1.0m buffer зорилтотой</li><li>Нэг багаас хамгийн ихдээ 3 тоглогч</li><li>Хамгийн багадаа 1 найдвартай GKP, 4 DEF, 4 MID, 2 FWD</li><li>Найман зөв formation-ийг харьцуулж хамгийн өндөр оноотой Starting XI сонгоно</li><li>Starting XI-ийн Evidence Coverage болон Official Warning-ийг Trust Gate-ээр шалгана</li><li>Price points, playable bench, upgrade paths болон дараагийн 5 fixture-ийг Flexibility Engine шалгана</li></ul>
         <div className="docs-grid two">
           <div className="doc-card"><h3>Best / Safe</h3><p>Best нь нийт хүлээгдэж буй оноог, Safe нь гарааны магадлал, минут болон эрсдэлийн хамгаалалтыг илүү өндөр жинлэнэ.</p></div>
           <div className="doc-card"><h3>Alternative / Differential</h3><p>Alternative нь үнэ цэнэ ба өөр төсвийн бүтцийг, Differential нь ownership багатай өсөх боломжийг илүү өндөр жинлэнэ.</p></div>
         </div>
-        <p className="doc-note">Draft баг “valid” байсан ч deadline-ийн өмнө injury news, transfer news болон manager comments-ийг заавал дахин шалгана.</p>
+        <div className="docs-callout"><b>Draft Trust Score:</b> Verified нь хангалттай live evidence-тэй, Provisional нь ашиглаж болох ч deadline-ийн өмнө шалгах шаардлагатай, Insufficient нь баталгаатай санал биш гэсэн үг. Pre-season үед live minutes болон xG data бүрдээгүй бол draft зориудаар Provisional/Insufficient байна.</div>
+        <div className="docs-callout"><b>Squad Flexibility:</b> GW1-д бүх £100.0m-ийг заавал зарцуулахгүй. £0.5m buffer нь үнэ өссөн тоглогч руу нэг transfer-ээр шилжих боломж өгнө. Мөн MID/FWD/DEF дотор олон price point эзлэх, дор хаяж хоёр playable bench cover байлгах, дараагийн 3–5 Gameweek-ийн upgrade path-ийг шалгана.</div>
+        <p className="doc-note">Одоогийн free-first layer нь Official FPL player, fixture болон history data ашиглана. Press conference, friendly, шигшээ багийн минут зэрэг нь стандарт, тогтвортой үнэгүй API-гүй учраас эх сурвалж холбогдоогүй үед систем тэдгээрийг ашигласан мэт дүр эсгэхгүй.</p>
       </section>
 
       <section className="doc-section" id="team">
@@ -190,6 +194,7 @@ export default function DocsPage() {
           <div className="doc-card warning-card"><h3>Deadline-ийн өмнө шалгах</h3><ul><li>Шинэ гэмтэл гарсан эсэх</li><li>Дасгалжуулагчийн мэдэгдэл</li><li>Тоглогчийг өөр клуб рүү шилжүүлэх мэдээ</li><li>Европын тэмцээний минут ба ядаргаа</li><li>Starting XI алдагдах эрсдэл</li></ul></div>
           <div className="doc-card warning-card"><h3>Шууд дагаж болохгүй нөхцөл</h3><ul><li>Data шинэчлэгдээгүй</li><li>Confidence бага</li><li>Risk өндөр</li><li>Шинэ мэдээ AI-д хараахан орж ирээгүй</li><li>Санал таны төсөв, үнэгүй солилцоотой зөрчилдөж байвал</li></ul></div>
         </div>
+        <p className="doc-note">Official FPL дүрмээр ашиглаагүй free transfer-ийг тав хүртэл хадгалж болно. Иймээс тодорхой ашиггүй үед transfer хийхээс илүү хадгалах, харин тавд хүрсэн үед ашигтай transfer олдвол storage cap-д үрэхгүй ашиглах логик хэрэглэнэ. Үнэгүй transfer-ээс илүү хийсэн transfer бүр −4 оноо тул default нь no-hit байна.</p>
       </section>
 
       <section className="doc-section" id="status">

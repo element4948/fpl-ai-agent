@@ -33,6 +33,7 @@ export async function GET(
     boot.element_types,
     fixtures || [],
     nextEvent(boot.events)?.id,
+    boot.events.filter((event) => event.finished).length,
   )[0];
 
   if (!player) {

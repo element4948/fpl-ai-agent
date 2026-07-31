@@ -38,6 +38,23 @@ export type FplPlayer = {
   goals_conceded?: number;
   bonus?: number;
   ict_index?: string;
+  expected_goals?: string;
+  expected_assists?: string;
+  expected_goal_involvements?: string;
+  expected_goals_conceded?: string;
+  influence?: string;
+  creativity?: string;
+  threat?: string;
+  saves?: number;
+  penalties_saved?: number;
+  defensive_contribution?: number;
+  defensive_contribution_per_90?: string;
+  clearances_blocks_interceptions?: number;
+  recoveries?: number;
+  tackles?: number;
+  corners_and_indirect_freekicks_order?: number | null;
+  direct_freekicks_order?: number | null;
+  penalties_order?: number | null;
 };
 
 export type FplTeam = {
@@ -47,6 +64,8 @@ export type FplTeam = {
   strength?: number;
   strength_overall_home?: number;
   strength_overall_away?: number;
+  strength_defence_home?: number;
+  strength_defence_away?: number;
 };
 
 export type FplPosition = {
@@ -129,6 +148,50 @@ export type PlayerSignal = {
   source: 'Official FPL';
 };
 
+export type PlayerEvidence = {
+  coverageScore: number;
+  trustLevel: 'high' | 'medium' | 'low';
+  availableMetrics: string[];
+  missingMetrics: string[];
+  sources: Array<{
+    id: 'official-fpl' | 'official-fpl-history' | 'official-fpl-fixtures';
+    label: string;
+    status: 'available' | 'limited' | 'missing';
+  }>;
+};
+
+export type PlayerRoleAssessment = {
+  role: 'first-choice' | 'competition' | 'backup' | 'unknown';
+  confidence: number;
+  note: string;
+  sourceLabel: string;
+  sourceUrl: string;
+  checkedAt: string;
+};
+
+export type DraftTrust = {
+  score: number;
+  status: 'verified' | 'provisional' | 'insufficient';
+  sourceCount: number;
+  goodDataPlayers: number;
+  limitedDataPlayers: number;
+  unknownDataPlayers: number;
+  blockers: string[];
+  warnings: string[];
+};
+
+export type DraftFlexibility = {
+  score: number;
+  status: 'flexible' | 'balanced' | 'rigid';
+  bank: number;
+  targetBank: number;
+  pricePointCount: number;
+  reliableBenchPlayers: number;
+  upgradePaths: number;
+  fixtureReadyPlayers: number;
+  warnings: string[];
+};
+
 export type FixtureSummary = {
   nextOpponent: string;
   nextOpponentId: number | null;
@@ -136,6 +199,9 @@ export type FixtureSummary = {
   nextIsHome: boolean | null;
   averageDifficulty: number;
   fixtureScore: number;
+  trend: 'improving' | 'stable' | 'hardening' | 'unknown';
+  rating: 'excellent' | 'good' | 'average' | 'hard' | 'very-hard';
+  homeCount: number;
   fixtures: Array<{
     opponent: number;
     opponentName: string;
@@ -160,6 +226,32 @@ export type ModelPlayer = {
   minutes: number;
   starts: number;
   ownership: number;
+  expectedGoals: number;
+  expectedAssists: number;
+  expectedGoalInvolvements: number;
+  expectedGoalsConceded: number;
+  goalsScored: number;
+  assists: number;
+  cleanSheets: number;
+  goalsConceded: number;
+  defensiveContribution: number;
+  defensiveContributionPer90: number;
+  clearancesBlocksInterceptions: number;
+  recoveries: number;
+  tackles: number;
+  saves: number;
+  penaltiesSaved: number;
+  bonus: number;
+  teamDefensiveStrength: number;
+  setPieceRoles: {
+    corners: number | null;
+    directFreeKicks: number | null;
+    penalties: number | null;
+  };
+  influence: number;
+  creativity: number;
+  threat: number;
+  ictIndex: number;
   expectedPoints: number;
   valueScore: number;
   confidence: number;
@@ -169,6 +261,8 @@ export type ModelPlayer = {
   starterLabel: StarterLabel;
   dataQuality: 'good' | 'limited' | 'unknown';
   signals: PlayerSignal[];
+  evidence?: PlayerEvidence;
+  roleAssessment?: PlayerRoleAssessment;
   news?: string;
   status?: string;
   riskBreakdown?: {
@@ -203,6 +297,8 @@ export type DraftTeam = {
   bench: ModelPlayer[];
   formation: Formation;
   validation: SquadValidation;
+  trust: DraftTrust;
+  flexibility: DraftFlexibility;
   explanation: string[];
 };
 

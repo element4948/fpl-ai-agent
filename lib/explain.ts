@@ -25,9 +25,15 @@ export function explainPlayer(player: ModelPlayer, risk: RiskBreakdown): Explana
     if (nextDifficulty <= 2 || averageDifficulty <= 2.8 || (player.fixtureScore || 0) >= 3.5) {
         positives.push('goodFixtures');
     }
+    if (player.fixture?.trend === 'improving') {
+        positives.push('improvingFixtures');
+    }
 
     if (nextDifficulty >= 4 || averageDifficulty >= 4) {
         warnings.push('hardFixtures');
+    }
+    if (player.fixture?.trend === 'hardening') {
+        warnings.push('hardeningFixtures');
     }
 
     if (player.starterConfidence >= 75 && player.predictedMinutes >= 70) {

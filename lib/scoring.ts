@@ -1,20 +1,35 @@
 import { ModelPlayer } from '@/types/fpl';
+import { positionUpsideScore } from '@/lib/position-model';
 
 export function rankCaptainCandidates(players: ModelPlayer[], limit = 8) {
   return [...players]
-    .filter(p => p.position !== 'GKP' && p.starterConfidence >= 60 && p.predictedMinutes >= 55)
+    .filter(
+      p =>
+        p.position !== 'GKP' &&
+        p.starterConfidence >= 60 &&
+        p.predictedMinutes >= 55 &&
+        (p.evidence?.coverageScore || 0) >= 45,
+    )
     .sort((a, b) => captainScore(b) - captainScore(a))
     .slice(0, limit)
     .map(p => ({ ...p, captainScore: Number(captainScore(p).toFixed(2)) }));
 }
 
 export function captainScore(p: ModelPlayer) {
+  const nextFixtureBonus = p.fixture
+    ? (6 - p.fixture.nextDifficulty) * (p.position === 'DEF' ? 0.45 : 0.6) +
+      (p.fixture.nextIsHome ? 0.2 : 0) +
+      (p.fixture.trend === 'improving' ? 0.25 : p.fixture.trend === 'hardening' ? -0.2 : 0)
+    : 0;
   return (
     p.expectedPoints * 1.55 +
     p.form * 0.7 +
     p.confidence * 0.04 +
     p.starterConfidence * 0.055 +
     p.predictedMinutes * 0.035 +
+    Math.min(1.8, p.minutes >= 90 ? (p.expectedGoalInvolvements / p.minutes) * 90 * 1.5 : 0) +
+    (p.evidence?.coverageScore || 0) * 0.018 +
+    nextFixtureBonus +
     Math.min(8, p.ownership * 0.08) -
     p.risk * 0.08
   );
@@ -23,26 +38,44 @@ export function captainScore(p: ModelPlayer) {
 export function topTargetsByPosition(players: ModelPlayer[]) {
   const groups: Record<string, ModelPlayer[]> = { GKP: [], DEF: [], MID: [], FWD: [] };
   for (const p of players) {
-    if (groups[p.position] && p.starterConfidence >= 50 && p.predictedMinutes >= 45) {
+    if (
+      groups[p.position] &&
+      p.starterConfidence >= 50 &&
+      p.predictedMinutes >= 45 &&
+      (p.evidence?.coverageScore || 0) >= 38
+    ) {
       groups[p.position].push(p);
     }
   }
   for (const key of Object.keys(groups)) {
+    const fixtureMultiplier = key === 'GKP' || key === 'DEF' ? 0.34 : 0.28;
     groups[key] = groups[key]
-      .sort(
-        (a, b) =>
-          b.expectedPoints +
-          b.valueScore +
-          b.starterConfidence * 0.04 +
-          b.predictedMinutes * 0.025 -
-          b.risk * 0.025 -
-          (a.expectedPoints +
-            a.valueScore +
-            a.starterConfidence * 0.04 +
-            a.predictedMinutes * 0.025 -
-            a.risk * 0.025),
-      )
+      .sort((a, b) => targetScore(b, fixtureMultiplier) - targetScore(a, fixtureMultiplier))
       .slice(0, 8);
   }
   return groups;
+}
+
+function targetScore(player: ModelPlayer, fixtureMultiplier: number) {
+  const xgiPer90 =
+    player.minutes >= 90
+      ? (player.expectedGoalInvolvements / player.minutes) * 90
+      : 0;
+  const positionUpside = positionUpsideScore(player);
+  return (
+    player.expectedPoints +
+    player.valueScore +
+    player.starterConfidence * 0.04 +
+    player.predictedMinutes * 0.025 +
+    (player.evidence?.coverageScore || 0) * 0.025 +
+    Math.min(1.2, xgiPer90) +
+    positionUpside -
+    (player.fixture?.nextDifficulty ?? 3) * fixtureMultiplier +
+    (player.fixture?.trend === 'improving'
+      ? 0.3
+      : player.fixture?.trend === 'hardening'
+        ? -0.2
+        : 0) -
+    player.risk * 0.025
+  );
 }

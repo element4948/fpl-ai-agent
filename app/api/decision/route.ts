@@ -13,9 +13,10 @@ export async function POST(req: Request) {
   if (!boot) return NextResponse.json({ error: 'FPL API unavailable' }, { status: 200 });
 
   const next = nextEvent(boot.events);
-  const allPlayers = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], next?.id);
+  const completedGameweeks = boot.events.filter(event => event.finished).length;
+  const allPlayers = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], next?.id, completedGameweeks);
   const oldGw38 = next?.name?.includes('38') && next?.deadline_time && new Date(next.deadline_time).getTime() < Date.now();
-  const isPreSeason = !next || !next.deadline_time || !!oldGw38;
+  const isPreSeason = completedGameweeks === 0 || !next || !next.deadline_time || !!oldGw38;
 
   if (!entryId || isPreSeason) {
     return NextResponse.json(buildDecision({ allPlayers, riskProfile, goal, isPreSeason: true }));

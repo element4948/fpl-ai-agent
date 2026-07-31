@@ -40,7 +40,7 @@ export function projectStarter(
     };
   }
 
-  if (hasLiveMinutes) {
+  if (hasLiveMinutes && completedGameweeks > 0) {
     const teamMatches = Math.max(1, completedGameweeks);
     const minutesPerStart = starts > 0 ? minutes / starts : minutes;
     const startRate = Math.min(1, starts / teamMatches);
@@ -69,6 +69,32 @@ export function projectStarter(
               ? 'rotation'
               : 'bench',
       dataQuality: teamMatches >= 3 && (starts >= 2 || minutes >= 120) ? 'good' : 'limited',
+    };
+  }
+
+  if (hasLiveMinutes && completedGameweeks === 0) {
+    const historicalStartRate = Math.min(1, starts / 38);
+    const historicalMinutesRate = Math.min(1, minutes / (38 * 90));
+    const marketSignal =
+      Math.min(12, ownership * 0.45) +
+      Math.min(8, Math.max(0, player.now_cost / 10 - 4) * 1.5);
+    const confidence = clamp(
+      20 + historicalStartRate * 48 + historicalMinutesRate * 22 + marketSignal,
+      15,
+      72,
+    );
+    const predictedMinutes = clamp(15 + confidence * 0.62, 15, 60);
+
+    return {
+      confidence,
+      predictedMinutes,
+      label:
+        confidence >= 62
+          ? 'likely'
+          : confidence >= 42
+            ? 'rotation'
+            : 'bench',
+      dataQuality: 'limited',
     };
   }
 

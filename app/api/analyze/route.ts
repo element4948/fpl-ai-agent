@@ -107,7 +107,14 @@ export async function POST(req: Request) {
 
     const fixtureEventId = nextEvent?.id || analysisEventId + 1;
 
-    const allPlayers = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], fixtureEventId);
+    const allPlayers = toModelPlayers(
+        boot.elements,
+        boot.teams,
+        boot.element_types,
+        fixtures || [],
+        fixtureEventId,
+        boot.events.filter((item) => item.finished).length,
+    );
 
     const playerMap = new Map(allPlayers.map((player) => [player.id, player]));
 

@@ -21,6 +21,7 @@ import {
 } from '@/lib/i18n';
 import { defaultSettings, loadSettings, saveSettings } from '@/lib/storage';
 import type { ModelPlayer, UserSettings } from '@/types/fpl';
+import { positionSelectionReasons } from '@/lib/position-model';
 import { useEffect, useState } from 'react';
 
 type Any = any;
@@ -115,10 +116,23 @@ function PlayerDetailModal() {
                             <div><small>Risk ↓</small><strong>{player.risk}%</strong></div>
                         </div>
 
+                        <div className="player-underlying-grid">
+                            <div><small>xG</small><strong>{player.expectedGoals.toFixed(2)}</strong></div>
+                            <div><small>xA</small><strong>{player.expectedAssists.toFixed(2)}</strong></div>
+                            <div><small>xGI</small><strong>{player.expectedGoalInvolvements.toFixed(2)}</strong></div>
+                            <div><small>ICT</small><strong>{player.ictIndex.toFixed(1)}</strong></div>
+                            <div><small>Evidence coverage</small><strong>{player.evidence?.coverageScore || 0}%</strong></div>
+                        </div>
+
                         <div className="player-detail-quality">
                             <DataQualityBadge quality={recent.dataQuality} />
                             <span>Сүүлийн {recent.sampleSize} тоглолтын бодит мэдээлэлд тулгуурлав.</span>
                         </div>
+                        {player.evidence?.missingMetrics?.length ? (
+                            <div className="evidence-missing">
+                                <b>Одоогоор дутуу:</b> {player.evidence.missingMetrics.join(', ')}
+                            </div>
+                        ) : null}
 
                         <div className="player-history-grid">
                             <div><small>Гараанд эхэлсэн</small><strong>{recent.starts}/{recent.sampleSize}</strong><span>{recent.startRate}%</span></div>
@@ -161,6 +175,7 @@ function PlayerDetailModal() {
                                     </span>
                                 ))}
                             </div>
+                            <FixtureTrendBadge fixture={player.fixture} />
                             <p>FDR бага байх тусам хялбар. Expected points, Starter confidence өндөр байх тусам сайн.</p>
                         </div>
                     </>
@@ -186,6 +201,17 @@ function DataQualityBadge({ quality }: { quality: ModelPlayer['dataQuality'] }) 
             {label}
         </span>
     );
+}
+
+function FixtureTrendBadge({ fixture }: { fixture?: ModelPlayer['fixture'] }) {
+    if (!fixture || fixture.trend === 'unknown') return null;
+    const label =
+        fixture.trend === 'improving'
+            ? '↗ Хуваарь хялбаршиж байна'
+            : fixture.trend === 'hardening'
+              ? '↘ Хуваарь хүндэрч байна'
+              : '→ Хуваарь тогтвортой';
+    return <span className={`fixture-trend fixture-trend-${fixture.trend}`}>{label}</span>;
 }
 
 function PlayerRow({ p, index, lang }: { p: ModelPlayer; index?: number; lang: 'mn' | 'en' }) {
@@ -220,7 +246,8 @@ function PlayerRow({ p, index, lang }: { p: ModelPlayer; index?: number; lang: '
                         <TermTip description="Fixture Difficulty Rating буюу тоглолтын хүндрэлийн үнэлгээ. 1 хамгийн хялбар, 5 хамгийн хүнд.">
                             FDR
                         </TermTip>{' '}
-                        {p.fixture.nextDifficulty}/5 (1 хялбар, 5 хүнд) · Next 5 average (дараагийн 5-ын дундаж) {p.fixture.averageDifficulty}/5
+                        {p.fixture.nextDifficulty}/5 (1 хялбар, 5 хүнд) · Next 5 average (дараагийн 5-ын дундаж) {p.fixture.averageDifficulty}/5 ·{' '}
+                        <FixtureTrendBadge fixture={p.fixture} />
                     </div>
                 ) : null}
                 <div className="bar">
@@ -318,9 +345,19 @@ function WeeklyActionPlan({ plan, lang }: { plan: Any; lang: 'mn' | 'en' }) {
     );
 }
 
-function DraftPlayerTile({ player }: { player: ModelPlayer }) {
+function DraftPlayerTile({ player, role }: { player: ModelPlayer; role: 'starter' | 'bench' }) {
     const starterTone =
         player.starterConfidence >= 75 ? 'draft-confidence-good' : player.starterConfidence >= 55 ? 'draft-confidence-medium' : 'draft-confidence-low';
+    const selectionReasons = [
+        player.price <= 4.5 && player.starterConfidence >= 55 ? 'Хямд, тоглох боломжтой' : null,
+        player.expectedPoints >= 5 ? 'Expected өндөр' : null,
+        player.fixture && player.fixture.averageDifficulty <= 2.8 ? 'Next 5 таатай' : null,
+        player.starterConfidence >= 65 ? 'Гараанд ойр' : null,
+        player.expectedGoalInvolvements > 0 ? 'xGI data-тай' : null,
+        ...positionSelectionReasons(player),
+        player.roleAssessment?.role === 'backup' ? 'Зөвхөн сэлгээний хаалгач' : null,
+    ].filter((reason): reason is string => Boolean(reason)).slice(0, 5);
+    const unreliable = player.starterConfidence < 55 || player.predictedMinutes < 45;
 
     return (
         <div className={`draft-player-tile ${starterTone}`}>
@@ -332,6 +369,9 @@ function DraftPlayerTile({ player }: { player: ModelPlayer }) {
             <div className="draft-player-team">
                 {player.team} · {player.position} · <DataQualityBadge quality={player.dataQuality} />
             </div>
+            <div className={`draft-player-role ${role === 'bench' ? 'bench-role' : 'starter-role'}`}>
+                {role === 'starter' ? 'Starting XI сонголт' : unreliable ? 'Bench filler — гараанд зориулаагүй' : 'Bench cover'}
+            </div>
             {player.signals?.length ? (
                 <div className="player-signal" title={player.signals.map((signal) => signal.message).join(' · ')}>
                     ! Official signal
@@ -341,20 +381,83 @@ function DraftPlayerTile({ player }: { player: ModelPlayer }) {
             <div className="draft-player-metrics">
                 <span title="Starter confidence — гарааны магадлал">Starter {player.starterConfidence}%</span>
                 <span title="Predicted minutes — таамаг минут">{player.predictedMinutes} min</span>
+                <span title="Ашигласан өгөгдлийн хамрах хүрээ">Evidence {player.evidence?.coverageScore || 0}%</span>
             </div>
+            {player.position === 'DEF' ? (
+                <div className="draft-player-metrics">
+                    <span title="Өнгөрсөн улирлын албан ёсны FPL статистик">
+                        G/A <b>{player.goalsScored}/{player.assists}</b>
+                    </span>
+                    <span title="Clean sheet — гоол алдаагүй тоглолт">
+                        CS <b>{player.cleanSheets}</b>
+                    </span>
+                    <span title="Defensive contribution per 90">
+                        DefCon/90 <b>{player.defensiveContributionPer90.toFixed(1)}</b>
+                    </span>
+                    <span title="Албан ёсны FPL set-piece дараалал">
+                        Set piece{' '}
+                        <b>
+                            {player.setPieceRoles?.penalties === 1
+                                ? 'PEN'
+                                : player.setPieceRoles?.directFreeKicks === 1
+                                  ? 'FK'
+                                  : player.setPieceRoles?.corners === 1
+                                    ? 'COR'
+                                    : '—'}
+                        </b>
+                    </span>
+                </div>
+            ) : null}
+            <div className="draft-selection-reasons">
+                {selectionReasons.length
+                    ? selectionReasons.map((reason) => <span key={reason}>✓ {reason}</span>)
+                    : <span>△ Нотолгоо хязгаарлагдмал</span>}
+            </div>
+            {unreliable ? (
+                <div className="draft-player-reject">
+                    ! Starter баталгаагүй — гараанд бүү тооц
+                </div>
+            ) : null}
+            {player.roleAssessment ? (
+                <div className="draft-player-reject">
+                    <strong>
+                        Role: {player.roleAssessment.role === 'backup' ? 'Backup' : player.roleAssessment.role}
+                    </strong>
+                    <span>{player.roleAssessment.note}</span>
+                    <a href={player.roleAssessment.sourceUrl} target="_blank" rel="noreferrer">
+                        Эх сурвалж: {player.roleAssessment.sourceLabel}
+                    </a>
+                </div>
+            ) : null}
 
             {player.fixture ? (
-                <div className="draft-fixture">
-                    <span>
-                        {player.fixture.nextOpponent} {player.fixture.nextIsHome ? '(H)' : '(A)'}
-                    </span>
-                    <b
-                        className={`fdr fdr-${Math.round(player.fixture.nextDifficulty)}`}
-                        title="FDR: 1 хамгийн хялбар, 5 хамгийн хүнд"
-                    >
-                        FDR {player.fixture.nextDifficulty} ↓
-                    </b>
-                </div>
+                <>
+                    <div className="draft-fixture">
+                        <span>Дараагийн {player.fixture.nextOpponent} {player.fixture.nextIsHome ? '(H)' : '(A)'}</span>
+                        <b
+                            className={`fdr fdr-${Math.round(player.fixture.nextDifficulty)}`}
+                            title="FDR: 1 хамгийн хялбар, 5 хамгийн хүнд"
+                        >
+                            FDR {player.fixture.nextDifficulty} ↓
+                        </b>
+                    </div>
+                    <div className="draft-fixture-run" aria-label="Дараагийн 5 тоглолт">
+                        {player.fixture.fixtures.slice(0, 5).map((fixture, index) => (
+                            <span
+                                className={`draft-fixture-pill fdr-bg-${Math.round(fixture.difficulty)}`}
+                                title={`${fixture.opponentName} · ${fixture.isHome ? 'Талбайдаа' : 'Айлд'} · FDR ${fixture.difficulty}/5`}
+                                key={`${fixture.opponent}-${fixture.event}-${index}`}
+                            >
+                                <b>{fixture.opponentName}</b>
+                                <small>{fixture.isHome ? 'H' : 'A'} · {fixture.difficulty}</small>
+                            </span>
+                        ))}
+                    </div>
+                    <div className="draft-fixture-run-summary">
+                        <span>Next 5 avg {player.fixture.averageDifficulty}/5 ↓</span>
+                        <FixtureTrendBadge fixture={player.fixture} />
+                    </div>
+                </>
             ) : (
                 <div className="draft-fixture">
                     <span>Fixture тодорхойгүй</span>
@@ -365,8 +468,7 @@ function DraftPlayerTile({ player }: { player: ModelPlayer }) {
     );
 }
 
-function TargetRow({ player, rank, lang }: { player: ModelPlayer; rank: number; lang: 'mn' | 'en' }) {
-    const t = dict[lang];
+function TargetRow({ player, rank }: { player: ModelPlayer; rank: number }) {
     const starterTone = player.starterConfidence >= 75 ? 'green' : player.starterConfidence < 55 ? 'red' : '';
 
     return (
@@ -377,10 +479,9 @@ function TargetRow({ player, rank, lang }: { player: ModelPlayer; rank: number; 
                 <div className="row-title">
                     <strong>{player.name}</strong>
                     <span className="badge">{player.position}</span>
-                    <DataQualityBadge quality={player.dataQuality} />
                 </div>
                 <div className="row-meta">
-                    {player.team} · £{player.price.toFixed(1)}m · {t.ownership} {player.ownership}%
+                    {player.team} · £{player.price.toFixed(1)}m
                 </div>
             </div>
 
@@ -516,7 +617,7 @@ function PositionTargetGroup({ position, players, lang }: { position: string; pl
             </div>
 
             <div className="position-target-list">
-                {players.slice(0, 4).map((player, index) => (
+                {players.slice(0, 3).map((player, index) => (
                     <div className="position-target-row" key={player.id}>
                         <span className="position-rank">{index + 1}</span>
                         <div>
@@ -577,6 +678,14 @@ function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
                         <small>Тоглогч</small>
                         <b>{playerCount}/15</b>
                     </span>
+                    <span className={`draft-trust-${draft.trust?.status || 'insufficient'}`}>
+                        <small>Trust</small>
+                        <b>{draft.trust?.score || 0}%</b>
+                    </span>
+                    <span className={`draft-flex-${draft.flexibility?.status || 'rigid'}`}>
+                        <small>Flexibility</small>
+                        <b>{draft.flexibility?.score || 0}%</b>
+                    </span>
                     <span className={draft.validation.valid ? 'draft-valid' : 'draft-invalid'}>
                         {draft.validation.valid ? `✓ ${t.allGood}` : `! ${t.check}`}
                     </span>
@@ -607,6 +716,68 @@ function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
                     </div>
                 ) : null}
 
+                {draft.trust ? (
+                    <div className={`draft-trust-panel draft-trust-${draft.trust.status}`}>
+                        <div className="draft-trust-main">
+                            <span>Draft Trust Score</span>
+                            <strong>{draft.trust.score}%</strong>
+                            <b>
+                                {draft.trust.status === 'verified'
+                                    ? 'Verified'
+                                    : draft.trust.status === 'provisional'
+                                      ? 'Provisional — дахин шалгана'
+                                      : 'Insufficient — баталгаатай санал биш'}
+                            </b>
+                        </div>
+                        <div className="draft-source-coverage">
+                            <span><b>{draft.trust.sourceCount}</b> free official data streams</span>
+                            <span><b>{draft.trust.goodDataPlayers}</b> good data</span>
+                            <span><b>{draft.trust.limitedDataPlayers}</b> limited</span>
+                            <span><b>{draft.trust.unknownDataPlayers}</b> unknown</span>
+                        </div>
+                        {draft.trust.blockers?.length ? (
+                            <div className="draft-trust-blockers">
+                                {draft.trust.blockers.map((blocker: string) => <span key={blocker}>! {blocker}</span>)}
+                            </div>
+                        ) : null}
+                        {draft.trust.warnings?.length ? (
+                            <div className="draft-trust-warnings">
+                                {draft.trust.warnings.map((warning: string) => <span key={warning}>△ {warning}</span>)}
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
+
+                {draft.flexibility ? (
+                    <div className={`draft-flex-panel draft-flex-${draft.flexibility.status}`}>
+                        <div className="draft-flex-title">
+                            <div>
+                                <span>GW1 Squad Flexibility</span>
+                                <strong>{draft.flexibility.score}/100</strong>
+                            </div>
+                            <b>
+                                {draft.flexibility.status === 'flexible'
+                                    ? 'Flexible — шилжилт хийхэд бэлэн'
+                                    : draft.flexibility.status === 'balanced'
+                                      ? 'Balanced — боломжийн'
+                                      : 'Rigid — forced transfer эрсдэлтэй'}
+                            </b>
+                        </div>
+                        <div className="draft-flex-metrics">
+                            <span><small>Bank</small><b>£{draft.flexibility.bank.toFixed(1)}m</b><i>Target £{draft.flexibility.targetBank.toFixed(1)}m</i></span>
+                            <span><small>Price points</small><b>{draft.flexibility.pricePointCount}</b><i>Солих үнийн шат</i></span>
+                            <span><small>Playable bench</small><b>{draft.flexibility.reliableBenchPlayers}/4</b><i>Rotation cover</i></span>
+                            <span><small>Upgrade paths</small><b>{draft.flexibility.upgradePaths}</b><i>£0.5m дотор</i></span>
+                            <span><small>Next 5 ready</small><b>{draft.flexibility.fixtureReadyPlayers}/15</b><i>FDR avg ≤3.3</i></span>
+                        </div>
+                        {draft.flexibility.warnings?.length ? (
+                            <div className="draft-flex-warnings">
+                                {draft.flexibility.warnings.map((warning: string) => <span key={warning}>△ {warning}</span>)}
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
+
                 <div className="draft-layout">
                     <div>
                         <div className="draft-section-title">
@@ -624,7 +795,7 @@ function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
                                 return (
                                     <div className={`pitch-line pitch-${position.toLowerCase()}`} key={position}>
                                         {players.map((player: ModelPlayer) => (
-                                            <DraftPlayerTile player={player} key={player.id} />
+                                            <DraftPlayerTile player={player} role="starter" key={player.id} />
                                         ))}
                                     </div>
                                 );
@@ -645,7 +816,7 @@ function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
                             {draft.bench?.map((player: ModelPlayer, index: number) => (
                                 <div className="draft-bench-player" key={player.id}>
                                     <span className="bench-order">{index + 1}</span>
-                                    <DraftPlayerTile player={player} />
+                                    <DraftPlayerTile player={player} role="bench" />
                                 </div>
                             ))}
                         </div>
@@ -751,7 +922,7 @@ export default function Home() {
         setTimeout(() => setSaved(false), 1600);
     }
 
-    const top = boot?.topPlayers?.slice(0, 10) || [];
+    const top = boot?.topPlayers?.slice(0, 6) || [];
     const captain = analysis?.captainShortlist || boot?.captainShortlist || [];
     const transfers = analysis?.transferSuggestions || [];
     const chips = analysis?.chips || boot?.chips || [];
@@ -873,9 +1044,11 @@ export default function Home() {
                     <Card title={t.ruleEngine} subtitle={t.ruleText} helpHref="/docs#drafts">
                         <div className="rule-checklist">
                             <div><span>✓</span><p><b>£100.0m</b><small>Нийт төсвийн хязгаар</small></p></div>
+                            <div><span>✓</span><p><b>£0.5m buffer</b><small>GW1 upgrade flexibility</small></p></div>
                             <div><span>✓</span><p><b>15 players</b><small>2 GKP · 5 DEF · 5 MID · 3 FWD</small></p></div>
                             <div><span>✓</span><p><b>Max 3</b><small>Нэг клубээс авах дээд тоо</small></p></div>
                             <div><span>✓</span><p><b>Valid XI</b><small>Зөв formation ба найдвартай гараа</small></p></div>
+                            <div><span>✓</span><p><b>Max 5 FT</b><small>Ашиггүй үед transfer хадгална</small></p></div>
                         </div>
                     </Card>
                     <Card title={t.riskEngine} subtitle={t.riskText} helpHref="/docs#risk">
@@ -1148,7 +1321,7 @@ export default function Home() {
                     ) : null}
                 </Card>
 
-                <section id="drafts" className="grid grid-2">
+                <section id="drafts" className="target-sections">
                     <Card
                         title={t.topTargets}
                         subtitle="Бүх байрлалаас хамгийн өндөр үнэлгээтэй shortlist (товч жагсаалт)"
@@ -1169,7 +1342,7 @@ export default function Home() {
                         <div className="target-list">
                             {top.length ? (
                                 top.map((player: ModelPlayer, index: number) => (
-                                    <TargetRow player={player} rank={index + 1} key={player.id} lang={lang} />
+                                    <TargetRow player={player} rank={index + 1} key={player.id} />
                                 ))
                             ) : (
                                 <div className="skeleton" />
