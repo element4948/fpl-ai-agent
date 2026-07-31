@@ -20,7 +20,12 @@ import {
     transferReason,
 } from '@/lib/i18n';
 import { defaultSettings, loadSettings, saveSettings } from '@/lib/storage';
-import type { ModelPlayer, UserSettings } from '@/types/fpl';
+import {
+    evaluateForecast,
+    loadCalibrationResults,
+    saveForecast,
+} from '@/lib/calibration';
+import type { CalibrationResult, ModelPlayer, ModelReadiness, UserSettings } from '@/types/fpl';
 import { positionSelectionReasons } from '@/lib/position-model';
 import { useEffect, useState } from 'react';
 
@@ -875,6 +880,7 @@ export default function Home() {
     const [analysis, setAnalysis] = useState<Any>(null);
     const [league, setLeague] = useState<Any>(null);
     const [decision, setDecision] = useState<Any>(null);
+    const [calibrationResults, setCalibrationResults] = useState<CalibrationResult[]>([]);
     const [loading, setLoading] = useState(false);
 
     const lang = settings.lang || 'mn';
@@ -889,6 +895,25 @@ export default function Home() {
             .then(setBoot)
             .catch((e) => setBoot({ error: e.message }));
     }, []);
+    useEffect(() => {
+        setCalibrationResults(loadCalibrationResults());
+    }, []);
+    useEffect(() => {
+        if (!boot) return;
+        saveForecast(
+            boot.nextEvent?.id,
+            boot.nextEvent?.deadline_time,
+            boot.topPlayers || [],
+        );
+        if (boot.calibration?.eventId && boot.calibration?.actuals) {
+            setCalibrationResults(
+                evaluateForecast(
+                    boot.calibration.eventId,
+                    boot.calibration.actuals,
+                ),
+            );
+        }
+    }, [boot]);
     useEffect(() => {
         runDecision(); /* eslint-disable-next-line react-hooks/exhaustive-deps */
     }, []);
@@ -956,6 +981,13 @@ export default function Home() {
     const primaryChip = decision?.chips?.[0] || chips[0];
     const captainPick = captain?.[0] || decision?.captain;
     const viceCaptainPick = captain?.[1] || decision?.viceCaptain;
+    const latestCalibration = calibrationResults.at(-1);
+    const readiness: ModelReadiness | undefined = boot?.readiness
+        ? {
+              ...boot.readiness,
+              calibration: Math.min(100, 10 + calibrationResults.length * 14),
+          }
+        : undefined;
 
     return (
         <>
@@ -1086,6 +1118,50 @@ export default function Home() {
                         <p className="engine-footnote">Өгөгдөл дутуу үед Risk 0% гэж үзэхгүй; Unknown/limited penalty хэрэглэнэ.</p>
                     </Card>
                 </section>
+
+                <Card
+                    title="Model Readiness & Calibration (загварын бэлэн байдал)"
+                    subtitle="Таамгаар 80% гэж бичихгүй. Data coverage болон дууссан Gameweek-ийн бодит үр дүнгээр хэмжинэ."
+                    helpHref="/docs#status"
+                >
+                    <div className="readiness-grid">
+                        {readiness
+                            ? ([
+                                  ['FPL rules', readiness.rules],
+                                  ['Squad optimizer', readiness.squadOptimization],
+                                  ['Official data', readiness.officialData],
+                                  ['Position models', readiness.positionModels],
+                                  ['Starter & minutes', readiness.starterMinutes],
+                                  ['Injury & availability', readiness.injuryAvailability],
+                                  ['Transfer news', readiness.transferNews],
+                                  ['Friendly & international', readiness.friendlyInternational],
+                                  ['Multi-source verification', readiness.multiSourceVerification],
+                                  ['Prediction calibration', readiness.calibration],
+                                  ['Multi-GW planning', readiness.multiGameweekPlanning],
+                              ] as Array<[string, number]>).map(([label, score]) => (
+                                  <div className="readiness-row" key={label}>
+                                      <span>{label}</span>
+                                      <div><i style={{ width: `${score}%` }} /></div>
+                                      <b className={score >= 80 ? 'good' : score >= 60 ? 'yellow' : 'bad'}>
+                                          {score}%
+                                      </b>
+                                  </div>
+                              ))
+                            : <div className="skeleton" />}
+                    </div>
+                    <div className="calibration-summary">
+                        <strong>
+                            {latestCalibration
+                                ? `GW${latestCalibration.eventId}: MAE ${latestCalibration.mae} · ±2 оноонд ${latestCalibration.withinTwo}%`
+                                : 'Calibration эхлэхэд live Gameweek-ийн нэг бүтэн forecast шаардлагатай.'}
+                        </strong>
+                        <span>
+                            {calibrationResults.length
+                                ? `${calibrationResults.length} Gameweek хэмжсэн · Bias ${latestCalibration?.bias ?? 0}`
+                                : 'Таамгийг deadline-аас өмнө хадгалаад, Gameweek дууссаны дараа бодит оноотой автоматаар харьцуулна.'}
+                        </span>
+                    </div>
+                </Card>
 
                 <RiskMonitor items={boot?.riskMonitor || []} />
 

@@ -273,7 +273,7 @@ export function toModelPlayers(
             ).toFixed(2),
         );
         const projectedFixtures = fixture?.fixtures.slice(0, 5) || [];
-        const projectionValues = projectedFixtures.map((item) => {
+        const projectionValues = projectedFixtures.map((item, index) => {
             const difficultyAdjustment =
                 (nextDifficulty - item.difficulty) *
                 (player.element_type <= 2 ? 0.5 : 0.58);
@@ -283,15 +283,29 @@ export function toModelPlayers(
                     : item.isHome
                       ? 0.18
                       : -0.18;
-            return Math.max(
-                0.5,
-                Number((expectedPoints + difficultyAdjustment + venueAdjustment).toFixed(2)),
-            );
+            return {
+                event: item.event ?? (eventId || 0) + index,
+                points: Math.max(
+                    0.5,
+                    Number((expectedPoints + difficultyAdjustment + venueAdjustment).toFixed(2)),
+                ),
+            };
         });
-        if (!projectionValues.length) projectionValues.push(expectedPoints);
+        if (!projectionValues.length) {
+            projectionValues.push({
+                event: eventId || 0,
+                points: expectedPoints,
+            });
+        }
+        const gameweekTotals = [...projectionValues.reduce((map, item) => {
+            map.set(item.event, (map.get(item.event) || 0) + item.points);
+            return map;
+        }, new Map<number, number>()).entries()]
+            .sort(([eventA], [eventB]) => eventA - eventB)
+            .map(([, points]) => points);
         const projectionTotal = (limit: number) =>
             Number(
-                projectionValues
+                gameweekTotals
                     .slice(0, limit)
                     .reduce((sum, value) => sum + value, 0)
                     .toFixed(2),
@@ -344,6 +358,7 @@ export function toModelPlayers(
                 next3: projectionTotal(3),
                 next5: projectionTotal(5),
                 games: projectionValues.length,
+                gameweeks: gameweekTotals.length,
             },
             valueScore: Number((expectedPoints / Math.max(price, 1)).toFixed(2)),
             confidence,

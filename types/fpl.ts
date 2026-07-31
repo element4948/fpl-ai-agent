@@ -18,6 +18,7 @@ export type FplPlayer = {
   element_type: number;
   now_cost: number;
   total_points: number;
+  event_points?: number;
   selected_by_percent: string;
   minutes: number;
   starts?: number;
@@ -181,8 +182,57 @@ export type ExternalNewsSignal = {
   publishedAt: string;
   source: string;
   tier: 'official' | 'reliable' | 'secondary';
-  category: 'injury' | 'transfer' | 'rotation' | 'availability';
+  category:
+    | 'injury'
+    | 'transfer'
+    | 'rotation'
+    | 'availability'
+    | 'international'
+    | 'friendly'
+    | 'fatigue';
   severity: 'low' | 'medium' | 'high';
+};
+
+export type ForecastPlayer = {
+  id: number;
+  name: string;
+  predicted: number;
+};
+
+export type ForecastSnapshot = {
+  eventId: number;
+  deadline: string;
+  createdAt: string;
+  players: ForecastPlayer[];
+};
+
+export type CalibrationActual = {
+  id: number;
+  name: string;
+  points: number;
+};
+
+export type CalibrationResult = {
+  eventId: number;
+  sampleSize: number;
+  mae: number;
+  bias: number;
+  withinTwo: number;
+  evaluatedAt: string;
+};
+
+export type ModelReadiness = {
+  rules: number;
+  squadOptimization: number;
+  officialData: number;
+  positionModels: number;
+  starterMinutes: number;
+  injuryAvailability: number;
+  transferNews: number;
+  friendlyInternational: number;
+  multiSourceVerification: number;
+  calibration: number;
+  multiGameweekPlanning: number;
 };
 
 export type DraftTrust = {
@@ -274,6 +324,7 @@ export type ModelPlayer = {
     next3: number;
     next5: number;
     games: number;
+    gameweeks: number;
   };
   valueScore: number;
   confidence: number;

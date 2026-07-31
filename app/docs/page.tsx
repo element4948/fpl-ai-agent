@@ -204,6 +204,10 @@ export default function DocsPage() {
           <div className="partial"><b>Хэсэгчлэн бэлэн</b><span>External News Engine, My Team integration, Transfer Engine, Chip Planner, League Intelligence. Эдгээр нь ажилладаг боловч data coverage болон улирлын бодит үр дүнгээр цааш calibration шаардана.</span></div>
           <div className="todo"><b>Дараагийн хөгжүүлэлт</b><span>Press conference-ийн бүрэн эх сурвалж, friendly/шигшээ багийн минут, prediction backtest, өрсөлдөгчийн squad-level харьцуулалт.</span></div>
         </div>
+        <div className="docs-callout">
+          <b>Prediction Calibration:</b> Сайт дараагийн Gameweek-ийн forecast-ийг deadline-аас өмнө browser дээр хадгална. Gameweek дууссаны дараа тухайн тоглогчдын бодит оноотой харьцуулж MAE (дундаж абсолют алдаа), Bias болон ±2 оноонд багтсан хувийг гаргана. Ингэснээр “загвар 80%” гэдгийг таамгаар бус, хуримтлагдсан Gameweek-ийн үр дүнгээр хэмжинэ.
+        </div>
+        <p className="doc-note">Friendly болон international data нь одоогоор player-specific news RSS-ээр injury, call-up, late return, fatigue, preseason гэсэн дохиог илрүүлнэ. Structured minutes/lineup API олдоогүй тоглогч дээр coverage бага хэвээр харагдана; систем дутуу data-г 80% болгон зохиомлоор өсгөхгүй.</p>
       </section>
 
       <section className="doc-section" id="roadmap">

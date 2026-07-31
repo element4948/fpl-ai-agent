@@ -40,9 +40,9 @@ function playerScore(player: ModelPlayer, mode: DraftMode): number {
         (player.evidence?.trustLevel === 'low' ? 8 : 0);
     const positionContribution = positionUpsideScore(player) * 2.2;
     const multiGameweekContribution =
-        player.projection.games >= 3
+        player.projection.gameweeks >= 3
             ? (player.projection.next3 / 3) * 0.8 +
-              (player.projection.next5 / player.projection.games) * 0.55
+              (player.projection.next5 / player.projection.gameweeks) * 0.55
             : 0;
 
     if (mode === 'Differential') {

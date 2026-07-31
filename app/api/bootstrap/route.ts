@@ -5,6 +5,7 @@ import { rankCaptainCandidates, topTargetsByPosition } from '@/lib/scoring';
 import { chipPlanner } from '@/lib/chips';
 import { buildRiskMonitor } from '@/lib/risk-monitor';
 import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external-news';
+import { buildModelReadiness } from '@/lib/readiness';
 
 export async function GET() {
   const [boot, fixtures] = await Promise.all([getBootstrap(), getFixtures()]);
@@ -18,6 +19,13 @@ export async function GET() {
   );
   const isOldGw38 = next?.name?.includes('38') && next?.deadline_time && new Date(next.deadline_time).getTime() < Date.now();
   const isPreSeason = completedGameweeks === 0 || !next || !next.deadline_time || !!isOldGw38;
+  const lastFinishedEvent = [...boot.events]
+    .filter((event) => event.finished)
+    .sort((a, b) => b.id - a.id)[0];
+  const liveUnfinishedEvent = boot.events.find(
+    (event) => event.is_current && !event.finished,
+  );
+  const calibrationEvent = liveUnfinishedEvent ? null : lastFinishedEvent;
   const topPlayers = [...players].sort((a,b) => (b.expectedPoints + b.valueScore - b.risk * 0.03) - (a.expectedPoints + a.valueScore - a.risk * 0.03)).slice(0, 40);
   const drafts = ['Best','Alternative','Differential','Safe'].map(mode => buildDraft(players, mode as any));
   return NextResponse.json({
@@ -31,6 +39,17 @@ export async function GET() {
     topTargets: topTargetsByPosition(players),
     captainShortlist: rankCaptainCandidates(players, 10),
     riskMonitor: buildRiskMonitor(players).slice(0, 30),
+    readiness: buildModelReadiness(players),
+    calibration: calibrationEvent
+      ? {
+          eventId: calibrationEvent.id,
+          actuals: boot.elements.map((player) => ({
+            id: player.id,
+            name: player.web_name,
+            points: Number(player.event_points || 0),
+          })),
+        }
+      : null,
     drafts,
     chips: chipPlanner({ hasEntry: false, isPreSeason }),
   });

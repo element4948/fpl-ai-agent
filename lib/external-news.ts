@@ -60,6 +60,23 @@ function classify(headline: string): Pick<ExternalNewsSignal, 'category' | 'seve
   if (/dropped|left out|rotation|loses place|not first choice/.test(text)) {
     return { category: 'rotation', severity: 'medium' };
   }
+  if (/international duty|national team|called up|world cup|qualifier/.test(text)) {
+    return {
+      category: 'international',
+      severity: /injur|withdraw|doubt|90 minutes|120 minutes/.test(text)
+        ? 'medium'
+        : 'low',
+    };
+  }
+  if (/friendly|pre-season|preseason/.test(text)) {
+    return {
+      category: 'friendly',
+      severity: /injur|misses|withdraw|left out/.test(text) ? 'medium' : 'low',
+    };
+  }
+  if (/fatigue|rested|late return|travel|jet lag|overload/.test(text)) {
+    return { category: 'fatigue', severity: 'medium' };
+  }
   return { category: 'availability', severity: 'low' };
 }
 
@@ -107,7 +124,7 @@ export async function getExternalNewsSignals(players: ModelPlayer[]) {
     candidates.map(async (player) => ({
       player,
       articles: await fetchFeed(
-        `"${player.name}" "${player.team}" (injury OR transfer OR "team news" OR rotation OR "set to leave")`,
+        `"${player.name}" "${player.team}" (injury OR transfer OR "team news" OR rotation OR "set to leave" OR friendly OR preseason OR "international duty" OR fatigue)`,
       ),
     })),
   );
