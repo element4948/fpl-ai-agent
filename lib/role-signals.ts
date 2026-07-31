@@ -19,6 +19,35 @@ type VerifiedRoleSignal = PlayerRoleAssessment & {
  */
 const VERIFIED_ROLE_SIGNALS: VerifiedRoleSignal[] = [
   {
+    playerName: 'Vicario',
+    role: 'competition',
+    confidence: 92,
+    note:
+      'Spurs-ийн 2026-07-25-ны мэдээгээр бэртэлтэй, pre-season tour-д яваагүй. Мөн олон эх сурвалж transfer яриа идэвхтэй гэж мэдээлсэн тул GW1-ийн баталгаатай гараа гэж үзэхгүй.',
+    sourceLabel: 'Tottenham Hotspur — 25 Jul 2026 team news',
+    sourceUrl:
+      'https://www.tottenhamhotspur.com/news/1079669/team-news-robertos-latest-on-deki-kudus-and-vicario-from-new-zealand',
+    checkedAt: '2026-07-31',
+    expiresAt: '2026-08-08',
+    corroboratingSources: [
+      {
+        label: 'Football Insider — club-to-club talks reported 28 Jul 2026',
+        url:
+          'https://www.footballinsider247.com/tottenham-hotspur/transfers/sources-guglielmo-vicario-in-talks-to-join-new-club-after-tottenham-green-light',
+        tier: 'secondary',
+      },
+      {
+        label: 'Fabrizio Romano report relayed 23 Jul 2026',
+        url:
+          'https://readtottenham.com/2026/07/23/fabrizio-romano-confirms-vicario-will-leave-tottenham-inter-juventus/',
+        tier: 'reliable-reporter',
+      },
+    ],
+    maximumStarterConfidence: 35,
+    maximumPredictedMinutes: 35,
+    starterLabel: 'rotation',
+  },
+  {
     playerName: 'Dubravka',
     role: 'backup',
     confidence: 90,
@@ -49,6 +78,10 @@ export function applyVerifiedRoleSignal(
 
   if (!signal) return { projection };
 
+  if (signal.expiresAt && Date.now() > Date.parse(`${signal.expiresAt}T23:59:59Z`)) {
+    return { projection };
+  }
+
   return {
     projection: {
       ...projection,
@@ -70,6 +103,8 @@ export function applyVerifiedRoleSignal(
       sourceLabel: signal.sourceLabel,
       sourceUrl: signal.sourceUrl,
       checkedAt: signal.checkedAt,
+      expiresAt: signal.expiresAt,
+      corroboratingSources: signal.corroboratingSources,
     },
   };
 }

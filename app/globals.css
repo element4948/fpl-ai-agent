@@ -56,6 +56,9 @@
 .draft-player-topline strong{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .draft-player-topline>span{font-size:10px;color:#d7e7fa;white-space:nowrap}
 .draft-player-team{margin-top:3px;color:var(--muted);font-size:10px}
+.draft-core-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-top:8px}
+.draft-core-metrics span{display:grid;gap:1px;padding:5px 3px;border-radius:7px;background:rgba(255,255,255,.065);text-align:center}
+.draft-core-metrics small{color:var(--muted);font-size:6px;text-transform:uppercase;letter-spacing:.04em}.draft-core-metrics b{font-size:9px;color:#fff}
 .draft-player-metrics{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
 .draft-player-metrics span{padding:3px 5px;border-radius:6px;background:rgba(255,255,255,.07);font-size:9px;color:#d7e7fa}
 .draft-player-role{width:max-content;max-width:100%;margin-top:5px;padding:3px 5px;border-radius:6px;font-size:7px;font-weight:900}.starter-role{background:rgba(55,214,122,.1);color:#b8ffd2}.bench-role{background:rgba(110,168,254,.1);color:#cfe0ff}
@@ -66,14 +69,16 @@
 .draft-confidence-low{border-color:rgba(255,107,107,.5)}
 .draft-fixture{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.1);font-size:9px;color:#d7e7fa}
 .draft-fixture-run{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;margin-top:6px}
-.draft-fixture-pill{min-width:0;display:grid;place-items:center;gap:2px;padding:4px 1px;border:1px solid rgba(255,255,255,.13);border-radius:6px;text-align:center}
-.draft-fixture-pill b{max-width:100%;overflow:hidden;text-overflow:ellipsis;font-size:7px}.draft-fixture-pill small{font-size:6px;color:rgba(255,255,255,.78)}
-.fdr-bg-1{background:rgba(55,214,122,.22)}.fdr-bg-2{background:rgba(55,214,122,.12)}.fdr-bg-3{background:rgba(255,209,102,.1)}.fdr-bg-4{background:rgba(255,145,77,.13)}.fdr-bg-5{background:rgba(255,107,107,.18)}
+.draft-fixture-pill{min-width:0;display:grid;place-items:center;gap:2px;padding:5px 1px;border:1px solid rgba(255,255,255,.32);border-radius:6px;text-align:center;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.draft-fixture-pill b{max-width:100%;overflow:hidden;text-overflow:ellipsis;font-size:7px;color:#fff}.draft-fixture-pill small{font-size:6px;color:#fff;font-weight:900}
+.fdr-bg-1{background:#07883f;border-color:#4bff9d}.fdr-bg-2{background:#1f9f56;border-color:#7affb2}.fdr-bg-3{background:#a77a00;border-color:#ffd966}.fdr-bg-4{background:#bd531a;border-color:#ff9f62}.fdr-bg-5{background:#ae2630;border-color:#ff7079}
 .draft-fixture-run-summary{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:5px;color:var(--muted);font-size:7px}
 .draft-fixture-run-summary .fixture-trend{max-width:76px;overflow:hidden;text-overflow:ellipsis;margin:0;padding:2px 4px;font-size:6px}
 .fdr{padding:3px 5px;border-radius:6px;background:rgba(255,255,255,.08);white-space:nowrap}
-.fdr-1,.fdr-2{background:rgba(55,214,122,.18);color:#b8ffd2}
-.fdr-4,.fdr-5{background:rgba(255,107,107,.16);color:#ffd2d2}
+.fdr-1{background:#07883f;color:#fff}.fdr-2{background:#1f9f56;color:#fff}.fdr-3{background:#a77a00;color:#fff}.fdr-4{background:#bd531a;color:#fff}.fdr-5{background:#ae2630;color:#fff}
+.draft-player-details{margin-top:7px;border-top:1px solid rgba(255,255,255,.1);padding-top:6px}
+.draft-player-details summary{cursor:pointer;list-style:none;color:#bcd7f5;font-size:8px;font-weight:900}.draft-player-details summary::-webkit-details-marker{display:none}.draft-player-details summary:after{content:"＋";float:right}.draft-player-details[open] summary:after{content:"−"}
+.draft-role-warning{display:grid;gap:4px;margin-top:7px;padding:7px;border:1px solid rgba(255,107,107,.35);border-radius:8px;background:rgba(255,107,107,.1);font-size:8px;line-height:1.4}.draft-role-warning p{margin:0;color:#ffd8d8}.draft-role-warning a{color:#9dc8ff}
 .draft-sidebar{position:sticky;top:84px}
 .draft-bench-list{display:grid;gap:9px}
 .draft-bench-player{display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:center}

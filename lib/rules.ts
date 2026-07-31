@@ -117,11 +117,7 @@ function buildCheapestValidBase(
                 (player) =>
                     player.position === position &&
                     player.status !== 'u' &&
-                    (!(
-                        ['GKP', 'DEF', 'MID', 'FWD'].includes(position) &&
-                        (mode === 'Best' || mode === 'Safe')
-                    ) ||
-                        isReliableStarter(player)),
+                    isReliableStarter(player),
             )
             .sort((a, b) => {
                 if (a.price !== b.price) {
@@ -196,7 +192,13 @@ function optimizeSquad(baseSquad: ModelPlayer[], allPlayers: ModelPlayer[], mode
     let selected = [...baseSquad];
     const maximumSpend = maximumDraftSpend(mode);
 
-    const candidatePool = allPlayers.filter((player) => player.status !== 'u').sort((a, b) => playerScore(b, mode) - playerScore(a, mode));
+    const candidatePool = allPlayers
+        .filter(
+            (player) =>
+                player.status !== 'u' &&
+                isReliableStarter(player),
+        )
+        .sort((a, b) => playerScore(b, mode) - playerScore(a, mode));
 
     for (let iteration = 0; iteration < 150; iteration += 1) {
         const currentCost = roundMoney(selected.reduce((sum, player) => sum + player.price, 0));
@@ -340,8 +342,7 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
         (player) => player.dataQuality === 'unknown',
     );
 
-    const requiredReliableDefenders =
-        mode === 'Best' || mode === 'Safe' ? 5 : 4;
+    const requiredReliableDefenders = 5;
     if (playableDefenders < requiredReliableDefenders) {
         validation.valid = false;
         validation.errors.push(
@@ -353,21 +354,21 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
         validation.valid = false;
         validation.errors.push('No goalkeeper is currently likely to start.');
     }
-    if ((mode === 'Best' || mode === 'Safe') && playableGoalkeepers < 2) {
+    if (playableGoalkeepers < 2) {
         validation.valid = false;
         validation.errors.push(
-            `Only ${playableGoalkeepers} goalkeeper is a reliable starter. Best/Safe drafts require two playable goalkeepers.`,
+            `Only ${playableGoalkeepers} goalkeeper is a reliable starter. Every draft requires two playable goalkeepers.`,
         );
     }
 
-    if (playableMidfielders < 4) {
+    if (playableMidfielders < 5) {
         validation.valid = false;
-        validation.errors.push(`Only ${playableMidfielders} midfielders are reliable starters. Minimum 4 required.`);
+        validation.errors.push(`Only ${playableMidfielders} midfielders are reliable starters. All 5 are required.`);
     }
 
-    if (playableForwards < 2) {
+    if (playableForwards < 3) {
         validation.valid = false;
-        validation.errors.push(`Only ${playableForwards} forwards are reliable starters. Minimum 2 required.`);
+        validation.errors.push(`Only ${playableForwards} forwards are reliable starters. All 3 are required.`);
     }
 
     if (lineup.startingXI.length !== 11) {

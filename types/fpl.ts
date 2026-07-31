@@ -167,6 +167,12 @@ export type PlayerRoleAssessment = {
   sourceLabel: string;
   sourceUrl: string;
   checkedAt: string;
+  expiresAt?: string;
+  corroboratingSources?: Array<{
+    label: string;
+    url: string;
+    tier: 'official' | 'reliable-reporter' | 'secondary';
+  }>;
 };
 
 export type DraftTrust = {

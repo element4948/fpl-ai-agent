@@ -356,7 +356,7 @@ function DraftPlayerTile({ player, role }: { player: ModelPlayer; role: 'starter
         player.expectedGoalInvolvements > 0 ? 'xGI data-тай' : null,
         ...positionSelectionReasons(player),
         player.roleAssessment?.role === 'backup' ? 'Зөвхөн сэлгээний хаалгач' : null,
-    ].filter((reason): reason is string => Boolean(reason)).slice(0, 5);
+    ].filter((reason): reason is string => Boolean(reason));
     const unreliable = player.starterConfidence < 55 || player.predictedMinutes < 45;
 
     return (
@@ -367,7 +367,7 @@ function DraftPlayerTile({ player, role }: { player: ModelPlayer; role: 'starter
             </div>
 
             <div className="draft-player-team">
-                {player.team} · {player.position} · <DataQualityBadge quality={player.dataQuality} />
+                {player.team} · {player.position}
             </div>
             <div className={`draft-player-role ${role === 'bench' ? 'bench-role' : 'starter-role'}`}>
                 {role === 'starter' ? 'Starting XI сонголт' : unreliable ? 'Bench filler — гараанд зориулаагүй' : 'Bench cover'}
@@ -378,58 +378,25 @@ function DraftPlayerTile({ player, role }: { player: ModelPlayer; role: 'starter
                 </div>
             ) : null}
 
-            <div className="draft-player-metrics">
-                <span title="Starter confidence — гарааны магадлал">Starter {player.starterConfidence}%</span>
-                <span title="Predicted minutes — таамаг минут">{player.predictedMinutes} min</span>
-                <span title="Ашигласан өгөгдлийн хамрах хүрээ">Evidence {player.evidence?.coverageScore || 0}%</span>
-            </div>
-            {player.position === 'DEF' ? (
-                <div className="draft-player-metrics">
-                    <span title="Өнгөрсөн улирлын албан ёсны FPL статистик">
-                        G/A <b>{player.goalsScored}/{player.assists}</b>
-                    </span>
-                    <span title="Clean sheet — гоол алдаагүй тоглолт">
-                        CS <b>{player.cleanSheets}</b>
-                    </span>
-                    <span title="Defensive contribution per 90">
-                        DefCon/90 <b>{player.defensiveContributionPer90.toFixed(1)}</b>
-                    </span>
-                    <span title="Албан ёсны FPL set-piece дараалал">
-                        Set piece{' '}
-                        <b>
-                            {player.setPieceRoles?.penalties === 1
-                                ? 'PEN'
-                                : player.setPieceRoles?.directFreeKicks === 1
-                                  ? 'FK'
-                                  : player.setPieceRoles?.corners === 1
-                                    ? 'COR'
-                                    : '—'}
-                        </b>
-                    </span>
-                </div>
-            ) : null}
-            <div className="draft-selection-reasons">
-                {selectionReasons.length
-                    ? selectionReasons.map((reason) => <span key={reason}>✓ {reason}</span>)
-                    : <span>△ Нотолгоо хязгаарлагдмал</span>}
+            <div className="draft-core-metrics">
+                <span title="Дараагийн Gameweek-ийн таамаг оноо">
+                    <small>Expected</small>
+                    <b>{player.expectedPoints.toFixed(1)} ↑</b>
+                </span>
+                <span title="Гарааны бүрэлдэхүүнд эхлэх магадлал">
+                    <small>Starter</small>
+                    <b>{player.starterConfidence}% ↑</b>
+                </span>
+                <span title="Injury, rotation, minutes болон news эрсдэл">
+                    <small>Risk</small>
+                    <b>{player.risk}% ↓</b>
+                </span>
             </div>
             {unreliable ? (
                 <div className="draft-player-reject">
                     ! Starter баталгаагүй — гараанд бүү тооц
                 </div>
             ) : null}
-            {player.roleAssessment ? (
-                <div className="draft-player-reject">
-                    <strong>
-                        Role: {player.roleAssessment.role === 'backup' ? 'Backup' : player.roleAssessment.role}
-                    </strong>
-                    <span>{player.roleAssessment.note}</span>
-                    <a href={player.roleAssessment.sourceUrl} target="_blank" rel="noreferrer">
-                        Эх сурвалж: {player.roleAssessment.sourceLabel}
-                    </a>
-                </div>
-            ) : null}
-
             {player.fixture ? (
                 <>
                     <div className="draft-fixture">
@@ -463,7 +430,56 @@ function DraftPlayerTile({ player, role }: { player: ModelPlayer; role: 'starter
                     <span>Fixture тодорхойгүй</span>
                 </div>
             )}
-            <PlayerDetailButton playerId={player.id} />
+            <details className="draft-player-details">
+                <summary>Яагаад сонгосон бэ?</summary>
+                <div className="draft-selection-reasons">
+                    {selectionReasons.length
+                        ? selectionReasons.slice(0, 5).map((reason) => <span key={reason}>✓ {reason}</span>)
+                        : <span>△ Нотолгоо хязгаарлагдмал</span>}
+                </div>
+                <div className="draft-player-metrics">
+                    <span>Minutes <b>{player.predictedMinutes}</b></span>
+                    <span>Evidence <b>{player.evidence?.coverageScore || 0}%</b></span>
+                    <span>G/A <b>{player.goalsScored}/{player.assists}</b></span>
+                    {player.position === 'GKP' || player.position === 'DEF' ? (
+                        <span>CS <b>{player.cleanSheets}</b></span>
+                    ) : null}
+                    {player.position === 'DEF' ? (
+                        <span>DefCon/90 <b>{player.defensiveContributionPer90.toFixed(1)}</b></span>
+                    ) : null}
+                    <span>
+                        Set piece{' '}
+                        <b>
+                            {player.setPieceRoles?.penalties === 1
+                                ? 'PEN'
+                                : player.setPieceRoles?.directFreeKicks === 1
+                                  ? 'FK'
+                                  : player.setPieceRoles?.corners === 1
+                                    ? 'COR'
+                                    : '—'}
+                        </b>
+                    </span>
+                    <DataQualityBadge quality={player.dataQuality} />
+                </div>
+                {player.roleAssessment ? (
+                    <div className="draft-role-warning">
+                        <strong>Role: {player.roleAssessment.role}</strong>
+                        <p>{player.roleAssessment.note}</p>
+                        <a href={player.roleAssessment.sourceUrl} target="_blank" rel="noreferrer">
+                            {player.roleAssessment.sourceLabel} · {player.roleAssessment.checkedAt}
+                        </a>
+                        {player.roleAssessment.corroboratingSources?.map((source) => (
+                            <a href={source.url} target="_blank" rel="noreferrer" key={source.url}>
+                                {source.tier}: {source.label}
+                            </a>
+                        ))}
+                        {player.roleAssessment.expiresAt ? (
+                            <small>Дахин шалгах хугацаа: {player.roleAssessment.expiresAt}</small>
+                        ) : null}
+                    </div>
+                ) : null}
+                <PlayerDetailButton playerId={player.id} />
+            </details>
         </div>
     );
 }

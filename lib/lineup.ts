@@ -85,6 +85,12 @@ function lineupScore(player: ModelPlayer): number {
 
     const reliable = isReliableStarter(player);
     const availabilityPenalty = reliable ? 0 : 30;
+    const roleUncertaintyPenalty =
+        player.roleAssessment?.role === 'backup'
+            ? 45
+            : player.roleAssessment?.role === 'competition'
+              ? 28
+              : 0;
 
     return (
         player.expectedPoints * 2 +
@@ -94,7 +100,8 @@ function lineupScore(player: ModelPlayer): number {
         fixtureBonus +
         player.form * 0.25 -
         player.risk * 0.09 -
-        availabilityPenalty
+        availabilityPenalty -
+        roleUncertaintyPenalty
     );
 }
 
@@ -138,6 +145,12 @@ function chooseFormation(squad: ModelPlayer[], rule: FormationRule): LineupResul
     const playableDefenders = startingXI.filter((player) => player.position === 'DEF' && isReliableStarter(player)).length;
 
     const warnings: string[] = [];
+    const reliableOutfieldBench = bench.filter(
+        (player) => player.position !== 'GKP' && isReliableStarter(player),
+    );
+    const reliableDefenderCover = bench.some(
+        (player) => player.position === 'DEF' && isReliableStarter(player),
+    );
 
     if (unavailableStarters.length > 0) {
         warnings.push(`${unavailableStarters.length} гарааны тоглогчийн гарах магадлал эргэлзээтэй байна.`);
@@ -146,8 +159,21 @@ function chooseFormation(squad: ModelPlayer[], rule: FormationRule): LineupResul
     if (playableDefenders < 3) {
         warnings.push('Гараанд тоглох боломжтой хамгийн багадаа 3 хамгаалагч шаардлагатай.');
     }
+    if (reliableOutfieldBench.length < 2) {
+        warnings.push('Bench cover хангалтгүй: дор хаяж 2 найдвартай outfield сэлгээ шаардлагатай.');
+    }
+    if (rule.DEF === 3 && !reliableDefenderCover) {
+        warnings.push('3 хамгаалагчтай formation боловч найдвартай DEF bench cover алга.');
+    }
 
-    const score = startingXI.reduce((sum, player) => sum + lineupScore(player), 0) - unavailableStarters.length * 25 - warnings.length * 10;
+    const benchResilienceScore = reliableOutfieldBench
+        .slice(0, 2)
+        .reduce((sum, player) => sum + lineupScore(player) * 0.12, 0);
+    const score =
+        startingXI.reduce((sum, player) => sum + lineupScore(player), 0) +
+        benchResilienceScore -
+        unavailableStarters.length * 25 -
+        warnings.length * 10;
 
     return {
         startingXI,
