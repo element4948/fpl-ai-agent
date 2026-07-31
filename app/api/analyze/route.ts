@@ -7,6 +7,7 @@ import { selectBestLineup } from '@/lib/lineup';
 import { validateSquad } from '@/lib/rules';
 import { rankCaptainCandidates } from '@/lib/scoring';
 import { suggestSafeTransfers } from '@/lib/transfers';
+import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external-news';
 
 export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
@@ -107,13 +108,17 @@ export async function POST(req: Request) {
 
     const fixtureEventId = nextEvent?.id || analysisEventId + 1;
 
-    const allPlayers = toModelPlayers(
+    const basePlayers = toModelPlayers(
         boot.elements,
         boot.teams,
         boot.element_types,
         fixtures || [],
         fixtureEventId,
         boot.events.filter((item) => item.finished).length,
+    );
+    const allPlayers = applyExternalNewsSignals(
+        basePlayers,
+        await getExternalNewsSignals(basePlayers),
     );
 
     const playerMap = new Map(allPlayers.map((player) => [player.id, player]));

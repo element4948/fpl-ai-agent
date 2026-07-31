@@ -149,15 +149,15 @@ export default function DocsPage() {
 
       <section className="doc-section" id="drafts">
         <h2>Draft Team (Анхны баг)-ийг хэрхэн бүрдүүлдэг вэ?</h2>
-        <p>Draft Builder эхлээд FPL-ийн үндсэн дүрмийг хангасан 15 тоглогчийн баг үүсгээд, дараа нь төсвөөс хэтрүүлэхгүйгээр илүү өндөр үнэлгээтэй тоглогчдоор сольж сайжруулна.</p>
-        <ul className="check-list"><li>2 GKP, 5 DEF, 5 MID, 3 FWD</li><li>Нийт үнэ £100.0m-оос хэтрэхгүй</li><li>Best/Safe draft GW1-д £0.5m, Alternative £1.0m buffer зорилтотой</li><li>Нэг багаас хамгийн ихдээ 3 тоглогч</li><li>Хамгийн багадаа 1 найдвартай GKP, 4 DEF, 4 MID, 2 FWD</li><li>Найман зөв formation-ийг харьцуулж хамгийн өндөр оноотой Starting XI сонгоно</li><li>Starting XI-ийн Evidence Coverage болон Official Warning-ийг Trust Gate-ээр шалгана</li><li>Price points, playable bench, upgrade paths болон дараагийн 5 fixture-ийг Flexibility Engine шалгана</li></ul>
+        <p>Draft Builder нь бүхэл 15 тоглогчийн бүтцийг constrained beam optimizer-аар зэрэг харьцуулна. Ингэхдээ хамгийн эхэнд үнэтэй тоглогч авснаас болж сүүлчийн байрлалууд мөнгөгүй үлдэх хуучин greedy алдааг багасгана.</p>
+        <ul className="check-list"><li>2 GKP, 5 DEF, 5 MID, 3 FWD</li><li>Нийт үнэ £100.0m-оос хэтрэхгүй</li><li>Best/Safe draft GW1-д £0.5m, Alternative £1.0m buffer зорилтотой</li><li>Нэг багаас хамгийн ихдээ 3 тоглогч</li><li>Бүх 15 тоглогч starter/minutes-ийн найдвартай босгыг давах шаардлагатай</li><li>Найман зөв formation-ийг харьцуулж хамгийн өндөр оноотой Starting XI сонгоно</li><li>Starting XI-ийн Evidence Coverage болон Official Warning-ийг Trust Gate-ээр шалгана</li><li>Price points, playable bench, upgrade paths болон дараагийн 1, 3, 5 тоглолтын projection-ийг Flexibility Engine шалгана</li></ul>
         <div className="docs-grid two">
           <div className="doc-card"><h3>Best / Safe</h3><p>Best нь нийт хүлээгдэж буй оноог, Safe нь гарааны магадлал, минут болон эрсдэлийн хамгаалалтыг илүү өндөр жинлэнэ.</p></div>
           <div className="doc-card"><h3>Alternative / Differential</h3><p>Alternative нь үнэ цэнэ ба өөр төсвийн бүтцийг, Differential нь ownership багатай өсөх боломжийг илүү өндөр жинлэнэ.</p></div>
         </div>
         <div className="docs-callout"><b>Draft Trust Score:</b> Verified нь хангалттай live evidence-тэй, Provisional нь ашиглаж болох ч deadline-ийн өмнө шалгах шаардлагатай, Insufficient нь баталгаатай санал биш гэсэн үг. Pre-season үед live minutes болон xG data бүрдээгүй бол draft зориудаар Provisional/Insufficient байна.</div>
         <div className="docs-callout"><b>Squad Flexibility:</b> GW1-д бүх £100.0m-ийг заавал зарцуулахгүй. £0.5m buffer нь үнэ өссөн тоглогч руу нэг transfer-ээр шилжих боломж өгнө. Мөн MID/FWD/DEF дотор олон price point эзлэх, дор хаяж хоёр playable bench cover байлгах, дараагийн 3–5 Gameweek-ийн upgrade path-ийг шалгана.</div>
-        <p className="doc-note">Одоогийн free-first layer нь Official FPL player, fixture болон history data ашиглана. Press conference, friendly, шигшээ багийн минут зэрэг нь стандарт, тогтвортой үнэгүй API-гүй учраас эх сурвалж холбогдоогүй үед систем тэдгээрийг ашигласан мэт дүр эсгэхгүй.</p>
+        <p className="doc-note">Одоогийн free-first layer нь Official FPL player, fixture, history data болон shortlist-д орсон тоглогчдын сүүлийн 8 хоногийн үнэгүй news RSS-ийг ашиглана. Official club/FPL эх сурвалжийг хамгийн өндөр, BBC/Sky/The Athletic/Guardian/Reuters зэрэг эх сурвалжийг дараагийн түвшинд үнэлж, баталгаагүй secondary мэдээг дангаар нь хатуу penalty болгохгүй. Press conference-ийн бүрэн transcript, friendly болон шигшээ багийн бүх минутын стандарт үнэгүй API одоогоор байхгүй тул систем тэдгээрийг ашигласан мэт дүр эсгэхгүй.</p>
       </section>
 
       <section className="doc-section" id="team">
@@ -200,9 +200,9 @@ export default function DocsPage() {
       <section className="doc-section" id="status">
         <h2>12. Одоогийн хувилбар юу хийж чаддаг вэ?</h2>
         <div className="status-list">
-          <div className="done"><b>Бэлэн</b><span>Next.js суурь, Vercel deploy, FPL bootstrap data, Draft Builder, Captain shortlist, Decision Engine v1, Risk breakdown, Confidence, тайлбар, Монгол/Англи UI.</span></div>
-          <div className="partial"><b>Хэсэгчлэн бэлэн</b><span>My Team integration, Transfer Engine, Chip Planner, League Intelligence.</span></div>
-          <div className="todo"><b>Дараагийн хөгжүүлэлт</b><span>News Engine, press conference signals, бодит injury/rotation layer, бүрэн weekly report, өрсөлдөгчийн багийн нарийвчилсан харьцуулалт.</span></div>
+          <div className="done"><b>Бэлэн</b><span>Next.js суурь, Official FPL data, дүрэм хамгаалсан Draft Optimizer, formation, starter/minutes, fixture projection, Captain shortlist, risk/confidence тайлбар, Монгол/Англи UI.</span></div>
+          <div className="partial"><b>Хэсэгчлэн бэлэн</b><span>External News Engine, My Team integration, Transfer Engine, Chip Planner, League Intelligence. Эдгээр нь ажилладаг боловч data coverage болон улирлын бодит үр дүнгээр цааш calibration шаардана.</span></div>
+          <div className="todo"><b>Дараагийн хөгжүүлэлт</b><span>Press conference-ийн бүрэн эх сурвалж, friendly/шигшээ багийн минут, prediction backtest, өрсөлдөгчийн squad-level харьцуулалт.</span></div>
         </div>
       </section>
 

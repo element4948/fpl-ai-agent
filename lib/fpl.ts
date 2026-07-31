@@ -272,6 +272,30 @@ export function toModelPlayers(
                 confidence / 125
             ).toFixed(2),
         );
+        const projectedFixtures = fixture?.fixtures.slice(0, 5) || [];
+        const projectionValues = projectedFixtures.map((item) => {
+            const difficultyAdjustment =
+                (nextDifficulty - item.difficulty) *
+                (player.element_type <= 2 ? 0.5 : 0.58);
+            const venueAdjustment =
+                item.isHome === fixture?.nextIsHome
+                    ? 0
+                    : item.isHome
+                      ? 0.18
+                      : -0.18;
+            return Math.max(
+                0.5,
+                Number((expectedPoints + difficultyAdjustment + venueAdjustment).toFixed(2)),
+            );
+        });
+        if (!projectionValues.length) projectionValues.push(expectedPoints);
+        const projectionTotal = (limit: number) =>
+            Number(
+                projectionValues
+                    .slice(0, limit)
+                    .reduce((sum, value) => sum + value, 0)
+                    .toFixed(2),
+            );
 
         const price = Number((player.now_cost / 10).toFixed(1));
 
@@ -315,6 +339,12 @@ export function toModelPlayers(
             threat,
             ictIndex,
             expectedPoints,
+            projection: {
+                next1: projectionTotal(1),
+                next3: projectionTotal(3),
+                next5: projectionTotal(5),
+                games: projectionValues.length,
+            },
             valueScore: Number((expectedPoints / Math.max(price, 1)).toFixed(2)),
             confidence,
             risk,

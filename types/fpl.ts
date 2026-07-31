@@ -175,6 +175,16 @@ export type PlayerRoleAssessment = {
   }>;
 };
 
+export type ExternalNewsSignal = {
+  headline: string;
+  url: string;
+  publishedAt: string;
+  source: string;
+  tier: 'official' | 'reliable' | 'secondary';
+  category: 'injury' | 'transfer' | 'rotation' | 'availability';
+  severity: 'low' | 'medium' | 'high';
+};
+
 export type DraftTrust = {
   score: number;
   status: 'verified' | 'provisional' | 'insufficient';
@@ -259,6 +269,12 @@ export type ModelPlayer = {
   threat: number;
   ictIndex: number;
   expectedPoints: number;
+  projection: {
+    next1: number;
+    next3: number;
+    next5: number;
+    games: number;
+  };
   valueScore: number;
   confidence: number;
   risk: number;
@@ -269,6 +285,7 @@ export type ModelPlayer = {
   signals: PlayerSignal[];
   evidence?: PlayerEvidence;
   roleAssessment?: PlayerRoleAssessment;
+  externalNews?: ExternalNewsSignal[];
   news?: string;
   status?: string;
   riskBreakdown?: {

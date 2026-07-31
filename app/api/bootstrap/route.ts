@@ -4,13 +4,18 @@ import { buildDraft } from '@/lib/rules';
 import { rankCaptainCandidates, topTargetsByPosition } from '@/lib/scoring';
 import { chipPlanner } from '@/lib/chips';
 import { buildRiskMonitor } from '@/lib/risk-monitor';
+import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external-news';
 
 export async function GET() {
   const [boot, fixtures] = await Promise.all([getBootstrap(), getFixtures()]);
   if (!boot) return NextResponse.json({ error: 'FPL API unavailable', isPreSeason: true, drafts: [], topPlayers: [] }, { status: 200 });
   const next = nextEvent(boot.events);
   const completedGameweeks = boot.events.filter((event) => event.finished).length;
-  const players = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], next?.id, completedGameweeks);
+  const basePlayers = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], next?.id, completedGameweeks);
+  const players = applyExternalNewsSignals(
+    basePlayers,
+    await getExternalNewsSignals(basePlayers),
+  );
   const isOldGw38 = next?.name?.includes('38') && next?.deadline_time && new Date(next.deadline_time).getTime() < Date.now();
   const isPreSeason = completedGameweeks === 0 || !next || !next.deadline_time || !!isOldGw38;
   const topPlayers = [...players].sort((a,b) => (b.expectedPoints + b.valueScore - b.risk * 0.03) - (a.expectedPoints + a.valueScore - a.risk * 0.03)).slice(0, 40);

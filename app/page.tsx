@@ -478,6 +478,16 @@ function DraftPlayerTile({ player, role }: { player: ModelPlayer; role: 'starter
                         ) : null}
                     </div>
                 ) : null}
+                {player.externalNews?.length ? (
+                    <div className="draft-role-warning">
+                        <strong>Сүүлийн 8 хоногийн external signals</strong>
+                        {player.externalNews.slice(0, 3).map((signal) => (
+                            <a href={signal.url} target="_blank" rel="noreferrer" key={`${signal.url}-${signal.headline}`}>
+                                {signal.tier} · {signal.category}: {signal.headline}
+                            </a>
+                        ))}
+                    </div>
+                ) : null}
                 <PlayerDetailButton playerId={player.id} />
             </details>
         </div>

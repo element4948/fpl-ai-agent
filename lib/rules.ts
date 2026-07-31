@@ -3,6 +3,7 @@ import { buildDraftTrust } from '@/lib/evidence';
 import { calculateDraftFlexibility, maximumDraftSpend } from '@/lib/flexibility';
 import { isReliableStarter } from '@/lib/starter';
 import { positionUpsideScore } from '@/lib/position-model';
+import { optimizeSquadGlobally } from '@/lib/squad-optimizer';
 import type { DraftTeam, ModelPlayer, SquadValidation } from '@/types/fpl';
 
 const TOTAL_BUDGET = 100;
@@ -38,20 +39,25 @@ function playerScore(player: ModelPlayer, mode: DraftMode): number {
         (player.evidence?.coverageScore || 0) * 0.12 -
         (player.evidence?.trustLevel === 'low' ? 8 : 0);
     const positionContribution = positionUpsideScore(player) * 2.2;
+    const multiGameweekContribution =
+        player.projection.games >= 3
+            ? (player.projection.next3 / 3) * 0.8 +
+              (player.projection.next5 / player.projection.games) * 0.55
+            : 0;
 
     if (mode === 'Differential') {
-        return player.expectedPoints * 1.15 + player.valueScore * 2.2 + fixtureContribution * 1.05 + starterContribution + evidenceContribution + positionContribution - player.ownership * 0.075 - player.risk * 0.035;
+        return player.expectedPoints * 1.15 + player.valueScore * 2.2 + fixtureContribution * 1.05 + starterContribution + evidenceContribution + positionContribution + multiGameweekContribution - player.ownership * 0.075 - player.risk * 0.035;
     }
 
     if (mode === 'Safe') {
-        return player.expectedPoints * 1.2 + player.confidence * 0.055 + starterContribution * 1.25 + evidenceContribution * 1.2 + fixtureContribution * 0.9 + positionContribution - player.risk * 0.075;
+        return player.expectedPoints * 1.2 + player.confidence * 0.055 + starterContribution * 1.25 + evidenceContribution * 1.2 + fixtureContribution * 0.9 + positionContribution + multiGameweekContribution - player.risk * 0.075;
     }
 
     if (mode === 'Alternative') {
-        return player.expectedPoints * 0.9 + player.valueScore * 3 + starterContribution + evidenceContribution + fixtureContribution * 0.95 + positionContribution - player.ownership * 0.012 - player.risk * 0.035;
+        return player.expectedPoints * 0.9 + player.valueScore * 3 + starterContribution + evidenceContribution + fixtureContribution * 0.95 + positionContribution + multiGameweekContribution - player.ownership * 0.012 - player.risk * 0.035;
     }
 
-    return player.expectedPoints * 1.55 + player.valueScore * 1.1 + starterContribution + evidenceContribution + fixtureContribution + positionContribution - player.risk * 0.05;
+    return player.expectedPoints * 1.55 + player.valueScore * 1.1 + starterContribution + evidenceContribution + fixtureContribution + positionContribution + multiGameweekContribution - player.risk * 0.05;
 }
 
 export function validateSquad(players: ModelPlayer[], budget = TOTAL_BUDGET): SquadValidation {
@@ -281,7 +287,15 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
         (player) => ['GKP', 'DEF', 'MID', 'FWD'].includes(player.position) && player.price > 0 && player.status !== 'u',
     );
 
-    const baseSquad = buildCheapestValidBase(availablePlayers, mode);
+    const reliablePlayers = availablePlayers.filter(isReliableStarter);
+    const globallyOptimized = optimizeSquadGlobally(
+        reliablePlayers,
+        maximumDraftSpend(mode),
+        (player) => playerScore(player, mode),
+    );
+    const baseSquad = globallyOptimized.length === 15
+        ? globallyOptimized
+        : buildCheapestValidBase(availablePlayers, mode);
 
     if (baseSquad.length !== 15) {
         const validation = validateSquad(baseSquad);
@@ -303,7 +317,9 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
         };
     }
 
-    const optimizedSquad = optimizeSquad(baseSquad, availablePlayers, mode);
+    const optimizedSquad = globallyOptimized.length === 15
+        ? globallyOptimized
+        : optimizeSquad(baseSquad, availablePlayers, mode);
 
     const sortedSquad = [...optimizedSquad].sort((a, b) => {
         const positionOrder: Record<string, number> = {

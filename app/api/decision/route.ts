@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { currentEvent, getBootstrap, getEntry, getEntryPicks, getFixtures, nextEvent, toModelPlayers } from '@/lib/fpl';
 import { buildDecision } from '@/lib/decision';
 import type { Goal, RiskProfile } from '@/types/fpl';
+import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external-news';
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
@@ -14,7 +15,11 @@ export async function POST(req: Request) {
 
   const next = nextEvent(boot.events);
   const completedGameweeks = boot.events.filter(event => event.finished).length;
-  const allPlayers = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], next?.id, completedGameweeks);
+  const basePlayers = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], next?.id, completedGameweeks);
+  const allPlayers = applyExternalNewsSignals(
+    basePlayers,
+    await getExternalNewsSignals(basePlayers),
+  );
   const oldGw38 = next?.name?.includes('38') && next?.deadline_time && new Date(next.deadline_time).getTime() < Date.now();
   const isPreSeason = completedGameweeks === 0 || !next || !next.deadline_time || !!oldGw38;
 
