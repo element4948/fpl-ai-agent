@@ -47,7 +47,8 @@ export function positionUpsideScore(player: ModelPlayer): number {
       Math.min(1.2, goal90 * 2.2 + assist90 * 1.5) +
       Math.min(0.7, per90(player.creativity, player.minutes) * 0.012) +
       Math.min(0.7, per90(player.threat, player.minutes) * 0.01) +
-      setPieces
+      setPieces +
+      Math.max(-0.5, Math.min(0.8, (player.teamOverallStrength - 3) * 0.18))
     );
   }
 
@@ -55,7 +56,8 @@ export function positionUpsideScore(player: ModelPlayer): number {
     Math.min(3, xgi90 * 3) +
     Math.min(1.4, goal90 * 2.7 + assist90 * 1.2) +
     Math.min(0.9, per90(player.threat, player.minutes) * 0.012) +
-    setPieces
+    setPieces +
+    Math.max(-0.6, Math.min(1, (player.teamOverallStrength - 3) * 0.22))
   );
 }
 

@@ -37,6 +37,8 @@ export async function GET() {
     teamCount: boot.teams.length,
     fixtureCount: fixtures?.length || 0,
     fixtureReady: !!fixtures?.length,
+    fixtureSource: 'Official FPL fixtures API',
+    fixtureUpdatedAt: new Date().toISOString(),
     topPlayers,
     topTargets: topTargetsByPosition(players),
     captainShortlist: rankCaptainCandidates(players, 10),

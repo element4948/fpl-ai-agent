@@ -10,6 +10,9 @@ export async function POST(req: Request) {
   const riskProfile = (body.riskProfile || 'balanced') as RiskProfile;
   const goal = (body.goal || 'both') as Goal;
   const freeTransfers = Number(body.freeTransfers || 1);
+  const plannedSquadIds = Array.isArray(body.plannedSquadIds)
+    ? body.plannedSquadIds.map(Number).filter(Number.isFinite)
+    : [];
   const [boot, fixtures] = await Promise.all([getBootstrap(), getFixtures()]);
   if (!boot) return NextResponse.json({ error: 'FPL API unavailable' }, { status: 200 });
 
@@ -24,7 +27,22 @@ export async function POST(req: Request) {
   const isPreSeason = completedGameweeks === 0 || !next || !next.deadline_time || !!oldGw38;
 
   if (!entryId || isPreSeason) {
-    return NextResponse.json(buildDecision({ allPlayers, riskProfile, goal, isPreSeason: true }));
+    const plannedSquad = plannedSquadIds.length === 15
+      ? allPlayers.filter((player) => plannedSquadIds.includes(player.id))
+      : [];
+    return NextResponse.json({
+      ...buildDecision({
+        allPlayers,
+        squad: plannedSquad.length === 15 ? plannedSquad : undefined,
+        riskProfile,
+        goal,
+        isPreSeason: true,
+      }),
+      squadSource: plannedSquad.length === 15 ? 'planned-draft' : 'model-draft',
+      entryAvailability: entryId
+        ? 'Official FPL public API does not expose the private pre-deadline squad. A saved planned draft is used until picks become public.'
+        : 'No Entry ID connected.',
+    });
   }
 
   const event = currentEvent(boot.events);

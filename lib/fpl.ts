@@ -225,6 +225,10 @@ export function toModelPlayers(
             (Number(team?.strength_defence_home || teamStrength) +
                 Number(team?.strength_defence_away || teamStrength)) /
             2;
+        const teamOverallStrength =
+            (Number(team?.strength_overall_home || teamStrength) +
+                Number(team?.strength_overall_away || teamStrength)) /
+            2;
 
         const hasSeasonData = minutes > 0 || player.total_points > 0 || form > 0;
         const xgiPer90 = minutes >= 90 ? (expectedGoalInvolvements / minutes) * 90 : 0;
@@ -358,6 +362,7 @@ export function toModelPlayers(
             penaltiesSaved,
             bonus,
             teamDefensiveStrength,
+            teamOverallStrength,
             setPieceRoles: {
                 corners: player.corners_and_indirect_freekicks_order ?? null,
                 directFreeKicks: player.direct_freekicks_order ?? null,

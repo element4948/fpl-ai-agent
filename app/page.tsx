@@ -566,6 +566,10 @@ function RiskMonitor({ items }: { items: Any[] }) {
             subtitle="Official FPL warning болон гарааны эргэлзээтэй тоглогчдыг хамгийн ноцтойгоос нь эрэмбэлэв."
             helpHref="/docs#risk"
         >
+            <div className="notice risk-monitor-explainer">
+                <b>Энэ хэсэг юу харуулах вэ?</b> Injury, гарааны магадлал, минут, rotation, transfer/news болон data coverage-ийг нэгтгэнэ.
+                <b> Limited data</b> гэдэг нь тоглогч муу гэсэн үг биш; шинэ улирлын баталгаатай минут, role эсвэл олон эх сурвалжийн мэдээлэл хараахан хүрэлцээгүй гэсэн үг.
+            </div>
             <div className="risk-monitor-head">
                 <div className="risk-monitor-counts">
                     <span><b>{items.filter((item) => item.severity === 'high').length}</b> өндөр</span>
@@ -665,11 +669,17 @@ function PositionTargetGroup({ position, players, lang }: { position: string; pl
                         </div>
                         <div className="position-target-signal">
                             <span>{player.starterConfidence}% starter</span>
-                            {player.fixture ? (
-                                <span className={`fdr fdr-${Math.round(player.fixture.nextDifficulty)}`}>
-                                    FDR {player.fixture.nextDifficulty} ↓
-                                </span>
-                            ) : null}
+                            <div className="position-fixture-run">
+                                {player.fixture?.fixtures.slice(0, 5).map((fixture, fixtureIndex) => (
+                                    <span
+                                        className={`fdr fdr-${Math.round(fixture.difficulty)}`}
+                                        title={`GW${fixture.event || '?'} · ${fixture.isHome ? 'талбайдаа' : 'айлд'} · FDR ${fixture.difficulty}/5`}
+                                        key={`${fixture.event}-${fixture.opponent}-${fixtureIndex}`}
+                                    >
+                                        {fixture.opponentName} {fixture.isHome ? 'H' : 'A'} · {fixture.difficulty}
+                                    </span>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 ))}
@@ -678,7 +688,7 @@ function PositionTargetGroup({ position, players, lang }: { position: string; pl
     );
 }
 
-function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
+function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUse?: (draft: Any) => void }) {
     const t = dict[lang];
     const totalCost = draft.validation?.totalCost || 0;
     const remainingBudget = Number(Math.max(0, 100 - totalCost).toFixed(1));
@@ -741,6 +751,11 @@ function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
                     <div className="draft-budget-track" aria-label={`Budget used £${totalCost.toFixed(1)}m`}>
                         <span style={{ width: `${Math.min(100, totalCost)}%` }} />
                     </div>
+                    {onUse ? (
+                        <button type="button" className="btn secondary" onClick={() => onUse(draft)}>
+                            Энэ draft-ийг миний pre-season баг болгох
+                        </button>
+                    ) : null}
                 </div>
 
                 {!draft.validation.valid && draft.validation.errors?.length ? (
@@ -883,7 +898,7 @@ function SeasonRoadmapCard({ roadmap }: { roadmap: Any }) {
     return (
         <Card
             title="Season Roadmap (3–8 Gameweek төлөвлөгөө)"
-            subtitle="Fixture, formation, captain, blank/double болон transfer watch-ийг долоо хоног бүр дахин тооцно."
+            subtitle="team xP = captain multiplier ороогүй гарааны 11-ийн таамаг оноо. Transfer watch = шууд солих тушаал биш, ажиглах shortlist."
             helpHref="/docs#roadmap"
         >
             {weeks.length ? (
@@ -893,17 +908,25 @@ function SeasonRoadmapCard({ roadmap }: { roadmap: Any }) {
                             <div className="roadmap-week-head">
                                 <strong>GW{week.eventId}</strong>
                                 <span>{week.formation}</span>
-                                <b>{week.projectedPoints} pts</b>
+                                <b title="Captain multiplier ороогүй, санал болгосон Starting XI-ийн нийлбэр таамаг оноо.">{week.projectedPoints} team xP</b>
                             </div>
                             <div className="roadmap-week-main">
                                 <span>Captain</span>
                                 <strong>{week.captain?.name || 'TBD'}</strong>
-                                <small>{week.captain ? `${week.captain.projectedPoints.toFixed(1)} projected` : 'Data хүлээж байна'}</small>
+                                <small>{week.captain ? `${week.captain.projectedPoints.toFixed(1)} xP · тухайн GW-д авах таамаг оноо` : 'Data хүлээж байна'}</small>
                             </div>
+                            {week.captainAlternatives?.length ? (
+                                <div className="roadmap-captain-alts">
+                                    <small>Өөр captain сонголт</small>
+                                    {week.captainAlternatives.map((player: Any) => (
+                                        <span key={player.id}>{player.name} {player.projectedPoints.toFixed(1)} · −{player.gap}</span>
+                                    ))}
+                                </div>
+                            ) : null}
                             <p>{week.note}</p>
                             {week.transferWatch?.length ? (
                                 <div className="roadmap-watch">
-                                    <small>Transfer watch</small>
+                                    <small title="Энэ бол шууд transfer тушаал биш. Мэдээ, минут, төсөв батлагдвал авч үзэх shortlist.">Transfer watch · зөвхөн ажиглах жагсаалт</small>
                                     {week.transferWatch.map((player: Any) => (
                                         <span key={player.id}>{player.name} · {player.projectedPoints.toFixed(1)}</span>
                                     ))}
@@ -988,6 +1011,7 @@ export default function Home() {
                 riskProfile: activeSettings.riskProfile,
                 goal: activeSettings.goal,
                 freeTransfers: 1,
+                plannedSquadIds: activeSettings.plannedSquadIds || [],
             }),
         });
         setDecision(await res.json());
@@ -1030,9 +1054,38 @@ export default function Home() {
         setTimeout(() => setSaved(false), 1600);
     }
 
+    function usePlannedDraft(draft: Any) {
+        const plannedSquadIds = (draft.players || []).map((player: ModelPlayer) => player.id);
+        const nextSettings = { ...settings, plannedSquadIds };
+        setSettings(nextSettings);
+        saveSettings(nextSettings);
+        setSaved(true);
+        setAnalysis({
+            mode: 'planned-draft',
+            summary: {
+                overallRank: 'Pre-season',
+                gwRank: '—',
+                value: draft.validation?.totalCost || 0,
+                bank: Math.max(0, 100 - (draft.validation?.totalCost || 0)).toFixed(1),
+            },
+            validation: draft.validation,
+            trust: draft.trust,
+            recommendedLineup: {
+                formation: draft.formation,
+                startingXI: draft.startingXI,
+                bench: draft.bench,
+                warnings: draft.trust?.status === 'verified'
+                    ? []
+                    : ['Pre-season planned squad: Entry API public болох хүртэл энэ хувилбарыг analysis-д ашиглана.'],
+            },
+            roadmap: boot?.roadmap,
+        });
+        void runDecision(nextSettings);
+    }
+
     const top = boot?.topPlayers?.slice(0, 6) || [];
     const captain = analysis?.captainShortlist || boot?.captainShortlist || [];
-    const transfers = analysis?.transferSuggestions || [];
+    const transfers = analysis?.transferSuggestions || decision?.transferSuggestions || [];
     const chips = analysis?.chips || boot?.chips || [];
     const topTargets = boot?.topTargets || {};
     const primaryChip = decision?.chips?.[0] || chips[0];
@@ -1085,7 +1138,7 @@ export default function Home() {
                         </div>
                         <div className="season-facts">
                             <div><span>{t.nextDeadline}</span><b>{deadline}</b></div>
-                            <div><span>Fixture data</span><b className={boot?.fixtureReady ? 'good' : 'yellow'}>{boot?.fixtureReady ? 'Ready (бэлэн)' : 'Waiting'}</b></div>
+                            <div><span>Fixture data</span><b className={boot?.fixtureReady ? 'good' : 'yellow'}>{boot?.fixtureReady ? 'Official FPL · Ready' : 'Waiting'}</b></div>
                             <div><span>Entry ID</span><b className={settings.entryId ? 'good' : 'yellow'}>{settings.entryId ? 'Connected' : 'Optional'}</b></div>
                         </div>
                         {!settings.entryId && (
@@ -1187,20 +1240,20 @@ export default function Home() {
                     <div className="readiness-grid">
                         {readiness
                             ? ([
-                                  ['FPL rules', readiness.rules],
-                                  ['Squad optimizer', readiness.squadOptimization],
-                                  ['Official data', readiness.officialData],
-                                  ['Position models', readiness.positionModels],
-                                  ['Starter & minutes', readiness.starterMinutes],
-                                  ['Injury & availability', readiness.injuryAvailability],
-                                  ['Transfer news', readiness.transferNews],
-                                  ['Friendly & international', readiness.friendlyInternational],
-                                  ['Multi-source verification', readiness.multiSourceVerification],
-                                  ['Prediction calibration', readiness.calibration],
-                                  ['Multi-GW planning', readiness.multiGameweekPlanning],
-                              ] as Array<[string, number]>).map(([label, score]) => (
-                                  <div className="readiness-row" key={label}>
-                                      <span>{label}</span>
+                                  ['FPL rules', readiness.rules, 'Төсөв, байрлал, клубийн хязгаар'],
+                                  ['Squad optimizer', readiness.squadOptimization, '15 тоглогч, formation, bench'],
+                                  ['Official data', readiness.officialData, 'Official FPL API coverage'],
+                                  ['Position models', readiness.positionModels, 'GKP/DEF/MID/FWD тусгай үнэлгээ'],
+                                  ['Starter & minutes', readiness.starterMinutes, 'Live гараа, минут нэмэгдэхэд өснө'],
+                                  ['Injury & availability', readiness.injuryAvailability, 'Official warning ба шинэ мэдээ'],
+                                  ['Transfer news', readiness.transferNews, 'Олон trusted эх сурвалжаар батлагдахад өснө'],
+                                  ['Friendly & international', readiness.friendlyInternational, 'Structured минут/lineup дутуу'],
+                                  ['Multi-source verification', readiness.multiSourceVerification, 'Official + reliable давхар баталгаа'],
+                                  ['Prediction calibration', readiness.calibration, 'Gameweek дуусах бүр forecast-оор хэмжинэ'],
+                                  ['Multi-GW planning', readiness.multiGameweekPlanning, 'Next 1/3/5/8 GW ба blank/double'],
+                              ] as Array<[string, number, string]>).map(([label, score, note]) => (
+                                  <div className="readiness-row" key={label} title={note}>
+                                      <span>{label}<small>{note}</small></span>
                                       <div><i style={{ width: `${score}%` }} /></div>
                                       <b className={score >= 80 ? 'good' : score >= 60 ? 'yellow' : 'bad'}>
                                           {score}%
@@ -1309,6 +1362,12 @@ export default function Home() {
 
                         {analysis?.message ? <p className="muted">{t.noIdTeam}</p> : null}
 
+                        {decision?.entryAvailability ? (
+                            <div className="notice" style={{ marginTop: 14 }}>
+                                <b>Entry ID төлөв:</b> {decision.entryAvailability}
+                            </div>
+                        ) : null}
+
                         {analysis?.recommendedLineup ? (
                             <div style={{ marginTop: 20 }}>
                                 <div className="section-heading">
@@ -1382,7 +1441,17 @@ export default function Home() {
                                     <span>Minutes ↑ <b>{captainPick.predictedMinutes}</b></span>
                                     <span>Risk ↓ <b>{captainPick.risk}%</b></span>
                                     {captainPick.fixture ? <span>FDR ↓ <b>{captainPick.fixture.nextDifficulty}</b></span> : null}
+                                    {captainPick.fixture ? <span>Next 5 avg ↓ <b>{captainPick.fixture.averageDifficulty}</b></span> : null}
                                 </div>
+                                {captainPick.fixture?.fixtures?.length ? (
+                                    <div className="position-fixture-run captain-fixture-run">
+                                        {captainPick.fixture.fixtures.slice(0, 5).map((fixture, index) => (
+                                            <span className={`fdr fdr-${Math.round(fixture.difficulty)}`} key={`${fixture.event}-${fixture.opponent}-${index}`}>
+                                                {fixture.opponentName} {fixture.isHome ? 'H' : 'A'} · {fixture.difficulty}
+                                            </span>
+                                        ))}
+                                    </div>
+                                ) : null}
                                 {viceCaptainPick ? (
                                     <div className="vice-captain-line">
                                         <span>VC</span>
@@ -1537,7 +1606,7 @@ export default function Home() {
 
                 <Card title={t.draftTeams} subtitle={t.draftTeamsSub} helpHref="/docs#drafts">
                     {boot?.drafts?.length ? (
-                        boot.drafts.map((d: Any) => <DraftCard draft={d} key={d.mode} lang={lang} />)
+                        boot.drafts.map((d: Any) => <DraftCard draft={d} key={d.mode} lang={lang} onUse={usePlannedDraft} />)
                     ) : (
                         <div className="skeleton" />
                     )}

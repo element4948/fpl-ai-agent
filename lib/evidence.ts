@@ -86,7 +86,10 @@ export function buildDraftTrust(
     (player) => (player.evidence?.coverageScore || 0) < 52,
   );
   const unreliableStarters = startingXI.filter(
-    (player) => player.starterConfidence < 60 || player.predictedMinutes < 55,
+    (player) => player.starterConfidence < 68 || player.predictedMinutes < 60,
+  );
+  const missingFixturePlayers = squad.filter(
+    (player) => !player.fixture?.fixtures.length,
   );
   const officialWarnings = squad.filter((player) =>
     player.signals.some((signal) => signal.severity === 'high'),
@@ -120,6 +123,9 @@ export function buildDraftTrust(
   if (officialWarnings.length) {
     blockers.push(`${officialWarnings.length} тоглогч Official FPL high warning-тай.`);
   }
+  if (missingFixturePlayers.length) {
+    blockers.push(`${missingFixturePlayers.length} тоглогчийн Official FPL fixture data алга.`);
+  }
   if (limitedDataPlayers) warnings.push(`${limitedDataPlayers} тоглогч limited data-тай.`);
   if (unknownDataPlayers) warnings.push(`${unknownDataPlayers} тоглогч unknown data-тай.`);
   if (!squad.some((player) => player.expectedGoalInvolvements > 0)) {
@@ -134,7 +140,10 @@ export function buildDraftTrust(
         : score >= 78 && goodDataPlayers >= 8
           ? 'verified'
           : 'provisional',
-    sourceCount: 3,
+    sourceCount:
+      3 +
+      (squad.some((player) => player.externalNews?.some((signal) => signal.tier === 'official')) ? 1 : 0) +
+      (squad.some((player) => player.externalNews?.some((signal) => signal.tier === 'reliable')) ? 1 : 0),
     goodDataPlayers,
     limitedDataPlayers,
     unknownDataPlayers,

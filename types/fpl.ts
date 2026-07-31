@@ -7,6 +7,7 @@ export type UserSettings = {
   riskProfile: RiskProfile;
   goal: Goal;
   lang: 'mn' | 'en';
+  plannedSquadIds?: number[];
 };
 
 export type FplPlayer = {
@@ -240,6 +241,12 @@ export type RoadmapWeek = {
   projectedPoints: number;
   formation: Formation;
   captain: { id: number; name: string; projectedPoints: number } | null;
+  captainAlternatives: Array<{
+    id: number;
+    name: string;
+    projectedPoints: number;
+    gap: number;
+  }>;
   transferWatch: Array<{ id: number; name: string; team: string; projectedPoints: number }>;
   doublePlayers: number;
   blankPlayers: number;
@@ -328,6 +335,7 @@ export type ModelPlayer = {
   penaltiesSaved: number;
   bonus: number;
   teamDefensiveStrength: number;
+  teamOverallStrength: number;
   setPieceRoles: {
     corners: number | null;
     directFreeKicks: number | null;

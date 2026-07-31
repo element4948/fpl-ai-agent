@@ -24,6 +24,19 @@ function eventProjection(player: ModelPlayer, eventId: number) {
   }, 0).toFixed(2));
 }
 
+function captainRoadmapScore(player: ModelPlayer) {
+  const setPieceBonus =
+    (player.setPieceRoles.penalties === 1 ? 0.8 : 0) +
+    (player.setPieceRoles.directFreeKicks === 1 ? 0.25 : 0);
+  return (
+    player.expectedPoints * 1.55 +
+    player.starterConfidence * 0.025 +
+    player.predictedMinutes * 0.018 +
+    setPieceBonus -
+    player.risk * 0.045
+  );
+}
+
 export function buildSeasonRoadmap(
   squad: ModelPlayer[],
   allPlayers: ModelPlayer[],
@@ -39,9 +52,16 @@ export function buildSeasonRoadmap(
     const projectedPoints = Number(
       lineup.startingXI.reduce((sum, player) => sum + player.expectedPoints, 0).toFixed(1),
     );
-    const captainPlayer = [...lineup.startingXI]
+    const captainCandidates = [...lineup.startingXI]
       .filter((player) => player.position !== 'GKP')
-      .sort((a, b) => b.expectedPoints - a.expectedPoints)[0];
+      .sort((a, b) => captainRoadmapScore(b) - captainRoadmapScore(a));
+    const captainPlayer = captainCandidates[0];
+    const captainAlternatives = captainCandidates.slice(1, 4).map((player) => ({
+      id: player.id,
+      name: player.name,
+      projectedPoints: player.expectedPoints,
+      gap: Number(((captainPlayer?.expectedPoints || 0) - player.expectedPoints).toFixed(2)),
+    }));
     const blankPlayers = eventSquad.filter((player) => player.expectedPoints === 0).length;
     const doublePlayers = squad.filter(
       (player) => (player.fixture?.fixtures || []).filter((fixture) => fixture.event === eventId).length > 1,
@@ -78,6 +98,7 @@ export function buildSeasonRoadmap(
       captain: captainPlayer
         ? { id: captainPlayer.id, name: captainPlayer.name, projectedPoints: captainPlayer.expectedPoints }
         : null,
+      captainAlternatives,
       transferWatch,
       doublePlayers,
       blankPlayers,
