@@ -6,6 +6,7 @@ import { chipPlanner } from '@/lib/chips';
 import { buildRiskMonitor } from '@/lib/risk-monitor';
 import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external-news';
 import { buildModelReadiness } from '@/lib/readiness';
+import { buildSeasonRoadmap } from '@/lib/season-roadmap';
 
 export async function GET() {
   const [boot, fixtures] = await Promise.all([getBootstrap(), getFixtures()]);
@@ -28,6 +29,7 @@ export async function GET() {
   const calibrationEvent = liveUnfinishedEvent ? null : lastFinishedEvent;
   const topPlayers = [...players].sort((a,b) => (b.expectedPoints + b.valueScore - b.risk * 0.03) - (a.expectedPoints + a.valueScore - a.risk * 0.03)).slice(0, 40);
   const drafts = ['Best','Alternative','Differential','Safe'].map(mode => buildDraft(players, mode as any));
+  const roadmap = buildSeasonRoadmap(drafts[0]?.players || [], players);
   return NextResponse.json({
     nextEvent: isPreSeason ? null : next,
     isPreSeason,
@@ -40,6 +42,7 @@ export async function GET() {
     captainShortlist: rankCaptainCandidates(players, 10),
     riskMonitor: buildRiskMonitor(players).slice(0, 30),
     readiness: buildModelReadiness(players),
+    roadmap,
     calibration: calibrationEvent
       ? {
           eventId: calibrationEvent.id,
@@ -51,6 +54,6 @@ export async function GET() {
         }
       : null,
     drafts,
-    chips: chipPlanner({ hasEntry: false, isPreSeason }),
+    chips: chipPlanner({ hasEntry: false, isPreSeason, roadmap }),
   });
 }

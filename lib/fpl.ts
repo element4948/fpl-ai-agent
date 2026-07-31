@@ -136,7 +136,7 @@ export function toModelPlayers(
 
     const positionMap = new Map(positions.map((position) => [position.id, position]));
 
-    const fixtureMap = buildFixtureMap(fixtures, teams, eventId, 5);
+    const fixtureMap = buildFixtureMap(fixtures, teams, eventId, 8);
 
     return players.map((player) => {
         const form = Number(player.form || 0);
@@ -190,15 +190,21 @@ export function toModelPlayers(
         const newsRisk = player.news ? 0.15 : 0;
 
         const lowMinutesRisk = minutes > 0 && minutesScore < 0.25 ? 0.15 : 0;
-        const starterUncertaintyRisk =
+        const dataQualityRisk =
             starter.dataQuality === 'unknown'
-                ? 0.35
-                : Math.max(0, (60 - starter.confidence) / 100);
+                ? 0.45
+                : starter.dataQuality === 'limited'
+                  ? 0.18
+                  : 0;
+        const starterUncertaintyRisk = Math.max(
+            0,
+            (68 - starter.confidence) / 100,
+        );
 
         const risk = Math.round(
             Math.min(
                 100,
-                (injuryRisk + statusRisk + newsRisk + lowMinutesRisk + starterUncertaintyRisk) * 100,
+                (injuryRisk + statusRisk + newsRisk + lowMinutesRisk + dataQualityRisk + starterUncertaintyRisk) * 100,
             ),
         );
 
@@ -265,14 +271,23 @@ export function toModelPlayers(
 
         const confidence = Math.round(clamp(confidenceBase - risk * 0.32, 5, 98));
 
+        const rawExpectedPoints =
+            (hasSeasonData ? liveBase : preseasonBase) +
+            positionUpside * 0.55 +
+            confidence / 160;
+        const minutesAvailability = clamp(
+            0.35 + (starter.predictedMinutes / 90) * 0.65,
+            0.35,
+            1,
+        );
+        const preseasonRegression = completedGameweeks === 0 ? 0.86 : 1;
         const expectedPoints = Number(
-            (
-                (hasSeasonData ? liveBase : preseasonBase) +
-                positionUpside +
-                confidence / 125
+            Math.max(
+                0.5,
+                rawExpectedPoints * minutesAvailability * preseasonRegression,
             ).toFixed(2),
         );
-        const projectedFixtures = fixture?.fixtures.slice(0, 5) || [];
+        const projectedFixtures = fixture?.fixtures.slice(0, 8) || [];
         const projectionValues = projectedFixtures.map((item, index) => {
             const difficultyAdjustment =
                 (nextDifficulty - item.difficulty) *
@@ -357,6 +372,7 @@ export function toModelPlayers(
                 next1: projectionTotal(1),
                 next3: projectionTotal(3),
                 next5: projectionTotal(5),
+                next8: projectionTotal(8),
                 games: projectionValues.length,
                 gameweeks: gameweekTotals.length,
             },

@@ -18,5 +18,17 @@ export function calculateConfidence(player: ModelPlayer, riskProfile: RiskProfil
     risk.total * 0.36 +
     profileAdjustment;
 
-  return clamp(score);
+  const dataQualityCap =
+    player.dataQuality === 'good'
+      ? 95
+      : player.dataQuality === 'limited'
+        ? 78
+        : 55;
+  const evidenceCap =
+    player.evidence?.trustLevel === 'high'
+      ? 95
+      : player.evidence?.trustLevel === 'medium'
+        ? 82
+        : 62;
+  return clamp(Math.min(score, dataQualityCap, evidenceCap));
 }

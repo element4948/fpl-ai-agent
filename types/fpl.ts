@@ -235,6 +235,25 @@ export type ModelReadiness = {
   multiGameweekPlanning: number;
 };
 
+export type RoadmapWeek = {
+  eventId: number;
+  projectedPoints: number;
+  formation: Formation;
+  captain: { id: number; name: string; projectedPoints: number } | null;
+  transferWatch: Array<{ id: number; name: string; team: string; projectedPoints: number }>;
+  doublePlayers: number;
+  blankPlayers: number;
+  action: 'hold' | 'monitor-transfer' | 'consider-chip';
+  note: string;
+};
+
+export type SeasonRoadmap = {
+  generatedAt: string;
+  horizon: number;
+  weeks: RoadmapWeek[];
+  limitations: string[];
+};
+
 export type DraftTrust = {
   score: number;
   status: 'verified' | 'provisional' | 'insufficient';
@@ -323,6 +342,7 @@ export type ModelPlayer = {
     next1: number;
     next3: number;
     next5: number;
+    next8: number;
     games: number;
     gameweeks: number;
   };

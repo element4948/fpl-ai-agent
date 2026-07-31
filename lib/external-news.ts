@@ -191,6 +191,7 @@ export function applyExternalNewsSignals(
         next1: Number((player.projection.next1 * projectionFactor).toFixed(2)),
         next3: Number((player.projection.next3 * projectionFactor).toFixed(2)),
         next5: Number((player.projection.next5 * projectionFactor).toFixed(2)),
+        next8: Number((player.projection.next8 * projectionFactor).toFixed(2)),
       },
       valueScore: Number(
         (expectedPoints / Math.max(player.price, 1)).toFixed(2),

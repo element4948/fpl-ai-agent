@@ -13,7 +13,8 @@ export function suggestSafeTransfers(squad: ModelPlayer[], all: ModelPlayer[], b
       .filter(p => !squadIds.has(p.id))
       .filter(p => p.positionId === out.positionId)
       .filter(p => p.price <= out.price + bank)
-      .filter(p => p.risk <= 45 && isReliableStarter(p))
+      .filter(p => p.risk <= 40 && isReliableStarter(p))
+      .filter(p => (p.evidence?.coverageScore || 0) >= 52)
       .sort((a, b) => transferGain(b, out) - transferGain(a, out))
       .slice(0, 8);
     for (const inn of candidates) {
@@ -47,8 +48,15 @@ export function suggestSafeTransfers(squad: ModelPlayer[], all: ModelPlayer[], b
 }
 
 function transferGain(inn: ModelPlayer, out: ModelPlayer) {
+  const nextThreeGain =
+    (inn.projection.next3 - out.projection.next3) / 3;
+  const nextFiveGain =
+    (inn.projection.next5 - out.projection.next5) /
+    Math.max(1, Math.min(5, inn.projection.gameweeks, out.projection.gameweeks));
   return (
-    (inn.expectedPoints - out.expectedPoints) +
+    (inn.expectedPoints - out.expectedPoints) * 0.45 +
+    nextThreeGain * 0.38 +
+    nextFiveGain * 0.17 +
     (inn.confidence - out.confidence) * 0.025 +
     (inn.starterConfidence - out.starterConfidence) * 0.045 +
     (inn.predictedMinutes - out.predictedMinutes) * 0.025 -
@@ -67,5 +75,7 @@ function buildReasons(out: ModelPlayer, inn: ModelPlayer) {
   if (inn.valueScore > out.valueScore) r.push('Better value score');
   if (inn.starterConfidence > out.starterConfidence) r.push('Higher starter confidence');
   if (inn.predictedMinutes > out.predictedMinutes) r.push('More predicted minutes');
+  if (inn.projection.next3 > out.projection.next3) r.push('Higher next 3 Gameweek projection');
+  if (inn.projection.next5 > out.projection.next5) r.push('Stronger five-Gameweek transfer path');
   return r.length ? r : ['Model prefers incoming player'];
 }

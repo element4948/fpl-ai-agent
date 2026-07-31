@@ -8,6 +8,8 @@ import { validateSquad } from '@/lib/rules';
 import { rankCaptainCandidates } from '@/lib/scoring';
 import { suggestSafeTransfers } from '@/lib/transfers';
 import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external-news';
+import { buildSeasonRoadmap } from '@/lib/season-roadmap';
+import { buildDraftTrust } from '@/lib/evidence';
 
 export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
@@ -149,6 +151,8 @@ export async function POST(req: Request) {
     const captains = rankCaptainCandidates(lineup.startingXI.length ? lineup.startingXI : squad, 6);
 
     const transfers = suggestSafeTransfers(squad, allPlayers, bank, freeTransfers);
+    const roadmap = buildSeasonRoadmap(squad, allPlayers);
+    const trust = buildDraftTrust(squad, lineup.startingXI);
 
     return NextResponse.json({
         mode: 'live',
@@ -185,6 +189,8 @@ export async function POST(req: Request) {
         },
 
         validation,
+        trust,
+        roadmap,
 
         captainShortlist: captains,
 
@@ -193,6 +199,7 @@ export async function POST(req: Request) {
         chips: chipPlanner({
             hasEntry: true,
             isPreSeason: false,
+            roadmap,
         }),
     });
 }

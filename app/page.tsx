@@ -684,6 +684,7 @@ function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
     const remainingBudget = Number(Math.max(0, 100 - totalCost).toFixed(1));
     const playerCount = draft.players?.length || 0;
     const positions = ['GKP', 'DEF', 'MID', 'FWD'];
+    const finalReady = draft.validation.valid && draft.trust?.status === 'verified';
 
     return (
         <details className="draft-team-card" open={draft.mode === 'Best'}>
@@ -717,8 +718,12 @@ function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
                         <small>Flexibility</small>
                         <b>{draft.flexibility?.score || 0}%</b>
                     </span>
-                    <span className={draft.validation.valid ? 'draft-valid' : 'draft-invalid'}>
-                        {draft.validation.valid ? `✓ ${t.allGood}` : `! ${t.check}`}
+                    <span className={finalReady ? 'draft-valid' : 'draft-invalid'}>
+                        {finalReady
+                            ? '✓ Final-ready'
+                            : draft.validation.valid
+                              ? '△ Rules valid · not final'
+                              : `! ${t.check}`}
                     </span>
                 </div>
             </summary>
@@ -873,6 +878,57 @@ function DraftCard({ draft, lang }: { draft: Any; lang: 'mn' | 'en' }) {
     );
 }
 
+function SeasonRoadmapCard({ roadmap }: { roadmap: Any }) {
+    const weeks = roadmap?.weeks || [];
+    return (
+        <Card
+            title="Season Roadmap (3–8 Gameweek төлөвлөгөө)"
+            subtitle="Fixture, formation, captain, blank/double болон transfer watch-ийг долоо хоног бүр дахин тооцно."
+            helpHref="/docs#roadmap"
+        >
+            {weeks.length ? (
+                <div className="roadmap-week-grid">
+                    {weeks.map((week: Any) => (
+                        <div className={`roadmap-week roadmap-${week.action}`} key={week.eventId}>
+                            <div className="roadmap-week-head">
+                                <strong>GW{week.eventId}</strong>
+                                <span>{week.formation}</span>
+                                <b>{week.projectedPoints} pts</b>
+                            </div>
+                            <div className="roadmap-week-main">
+                                <span>Captain</span>
+                                <strong>{week.captain?.name || 'TBD'}</strong>
+                                <small>{week.captain ? `${week.captain.projectedPoints.toFixed(1)} projected` : 'Data хүлээж байна'}</small>
+                            </div>
+                            <p>{week.note}</p>
+                            {week.transferWatch?.length ? (
+                                <div className="roadmap-watch">
+                                    <small>Transfer watch</small>
+                                    {week.transferWatch.map((player: Any) => (
+                                        <span key={player.id}>{player.name} · {player.projectedPoints.toFixed(1)}</span>
+                                    ))}
+                                </div>
+                            ) : null}
+                            <div className="roadmap-flags">
+                                {week.doublePlayers ? <span>DGW {week.doublePlayers}</span> : null}
+                                {week.blankPlayers ? <span>Blank {week.blankPlayers}</span> : null}
+                                <span>{week.action === 'hold' ? 'Roll / hold' : week.action === 'consider-chip' ? 'Chip watch' : 'Transfer watch'}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="notice">3–8 Gameweek fixture data нийтлэгдсэний дараа roadmap автоматаар гарна.</div>
+            )}
+            {roadmap?.limitations?.length ? (
+                <div className="roadmap-limitations">
+                    {roadmap.limitations.map((item: string) => <span key={item}>! {item}</span>)}
+                </div>
+            ) : null}
+        </Card>
+    );
+}
+
 export default function Home() {
     const [settings, setSettings] = useState<UserSettings>(defaultSettings);
     const [saved, setSaved] = useState(false);
@@ -887,7 +943,10 @@ export default function Home() {
     const t = dict[lang];
 
     useEffect(() => {
-        setSettings(loadSettings());
+        const loaded = loadSettings();
+        setSettings(loaded);
+        void runDecision(loaded);
+        /* eslint-disable-next-line react-hooks/exhaustive-deps */
     }, []);
     useEffect(() => {
         fetch('/api/bootstrap')
@@ -914,23 +973,20 @@ export default function Home() {
             );
         }
     }, [boot]);
-    useEffect(() => {
-        runDecision(); /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    }, []);
 
     const isPreSeason = boot?.isPreSeason ?? true;
     const statusTitle = isPreSeason ? t.preSeason : t.live;
     const deadline = boot?.nextEvent?.deadline_time ? new Date(boot.nextEvent.deadline_time).toLocaleString() : t.notPublished;
 
-    async function runDecision() {
+    async function runDecision(activeSettings: UserSettings = settings) {
         setLoading(true);
         const res = await fetch('/api/decision', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
-                entryId: settings.entryId,
-                riskProfile: settings.riskProfile,
-                goal: settings.goal,
+                entryId: activeSettings.entryId,
+                riskProfile: activeSettings.riskProfile,
+                goal: activeSettings.goal,
                 freeTransfers: 1,
             }),
         });
@@ -970,6 +1026,7 @@ export default function Home() {
     function persist() {
         saveSettings(settings);
         setSaved(true);
+        void runDecision(settings);
         setTimeout(() => setSaved(false), 1600);
     }
 
@@ -988,6 +1045,7 @@ export default function Home() {
               calibration: Math.min(100, 10 + calibrationResults.length * 14),
           }
         : undefined;
+    const roadmap = analysis?.roadmap || decision?.roadmap || boot?.roadmap;
 
     return (
         <>
@@ -1078,7 +1136,7 @@ export default function Home() {
                     </p>
 
                     <div className="decision-footer">
-                        <button className="btn" disabled={loading} onClick={runDecision}>
+                        <button className="btn" disabled={loading} onClick={() => runDecision()}>
                             {loading ? t.loading : t.runDecision}
                         </button>
                         <details className="decision-details">
@@ -1088,6 +1146,8 @@ export default function Home() {
                         </details>
                     </div>
                 </Card>
+
+                <SeasonRoadmapCard roadmap={roadmap} />
 
                 <section className="grid grid-3">
                     <Card title={t.dataFoundation} subtitle={t.dataText} helpHref="/docs#player-evaluation">

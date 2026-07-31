@@ -78,18 +78,30 @@ export function projectStarter(
     const marketSignal =
       Math.min(12, ownership * 0.45) +
       Math.min(8, Math.max(0, player.now_cost / 10 - 4) * 1.5);
+    /*
+     * Before GW1 the public API mostly contains the previous season totals.
+     * Use them as a prior, but keep the result explicitly provisional. Unlike
+     * the old 72/60 cap this preserves the difference between a 35-start
+     * first-choice player and a 12-start rotation player.
+     */
     const confidence = clamp(
-      20 + historicalStartRate * 48 + historicalMinutesRate * 22 + marketSignal,
-      15,
-      72,
+      12 + historicalStartRate * 58 + historicalMinutesRate * 24 + marketSignal,
+      12,
+      88,
     );
-    const predictedMinutes = clamp(15 + confidence * 0.62, 15, 60);
+    const predictedMinutes = clamp(
+      8 + historicalStartRate * 58 + historicalMinutesRate * 22,
+      10,
+      84,
+    );
 
     return {
       confidence,
       predictedMinutes,
       label:
-        confidence >= 62
+        confidence >= 78
+          ? 'nailed'
+          : confidence >= 66
           ? 'likely'
           : confidence >= 42
             ? 'rotation'
@@ -130,12 +142,12 @@ export function isReliableStarter(
     predictedMinutes: number;
     starterLabel: StarterLabel;
   },
-  minimumConfidence = 60,
+  minimumConfidence = 68,
 ) {
   return (
     (player.status || 'a') === 'a' &&
     player.starterLabel !== 'unavailable' &&
     player.starterConfidence >= minimumConfidence &&
-    player.predictedMinutes >= 55
+    player.predictedMinutes >= 60
   );
 }

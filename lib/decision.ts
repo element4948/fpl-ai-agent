@@ -6,6 +6,8 @@ import { explainPlayer } from './explain';
 import { calculateRisk } from './risk';
 import { rankCaptainCandidates } from './scoring';
 import { suggestSafeTransfers } from './transfers';
+import { buildSeasonRoadmap } from './season-roadmap';
+import { buildDraft } from './rules';
 
 export type DecisionInput = {
   allPlayers: ModelPlayer[];
@@ -74,8 +76,6 @@ export function buildDecision(input: DecisionInput) {
     ? suggestSafeTransfers(enrichedSquad, enrichedAll, input.bank || 0, input.freeTransfers ?? 1)
     : [];
   const transfer = transfers[0] || null;
-  const chips = chipPlanner({ hasEntry: !!enrichedSquad?.length, isPreSeason: !!input.isPreSeason, gap: input.leagueGap || 0 });
-
   const strategy = chooseStrategy(riskProfile, goal, input.leagueGap || 0, !!input.isPreSeason);
   const action = input.isPreSeason ? 'buildDraft' : transfer ? 'makeTransfer' : 'holdTransfer';
   const actionPlan = buildWeeklyActionPlan({
@@ -84,6 +84,19 @@ export function buildDecision(input: DecisionInput) {
     viceCaptain,
     transfer,
     freeTransfers: input.freeTransfers ?? 1,
+  });
+  const roadmapSquad = enrichedSquad?.length
+    ? enrichedSquad
+    : buildDraft(
+        enrichedAll.filter((player) => isDecisionRoadmapCandidate(player)),
+        'Best',
+      ).players;
+  const roadmap = buildSeasonRoadmap(roadmapSquad, enrichedAll);
+  const chips = chipPlanner({
+    hasEntry: !!enrichedSquad?.length,
+    isPreSeason: !!input.isPreSeason,
+    gap: input.leagueGap || 0,
+    roadmap,
   });
 
   return {
@@ -98,9 +111,18 @@ export function buildDecision(input: DecisionInput) {
     transfer,
     transferSuggestions: transfers,
     chips,
+    roadmap,
     topDecisionPlayers: candidates.slice(0, 12),
     summary: buildSummary(action, !!transfer, !!input.isPreSeason),
   };
+}
+
+function isDecisionRoadmapCandidate(player: ModelPlayer) {
+  return (
+    player.starterConfidence >= 68 &&
+    player.predictedMinutes >= 60 &&
+    player.risk <= 45
+  );
 }
 
 function chooseStrategy(riskProfile: RiskProfile, goal: Goal, gap: number, preSeason: boolean) {
