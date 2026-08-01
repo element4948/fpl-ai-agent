@@ -78,11 +78,114 @@ export type LineupResult = {
     warnings: string[];
 };
 
-function horizonProjection(player: ModelPlayer): number {
+export function lineupProjection(player: ModelPlayer): number {
     const gameweeks = Math.max(1, player.projection.gameweeks);
     const next3Average = player.projection.next3 / Math.min(3, gameweeks);
     const next5Average = player.projection.next5 / Math.min(5, gameweeks);
-    return player.expectedPoints * 0.6 + next3Average * 0.25 + next5Average * 0.15;
+    return player.expectedPoints * 0.78 + next3Average * 0.15 + next5Average * 0.07;
+}
+
+type OutfieldPosition = 'DEF' | 'MID' | 'FWD';
+
+function outfieldCounts(players: ModelPlayer[]) {
+    return players.reduce(
+        (counts, player) => {
+            if (player.position === 'DEF' || player.position === 'MID' || player.position === 'FWD') {
+                counts[player.position] += 1;
+            }
+            return counts;
+        },
+        { DEF: 0, MID: 0, FWD: 0 } as Record<OutfieldPosition, number>,
+    );
+}
+
+function isLegalOutfield(counts: Record<OutfieldPosition, number>) {
+    return counts.DEF >= 3 && counts.DEF <= 5 && counts.MID >= 2 && counts.MID <= 5 && counts.FWD >= 1 && counts.FWD <= 3;
+}
+
+function permutations<T>(items: T[]): T[][] {
+    if (items.length <= 1) return [items];
+    return items.flatMap((item, index) =>
+        permutations([...items.slice(0, index), ...items.slice(index + 1)]).map((rest) => [item, ...rest]),
+    );
+}
+
+function canAutoSub(
+    remainingStarters: ModelPlayer[],
+    incoming: ModelPlayer,
+) {
+    if (incoming.position === 'GKP') return false;
+    return isLegalOutfield(outfieldCounts([...remainingStarters, incoming]));
+}
+
+function simulateOutfieldAutoSubs(
+    starters: ModelPlayer[],
+    orderedBench: ModelPlayer[],
+    absentIds: Set<number>,
+) {
+    const remaining = starters.filter((player) => !absentIds.has(player.id));
+    if (absentIds.size === 1) {
+        const incoming = orderedBench.find((player) => canAutoSub(remaining, player));
+        return incoming ? lineupProjection(incoming) : 0;
+    }
+
+    // For two absences, judge the final legal shape rather than rejecting the
+    // first substitute against a temporary nine-player formation.
+    for (let first = 0; first < orderedBench.length; first += 1) {
+        for (let second = first + 1; second < orderedBench.length; second += 1) {
+            const incoming = [orderedBench[first], orderedBench[second]];
+            if (isLegalOutfield(outfieldCounts([...remaining, ...incoming]))) {
+                return incoming.reduce((sum, player) => sum + lineupProjection(player), 0);
+            }
+        }
+    }
+    return 0;
+}
+
+export function orderBenchForAutoSubs(
+    startingXI: ModelPlayer[],
+    bench: ModelPlayer[],
+) {
+    const startingGoalkeeper = startingXI.find((player) => player.position === 'GKP');
+    const backupGoalkeeper = bench.find((player) => player.position === 'GKP');
+    const outfieldStarters = startingXI.filter((player) => player.position !== 'GKP');
+    const outfieldBench = bench.filter((player) => player.position !== 'GKP');
+    let bestOrder = [...outfieldBench];
+    let bestValue = Number.NEGATIVE_INFINITY;
+
+    for (const order of permutations(outfieldBench)) {
+        let value = 0;
+        for (const absent of outfieldStarters) {
+            value +=
+                (1 - absent.appearanceProbability) *
+                simulateOutfieldAutoSubs(outfieldStarters, order, new Set([absent.id]));
+        }
+        // Two simultaneous absences are less common, but modelling them keeps
+        // the second and third bench slots useful instead of purely cosmetic.
+        for (let first = 0; first < outfieldStarters.length; first += 1) {
+            for (let second = first + 1; second < outfieldStarters.length; second += 1) {
+                const a = outfieldStarters[first];
+                const b = outfieldStarters[second];
+                value +=
+                    (1 - a.appearanceProbability) *
+                    (1 - b.appearanceProbability) *
+                    simulateOutfieldAutoSubs(outfieldStarters, order, new Set([a.id, b.id])) *
+                    0.35;
+            }
+        }
+        if (value > bestValue) {
+            bestValue = value;
+            bestOrder = order;
+        }
+    }
+
+    const goalkeeperCover = startingGoalkeeper && backupGoalkeeper
+        ? lineupProjection(backupGoalkeeper) * (1 - startingGoalkeeper.appearanceProbability)
+        : 0;
+    return {
+        bench: [...bestOrder, ...(backupGoalkeeper ? [backupGoalkeeper] : [])],
+        expectedCoverValue: Math.max(0, bestValue) + goalkeeperCover,
+    };
 }
 
 function lineupScore(player: ModelPlayer): number {
@@ -96,7 +199,7 @@ function lineupScore(player: ModelPlayer): number {
               : 0;
 
     return (
-        horizonProjection(player) * 2.4 -
+        lineupProjection(player) * 2.4 -
         player.risk * 0.01 -
         availabilityPenalty -
         roleUncertaintyPenalty
@@ -133,7 +236,7 @@ function chooseFormation(
 
     const starterIds = new Set(startingXI.map((player) => player.id));
 
-    const bench = squad
+    const unorderedBench = squad
         .filter((player) => !starterIds.has(player.id))
         .sort((a, b) => {
             if (a.position === 'GKP') return 1;
@@ -141,6 +244,8 @@ function chooseFormation(
 
             return lineupScore(b) - lineupScore(a);
         });
+    const autoSubPlan = orderBenchForAutoSubs(startingXI, unorderedBench);
+    const bench = autoSubPlan.bench;
 
     const unavailableStarters = startingXI.filter((player) => !isReliableStarter(player));
 
@@ -168,9 +273,8 @@ function chooseFormation(
         warnings.push('3 хамгаалагчтай formation боловч найдвартай DEF bench cover алга.');
     }
 
-    const benchResilienceScore = reliableOutfieldBench
-        .slice(0, 2)
-        .reduce((sum, player) => sum + lineupScore(player) * 0.12, 0);
+    const benchResilienceScore = autoSubPlan.expectedCoverValue *
+        (mode === 'Safe' ? 1.15 : mode === 'Differential' ? 0.8 : 1);
     const uncertainShare = startingXI.filter((player) => player.dataQuality !== 'good').length /
         Math.max(1, startingXI.length);
     const extraDefenders = Math.max(0, rule.DEF - 3);
