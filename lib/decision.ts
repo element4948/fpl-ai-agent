@@ -44,8 +44,7 @@ export function playerDecisionScore(p: ModelPlayer, riskProfile: RiskProfile = '
   const upside =
     p.expectedPoints * 1.4 +
     horizon * 1.35 +
-    p.valueScore * valueWeight +
-    p.appearanceProbability * (riskProfile === 'safe' ? 1.8 : 1.1);
+    p.valueScore * valueWeight;
   const penalty = p.risk * riskWeight + p.price * 0.035 + p.ownership * ownershipWeight;
   return Number((upside - penalty).toFixed(2));
 }

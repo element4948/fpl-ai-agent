@@ -10,7 +10,10 @@ export async function POST(req: Request) {
   const entryId = String(body.entryId || '').trim();
   const riskProfile = (body.riskProfile || 'balanced') as RiskProfile;
   const goal = (body.goal || 'both') as Goal;
-  const freeTransfers = Number(body.freeTransfers || 1);
+  const requestedFreeTransfers = Number(body.freeTransfers);
+  const freeTransfers = Number.isFinite(requestedFreeTransfers)
+    ? Math.max(0, Math.min(5, requestedFreeTransfers))
+    : 1;
   const plannedSquadIds = Array.isArray(body.plannedSquadIds)
     ? body.plannedSquadIds.map(Number).filter(Number.isFinite)
     : [];

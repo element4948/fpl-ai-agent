@@ -27,23 +27,22 @@ function playerScore(player: ModelPlayer, mode: DraftMode): number {
         (player.projection.next3 / Math.min(3, gameweeks)) * 0.45 +
         (player.projection.next5 / Math.min(5, gameweeks)) * 0.35 +
         (player.projection.next8 / Math.min(8, gameweeks)) * 0.2;
-    const availability = player.appearanceProbability;
     const uncertaintyPenalty =
         player.dataQuality === 'unknown' ? 3 : player.dataQuality === 'limited' ? 0.6 : 0;
 
     if (mode === 'Differential') {
-        return player.expectedPoints + horizon * 1.2 + player.valueScore * 0.45 + availability * 0.8 - player.ownership * 0.025 - player.risk * 0.012 - uncertaintyPenalty;
+        return player.expectedPoints + horizon * 1.2 + player.valueScore * 0.45 - player.ownership * 0.025 - player.risk * 0.012 - uncertaintyPenalty;
     }
 
     if (mode === 'Safe') {
-        return player.expectedPoints * 0.95 + horizon * 1.1 + availability * 1.8 - player.risk * 0.03 - uncertaintyPenalty * 1.4;
+        return player.expectedPoints * 0.95 + horizon * 1.1 - player.risk * 0.03 - uncertaintyPenalty * 1.4;
     }
 
     if (mode === 'Alternative') {
-        return player.expectedPoints * 0.85 + horizon * 1.05 + player.valueScore * 0.9 + availability - player.risk * 0.016 - uncertaintyPenalty;
+        return player.expectedPoints * 0.85 + horizon * 1.05 + player.valueScore * 0.9 - player.risk * 0.016 - uncertaintyPenalty;
     }
 
-    return player.expectedPoints * 1.1 + horizon * 1.3 + player.valueScore * 0.35 + availability - player.risk * 0.018 - uncertaintyPenalty;
+    return player.expectedPoints * 1.1 + horizon * 1.3 + player.valueScore * 0.35 - player.risk * 0.018 - uncertaintyPenalty;
 }
 
 function isSquadEligible(player: ModelPlayer, mode: DraftMode) {

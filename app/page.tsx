@@ -771,7 +771,7 @@ function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUs
             <div className="draft-team-body">
                 <div className="draft-audit-strip">
                     <span><small>News scan</small><b>{draft.trust?.newsCheckedPlayers || 0}/15</b></span>
-                    <span><small>Data streams</small><b>{draft.trust?.sourceCount || 0}/6</b></span>
+                    <span title="Саналд бодитоор орсон төрлийн data stream. Энэ нь 6 тусдаа сайт бүх тоглогчийг баталсан гэсэн үг биш."><small>Available streams</small><b>{draft.trust?.sourceCount || 0}/6</b></span>
                     {positionAudit.map((audit) => (
                         <span key={audit.position}>
                             <small>{audit.position} · {audit.players} player</small>
@@ -838,7 +838,7 @@ function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUs
                             </b>
                         </div>
                         <div className="draft-source-coverage">
-                            <span><b>{draft.trust.sourceCount}</b> free official data streams</span>
+                            <span title="Official FPL player/fixture/history, API-Football, official/reliable news-ээс энэ draft-д бодитоор өгөгдөл өгсөн stream"><b>{draft.trust.sourceCount}/6</b> data streams present</span>
                             <span><b>{draft.trust.goodDataPlayers}</b> good data</span>
                             <span><b>{draft.trust.limitedDataPlayers}</b> limited</span>
                             <span><b>{draft.trust.unknownDataPlayers}</b> unknown</span>
@@ -1068,7 +1068,7 @@ export default function Home() {
                 entryId: activeSettings.entryId,
                 riskProfile: activeSettings.riskProfile,
                 goal: activeSettings.goal,
-                freeTransfers: 1,
+                freeTransfers: activeSettings.freeTransfers ?? 1,
                 plannedSquadIds: activeSettings.plannedSquadIds || [],
             }),
         });
@@ -1082,7 +1082,7 @@ export default function Home() {
         const res = await fetch('/api/analyze', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ entryId: settings.entryId, freeTransfers: 1 }),
+            body: JSON.stringify({ entryId: settings.entryId, freeTransfers: settings.freeTransfers ?? 1 }),
         });
         setAnalysis(await res.json());
         setLoading(false);
@@ -1385,6 +1385,19 @@ export default function Home() {
                                 <option value="league">{t.league}</option>
                                 <option value="both">{t.both}</option>
                             </select>
+                        </label>
+                        <label className="field">
+                            <span>Хадгалсан free transfer (0–5)</span>
+                            <input
+                                type="number"
+                                min={0}
+                                max={5}
+                                value={settings.freeTransfers ?? 1}
+                                onChange={(e) => updateSettings({
+                                    freeTransfers: Math.max(0, Math.min(5, Number(e.target.value) || 0)),
+                                })}
+                            />
+                            <small>Public Entry API энэ тоог өгдөггүй тул FPL-ээсээ шалгаж шинэчилнэ.</small>
                         </label>
                         <div className="field">
                             <span>&nbsp;</span>

@@ -246,6 +246,12 @@ export function applyExternalNewsSignals(
     if (!externalNews.length) return newsCheckedAt ? { ...player, newsCheckedAt } : player;
 
     const projectionFactor = trustedHigh ? 0.45 : trustedMedium ? 0.72 : singleReliableWarning ? 0.9 : 1;
+    // Keep every availability-dependent field consistent. Previously the
+    // points/minutes were reduced while appearanceProbability stayed high,
+    // allowing warned players back into captain, lineup and bench models.
+    const appearanceProbability = Number(
+      Math.max(0.03, Math.min(1, player.appearanceProbability * projectionFactor)).toFixed(3),
+    );
     const expectedPoints = Number(
       (player.expectedPoints * projectionFactor).toFixed(2),
     );
@@ -255,6 +261,7 @@ export function applyExternalNewsSignals(
       externalNews,
       newsCheckedAt,
       expectedPoints,
+      appearanceProbability,
       projection: {
         ...player.projection,
         next1: Number((player.projection.next1 * projectionFactor).toFixed(2)),

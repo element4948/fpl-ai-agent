@@ -218,20 +218,28 @@ export function optimizeSquadGlobally(
      * most expensive partial squad. This prevents early premium picks from
      * blocking a stronger completed 15-player structure.
      */
-    const bestByBucket = new Map<string, State>();
+    const bestByBucket = new Map<string, State[]>();
     for (const state of expanded) {
       const clubSignature = [...state.clubCounts.entries()]
         .sort(([a], [b]) => a - b)
         .map(([club, count]) => `${club}:${count}`)
         .join(',');
-      const key = `${state.players.length}:${Math.round(state.cost * 2)}:${clubSignature}`;
-      const current = bestByBucket.get(key);
-      if (!current || state.score > current.score) bestByBucket.set(key, state);
+      // Use the exact £0.1m price point and retain more than one player
+      // combination per structural bucket. The old £0.5m/single-state key
+      // could discard the only partial squad able to complete a better XI.
+      const key = `${state.players.length}:${Math.round(state.cost * 10)}:${clubSignature}`;
+      const signature = state.players.map((player) => player.id).sort((a, b) => a - b).join(',');
+      const bucket = bestByBucket.get(key) || [];
+      if (!bucket.some((item) => item.players.map((player) => player.id).sort((a, b) => a - b).join(',') === signature)) {
+        bucket.push(state);
+      }
+      bucket.sort((a, b) => b.score - a.score);
+      bestByBucket.set(key, bucket.slice(0, 2));
     }
 
-    states = [...bestByBucket.values()]
+    states = [...bestByBucket.values()].flat()
       .sort((a, b) => b.score - a.score)
-      .slice(0, 3200);
+      .slice(0, 4800);
 
     if (!states.length) return [];
   }

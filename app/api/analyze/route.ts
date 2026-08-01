@@ -145,7 +145,10 @@ export async function POST(req: Request) {
 
     const bank = Number(((picks.entry_history?.bank || 0) / 10).toFixed(1));
 
-    const freeTransfers = Number(body.freeTransfers) || 1;
+    const requestedFreeTransfers = Number(body.freeTransfers);
+    const freeTransfers = Number.isFinite(requestedFreeTransfers)
+        ? Math.max(0, Math.min(5, requestedFreeTransfers))
+        : 1;
 
     const validation = validateSquad(squad);
 

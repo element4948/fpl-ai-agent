@@ -20,7 +20,6 @@ export function captainScore(p: ModelPlayer) {
     (p.setPieceRoles.directFreeKicks === 1 ? 0.12 : 0);
   return (
     p.expectedPoints * 2.1 +
-    p.appearanceProbability * 1.5 +
     setPieceBonus -
     p.risk * 0.02
   );
@@ -55,7 +54,6 @@ function targetScore(player: ModelPlayer) {
     player.expectedPoints * 1.15 +
     horizon * 1.2 +
     player.valueScore * 0.55 +
-    player.appearanceProbability -
     player.risk * 0.018
   );
 }

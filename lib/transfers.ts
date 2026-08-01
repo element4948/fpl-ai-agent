@@ -48,17 +48,16 @@ export function suggestSafeTransfers(squad: ModelPlayer[], all: ModelPlayer[], b
 }
 
 function transferGain(inn: ModelPlayer, out: ModelPlayer) {
-  const nextThreeGain =
-    (inn.projection.next3 - out.projection.next3) / 3;
-  const nextFiveGain =
-    (inn.projection.next5 - out.projection.next5) /
-    Math.max(1, Math.min(5, inn.projection.gameweeks, out.projection.gameweeks));
+  const projectionAverage = (player: ModelPlayer, horizon: 3 | 5) =>
+    player.projection[`next${horizon}`] /
+    Math.max(1, Math.min(horizon, player.projection.gameweeks));
+  const nextThreeGain = projectionAverage(inn, 3) - projectionAverage(out, 3);
+  const nextFiveGain = projectionAverage(inn, 5) - projectionAverage(out, 5);
   return (
     (inn.expectedPoints - out.expectedPoints) * 0.45 +
     nextThreeGain * 0.35 +
     nextFiveGain * 0.2 -
-    (inn.risk - out.risk) * 0.012 +
-    (inn.appearanceProbability - out.appearanceProbability) * 0.6
+    (inn.risk - out.risk) * 0.012
   );
 }
 
@@ -72,5 +71,6 @@ function buildReasons(out: ModelPlayer, inn: ModelPlayer) {
   if (inn.predictedMinutes > out.predictedMinutes) r.push('More predicted minutes');
   if (inn.projection.next3 > out.projection.next3) r.push('Higher next 3 Gameweek projection');
   if (inn.projection.next5 > out.projection.next5) r.push('Stronger five-Gameweek transfer path');
+  r.push('Confirm the FPL selling price before finalising');
   return r.length ? r : ['Model prefers incoming player'];
 }

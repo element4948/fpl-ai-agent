@@ -43,6 +43,16 @@ export function buildSeasonRoadmap(
     const eventSquad = squad.map((player) => ({
       ...player,
       expectedPoints: eventProjection(player, eventId),
+      projection: {
+        ...player.projection,
+        next1: eventProjection(player, eventId),
+        next3: eventProjection(player, eventId),
+        next5: eventProjection(player, eventId),
+        next8: eventProjection(player, eventId),
+        games: player.projection.byEvent.filter((item) => item.event === eventId).length,
+        gameweeks: 1,
+        byEvent: player.projection.byEvent.filter((item) => item.event === eventId),
+      },
     }));
     const lineup = selectBestLineup(eventSquad);
     const projectedPoints = Number(
@@ -74,9 +84,15 @@ export function buildSeasonRoadmap(
         team: player.team,
         projectedPoints: points,
       }));
+    const strongestTransferGain = transferWatch.reduce((best, candidate) => {
+      const weakestSamePositionStarter = lineup.startingXI
+        .filter((player) => player.position === allPlayers.find((item) => item.id === candidate.id)?.position)
+        .sort((a, b) => a.expectedPoints - b.expectedPoints)[0];
+      return Math.max(best, candidate.projectedPoints - (weakestSamePositionStarter?.expectedPoints || candidate.projectedPoints));
+    }, 0);
     const action = blankPlayers >= 4 || doublePlayers >= 6
       ? 'consider-chip' as const
-      : transferWatch[0]?.projectedPoints > (lineup.bench[0]?.expectedPoints || 0) + 2
+      : strongestTransferGain > 2
         ? 'monitor-transfer' as const
         : 'hold' as const;
     const note = blankPlayers >= 4

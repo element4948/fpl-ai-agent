@@ -113,6 +113,11 @@ export function transferReason(reason: string, lang: Lang) {
     'Better confidence/minutes profile': 'Confidence/minutes profile илүү сайн',
     'Lower injury/rotation/news risk': 'Injury/rotation/news risk бага',
     'Better value score': 'Value score илүү сайн',
+    'Higher starter confidence': 'Гараанд гарах магадлал өндөр',
+    'More predicted minutes': 'Таамагласан минут их',
+    'Higher next 3 Gameweek projection': 'Дараагийн 3 GW-ийн таамаг өндөр',
+    'Stronger five-Gameweek transfer path': 'Дараагийн 5 GW-ийн төлөв илүү сайн',
+    'Confirm the FPL selling price before finalising': 'Эцсийн шийдвэрийн өмнө FPL дээрх зарах үнийг баталгаажуул',
     'Model prefers incoming player': 'Model incoming player-ийг илүүд үзсэн',
   };
   return map[reason] || reason;

@@ -8,6 +8,7 @@ export type UserSettings = {
   goal: Goal;
   lang: 'mn' | 'en';
   plannedSquadIds?: number[];
+  freeTransfers?: number;
 };
 
 export type FplPlayer = {

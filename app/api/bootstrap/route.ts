@@ -9,6 +9,8 @@ import { buildModelReadiness } from '@/lib/readiness';
 import { buildSeasonRoadmap } from '@/lib/season-roadmap';
 import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-football';
 
+export const revalidate = 900;
+
 export async function GET() {
   const [boot, fixtures] = await Promise.all([getBootstrap(), getFixtures()]);
   if (!boot) return NextResponse.json({ error: 'FPL API unavailable', isPreSeason: true, drafts: [], topPlayers: [] }, { status: 200 });
