@@ -3,6 +3,7 @@ import { currentEvent, getBootstrap, getEntry, getEntryPicks, getFixtures, nextE
 import { buildDecision } from '@/lib/decision';
 import type { Goal, RiskProfile } from '@/types/fpl';
 import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external-news';
+import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-football';
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
@@ -19,9 +20,11 @@ export async function POST(req: Request) {
   const next = nextEvent(boot.events);
   const completedGameweeks = boot.events.filter(event => event.finished).length;
   const basePlayers = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], next?.id, completedGameweeks);
+  const apiFootballScan = await getApiFootballEvidence(basePlayers);
+  const statsPlayers = applyApiFootballEvidence(basePlayers, apiFootballScan);
   const allPlayers = applyExternalNewsSignals(
-    basePlayers,
-    await getExternalNewsSignals(basePlayers),
+    statsPlayers,
+    await getExternalNewsSignals(statsPlayers, plannedSquadIds),
   );
   const oldGw38 = next?.name?.includes('38') && next?.deadline_time && new Date(next.deadline_time).getTime() < Date.now();
   const isPreSeason = completedGameweeks === 0 || !next || !next.deadline_time || !!oldGw38;
@@ -42,6 +45,12 @@ export async function POST(req: Request) {
       entryAvailability: entryId
         ? 'Official FPL public API does not expose the private pre-deadline squad. A saved planned draft is used until picks become public.'
         : 'No Entry ID connected.',
+      apiFootball: {
+        enabled: apiFootballScan.enabled,
+        matchedPlayers: apiFootballScan.matchedPlayers,
+        fixturesChecked: apiFootballScan.fixturesChecked,
+        error: apiFootballScan.error,
+      },
     });
   }
 
@@ -64,5 +73,11 @@ export async function POST(req: Request) {
     ...buildDecision({ allPlayers, squad, bank, freeTransfers, riskProfile, goal, isPreSeason: false }),
     entry,
     bank,
+    apiFootball: {
+      enabled: apiFootballScan.enabled,
+      matchedPlayers: apiFootballScan.matchedPlayers,
+      fixturesChecked: apiFootballScan.fixturesChecked,
+      error: apiFootballScan.error,
+    },
   });
 }

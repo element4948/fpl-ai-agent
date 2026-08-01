@@ -77,12 +77,6 @@ export type LineupResult = {
 };
 
 function lineupScore(player: ModelPlayer): number {
-    const nextFdr = player.fixture?.nextDifficulty ?? 3;
-
-    const averageFdr = player.fixture?.averageDifficulty ?? 3;
-
-    const fixtureBonus = (6 - nextFdr) * 0.55 + (6 - averageFdr) * 0.3 + (player.fixture?.nextIsHome ? 0.25 : 0);
-
     const reliable = isReliableStarter(player);
     const availabilityPenalty = reliable ? 0 : 30;
     const roleUncertaintyPenalty =
@@ -93,13 +87,9 @@ function lineupScore(player: ModelPlayer): number {
               : 0;
 
     return (
-        player.expectedPoints * 2 +
-        player.confidence * 0.04 +
-        player.starterConfidence * 0.12 +
-        player.predictedMinutes * 0.1 +
-        fixtureBonus +
-        player.form * 0.25 -
-        player.risk * 0.09 -
+        player.expectedPoints * 2.4 +
+        player.appearanceProbability * 1.2 -
+        player.risk * 0.025 -
         availabilityPenalty -
         roleUncertaintyPenalty
     );

@@ -10,6 +10,7 @@ import { suggestSafeTransfers } from '@/lib/transfers';
 import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external-news';
 import { buildSeasonRoadmap } from '@/lib/season-roadmap';
 import { buildDraftTrust } from '@/lib/evidence';
+import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-football';
 
 export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
@@ -118,9 +119,11 @@ export async function POST(req: Request) {
         fixtureEventId,
         boot.events.filter((item) => item.finished).length,
     );
+    const apiFootballScan = await getApiFootballEvidence(basePlayers);
+    const statsPlayers = applyApiFootballEvidence(basePlayers, apiFootballScan);
     const allPlayers = applyExternalNewsSignals(
-        basePlayers,
-        await getExternalNewsSignals(basePlayers),
+        statsPlayers,
+        await getExternalNewsSignals(statsPlayers, picks.picks.map((pick) => pick.element)),
     );
 
     const playerMap = new Map(allPlayers.map((player) => [player.id, player]));
@@ -191,6 +194,12 @@ export async function POST(req: Request) {
         validation,
         trust,
         roadmap,
+        apiFootball: {
+            enabled: apiFootballScan.enabled,
+            matchedPlayers: apiFootballScan.matchedPlayers,
+            fixturesChecked: apiFootballScan.fixturesChecked,
+            error: apiFootballScan.error,
+        },
 
         captainShortlist: captains,
 

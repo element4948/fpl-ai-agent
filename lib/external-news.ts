@@ -1,6 +1,13 @@
 import type { ExternalNewsSignal, ModelPlayer } from '@/types/fpl';
 
 const MAX_CANDIDATES_PER_POSITION = 6;
+const MAX_VERIFICATION_CANDIDATES = 48;
+
+export type ExternalNewsScan = {
+  signals: Map<number, ExternalNewsSignal[]>;
+  checkedIds: Set<number>;
+  checkedAt: string;
+};
 
 function decodeXml(value: string) {
   return value
@@ -36,6 +43,9 @@ function sourceTier(source: string, sourceUrl: string): ExternalNewsSignal['tier
       'manutd.com', 'nufc.co.uk', 'safc.com', 'tottenhamhotspur.com',
       'ccfc.co.uk', 'hullcitytigers.com', 'itfc.co.uk', 'leedsunited.com',
       'nottinghamforest.co.uk',
+      'whufc.com', 'wolves.co.uk', 'burnleyfootballclub.com',
+      'lcfc.com', 'southamptonfc.com', 'wba.co.uk', 'watfordfc.com',
+      'sufc.co.uk', 'swanseacity.com', 'thefa.com', 'uefa.com', 'fifa.com',
     ].some((domain) => text.includes(domain))
   ) return 'official';
   if (
@@ -44,7 +54,13 @@ function sourceTier(source: string, sourceUrl: string): ExternalNewsSignal['tier
     text.includes('the athletic') ||
     text.includes('guardian') ||
     text.includes('reuters') ||
-    text.includes('fabrizio romano')
+    text.includes('fabrizio romano') ||
+    text.includes('associated press') ||
+    text.includes('ap news') ||
+    text.includes('pa media') ||
+    text.includes('espn') ||
+    text.includes('independent') ||
+    text.includes('telegraph')
   ) return 'reliable';
   return 'secondary';
 }
@@ -80,6 +96,41 @@ function classify(headline: string): Pick<ExternalNewsSignal, 'category' | 'seve
   return { category: 'availability', severity: 'low' };
 }
 
+function maximumAge(category: ExternalNewsSignal['category']) {
+  if (category === 'injury' || category === 'transfer') return 14 * 24 * 60 * 60 * 1000;
+  if (category === 'rotation' || category === 'availability') return 4 * 24 * 60 * 60 * 1000;
+  return 7 * 24 * 60 * 60 * 1000;
+}
+
+function sourceKey(signal: Pick<ExternalNewsSignal, 'source' | 'url'>) {
+  try {
+    return new URL(signal.url).hostname.replace(/^www\./, '');
+  } catch {
+    return signal.source.trim().toLowerCase();
+  }
+}
+
+function verifySignals(
+  signals: Omit<ExternalNewsSignal, 'verification' | 'corroboratingSourceCount'>[],
+): ExternalNewsSignal[] {
+  return signals.map((signal) => {
+    const relatedSources = new Set(
+      signals
+        .filter((candidate) => candidate.category === signal.category && candidate.tier !== 'secondary')
+        .map(sourceKey),
+    );
+    const corroboratingSourceCount = relatedSources.size;
+    const verification = signal.tier === 'official'
+      ? 'confirmed'
+      : signal.tier === 'reliable' && corroboratingSourceCount >= 2
+        ? 'corroborated'
+        : signal.tier === 'reliable'
+          ? 'single-source'
+          : 'unverified';
+    return { ...signal, verification, corroboratingSourceCount };
+  });
+}
+
 async function fetchFeed(query: string) {
   try {
     const response = await fetch(
@@ -107,8 +158,12 @@ async function fetchFeed(query: string) {
   }
 }
 
-export async function getExternalNewsSignals(players: ModelPlayer[]) {
-  const candidates = ['GKP', 'DEF', 'MID', 'FWD'].flatMap((position) =>
+export async function getExternalNewsSignals(
+  players: ModelPlayer[],
+  preferredIds: number[] = [],
+): Promise<ExternalNewsScan> {
+  const preferred = new Set(preferredIds);
+  const baseline = ['GKP', 'DEF', 'MID', 'FWD'].flatMap((position) =>
     players
       .filter((player) => player.position === position)
       .sort(
@@ -120,6 +175,9 @@ export async function getExternalNewsSignals(players: ModelPlayer[]) {
       )
       .slice(0, MAX_CANDIDATES_PER_POSITION),
   );
+  const candidates = [...players.filter((player) => preferred.has(player.id)), ...baseline]
+    .filter((player, index, list) => list.findIndex((item) => item.id === player.id) === index)
+    .slice(0, MAX_VERIFICATION_CANDIDATES);
   const articlesByPlayer = await Promise.all(
     candidates.map(async (player) => ({
       player,
@@ -137,14 +195,15 @@ export async function getExternalNewsSignals(players: ModelPlayer[]) {
     const matching = articles
       .filter((article) => {
         const published = Date.parse(article.publishedAt);
+        const classification = classify(article.headline);
         return (
           article.headline.toLowerCase().includes(name) &&
           Number.isFinite(published) &&
-          now - published <= 8 * 24 * 60 * 60 * 1000
+          now - published <= maximumAge(classification.category)
         );
       })
       .slice(0, 4)
-      .map((article): ExternalNewsSignal => {
+      .map((article): Omit<ExternalNewsSignal, 'verification' | 'corroboratingSourceCount'> => {
         const tier = sourceTier(article.source, article.sourceUrl);
         const classification = classify(article.headline);
         return {
@@ -157,27 +216,36 @@ export async function getExternalNewsSignals(players: ModelPlayer[]) {
               : classification.severity,
         };
       });
-    if (matching.length) result.set(player.id, matching);
+    const verified = verifySignals(matching);
+    if (verified.length) result.set(player.id, verified);
   }
 
-  return result;
+  return {
+    signals: result,
+    checkedIds: new Set(candidates.map((player) => player.id)),
+    checkedAt: new Date().toISOString(),
+  };
 }
 
 export function applyExternalNewsSignals(
   players: ModelPlayer[],
-  signals: Map<number, ExternalNewsSignal[]>,
+  scan: ExternalNewsScan,
 ) {
   return players.map((player) => {
-    const externalNews = signals.get(player.id) || [];
+    const externalNews = scan.signals.get(player.id) || [];
+    const newsCheckedAt = scan.checkedIds.has(player.id) ? scan.checkedAt : undefined;
     const trustedHigh = externalNews.some(
-      (signal) => signal.severity === 'high' && signal.tier !== 'secondary',
+      (signal) => signal.severity === 'high' && (signal.verification === 'confirmed' || signal.verification === 'corroborated'),
     );
     const trustedMedium = externalNews.some(
-      (signal) => signal.severity === 'medium' && signal.tier !== 'secondary',
+      (signal) => signal.severity === 'medium' && (signal.verification === 'confirmed' || signal.verification === 'corroborated'),
     );
-    if (!externalNews.length) return player;
+    const singleReliableWarning = externalNews.some(
+      (signal) => signal.tier === 'reliable' && signal.verification === 'single-source' && signal.severity !== 'low',
+    );
+    if (!externalNews.length) return newsCheckedAt ? { ...player, newsCheckedAt } : player;
 
-    const projectionFactor = trustedHigh ? 0.45 : trustedMedium ? 0.72 : 1;
+    const projectionFactor = trustedHigh ? 0.45 : trustedMedium ? 0.72 : singleReliableWarning ? 0.9 : 1;
     const expectedPoints = Number(
       (player.expectedPoints * projectionFactor).toFixed(2),
     );
@@ -185,6 +253,7 @@ export function applyExternalNewsSignals(
     return {
       ...player,
       externalNews,
+      newsCheckedAt,
       expectedPoints,
       projection: {
         ...player.projection,
@@ -192,6 +261,10 @@ export function applyExternalNewsSignals(
         next3: Number((player.projection.next3 * projectionFactor).toFixed(2)),
         next5: Number((player.projection.next5 * projectionFactor).toFixed(2)),
         next8: Number((player.projection.next8 * projectionFactor).toFixed(2)),
+        byEvent: player.projection.byEvent.map((item) => ({
+          ...item,
+          points: Number((item.points * projectionFactor).toFixed(2)),
+        })),
       },
       valueScore: Number(
         (expectedPoints / Math.max(player.price, 1)).toFixed(2),
@@ -215,7 +288,9 @@ export function applyExternalNewsSignals(
         ? Math.max(player.risk, 62)
         : trustedMedium
           ? Math.max(player.risk, 42)
-          : player.risk,
+          : singleReliableWarning
+            ? Math.max(player.risk, 28)
+            : player.risk,
     };
   });
 }

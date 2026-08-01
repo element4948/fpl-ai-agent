@@ -26,7 +26,7 @@ import {
     saveForecast,
 } from '@/lib/calibration';
 import type { CalibrationResult, ModelPlayer, ModelReadiness, UserSettings } from '@/types/fpl';
-import { positionSelectionReasons } from '@/lib/position-model';
+import { positionMetricChecks, positionSelectionReasons } from '@/lib/position-model';
 import { useEffect, useState } from 'react';
 
 type Any = any;
@@ -350,19 +350,32 @@ function WeeklyActionPlan({ plan, lang }: { plan: Any; lang: 'mn' | 'en' }) {
     );
 }
 
-function DraftPlayerTile({ player, role }: { player: ModelPlayer; role: 'starter' | 'bench' }) {
+function DraftPlayerTile({ player, role, audit }: { player: ModelPlayer; role: 'starter' | 'bench'; audit?: Any }) {
     const starterTone =
         player.starterConfidence >= 75 ? 'draft-confidence-good' : player.starterConfidence >= 55 ? 'draft-confidence-medium' : 'draft-confidence-low';
     const selectionReasons = [
-        player.price <= 4.5 && player.starterConfidence >= 55 ? 'Хямд, тоглох боломжтой' : null,
-        player.expectedPoints >= 5 ? 'Expected өндөр' : null,
-        player.fixture && player.fixture.averageDifficulty <= 2.8 ? 'Next 5 таатай' : null,
-        player.starterConfidence >= 65 ? 'Гараанд ойр' : null,
-        player.expectedGoalInvolvements > 0 ? 'xGI data-тай' : null,
+        player.starterConfidence >= 75 ? 'Гарааны магадлал өндөр' : null,
+        player.expectedPoints >= 5 ? `${player.expectedPoints.toFixed(1)} xP — онооны боломж өндөр` : null,
         ...positionSelectionReasons(player),
+        player.fixture && player.fixture.averageDifficulty <= 2.8 ? 'Дараагийн 5 тоглолт таатай' : null,
+        player.price <= 4.5 && player.starterConfidence >= 55 ? 'Үнэ цэнтэй төсвийн сонголт' : null,
+        player.expectedGoalInvolvements > 0 ? 'xG/xA үндсэн үзүүлэлттэй' : null,
         player.roleAssessment?.role === 'backup' ? 'Зөвхөн сэлгээний хаалгач' : null,
     ].filter((reason): reason is string => Boolean(reason));
     const unreliable = player.starterConfidence < 55 || player.predictedMinutes < 45;
+    const evidenceSources = player.evidence?.sources || [];
+    const sourceChecks = [
+        evidenceSources.some((source) => source.id === 'official-fpl' && source.status === 'available'),
+        evidenceSources.some((source) => source.id === 'official-fpl-fixtures' && source.status === 'available'),
+        evidenceSources.some((source) => source.id === 'official-fpl-history' && source.status !== 'missing'),
+        Boolean(player.newsCheckedAt),
+        Boolean(player.roleAssessment || player.externalNews?.some((signal) => signal.verification === 'confirmed' || signal.verification === 'corroborated')),
+        Boolean(player.apiFootball),
+    ];
+    const passedSources = sourceChecks.filter(Boolean).length;
+    const metricChecks = positionMetricChecks(player);
+    const passedMetrics = audit?.passedMetrics ?? metricChecks.filter(Boolean).length;
+    const totalMetrics = audit?.totalMetrics ?? metricChecks.length;
 
     return (
         <div className={`draft-player-tile ${starterTone}`}>
@@ -374,8 +387,10 @@ function DraftPlayerTile({ player, role }: { player: ModelPlayer; role: 'starter
             <div className="draft-player-team">
                 {player.team} · {player.position}
             </div>
-            <div className={`draft-player-role ${role === 'bench' ? 'bench-role' : 'starter-role'}`}>
-                {role === 'starter' ? 'Starting XI сонголт' : unreliable ? 'Bench filler — гараанд зориулаагүй' : 'Bench cover'}
+            <div className="draft-player-glance">
+                <span className={`draft-player-role ${role === 'bench' ? 'bench-role' : 'starter-role'}`}>
+                    {role === 'starter' ? 'Starting XI' : unreliable ? 'Bench only' : 'Bench cover'}
+                </span>
             </div>
             {player.signals?.length ? (
                 <div className="player-signal" title={player.signals.map((signal) => signal.message).join(' · ')}>
@@ -397,6 +412,23 @@ function DraftPlayerTile({ player, role }: { player: ModelPlayer; role: 'starter
                     <b>{player.risk}% ↓</b>
                 </span>
             </div>
+            <div className="draft-selection-audit">
+                <span>
+                    <small>Эх сурвалж</small>
+                    <b>{passedSources}/6</b>
+                </span>
+                <span>
+                    <small>{player.position} шалгуур</small>
+                    <b>{passedMetrics}/{totalMetrics}</b>
+                </span>
+                <span className="draft-candidate-rank">
+                    <small>Нийт <b>#{audit?.rank || '—'}/{audit?.totalCandidates || '—'}</b></small>
+                    <small>Final gate <b>#{audit?.eligibleRank || '—'}/{audit?.eligibleCandidates || '—'}</b></small>
+                </span>
+            </div>
+            <div className="draft-why-compact">
+                ✓ {(selectionReasons.length ? selectionReasons : ['Нотолгоо хязгаарлагдмал'])[0]}
+            </div>
             {unreliable ? (
                 <div className="draft-player-reject">
                     ! Starter баталгаагүй — гараанд бүү тооц
@@ -404,20 +436,10 @@ function DraftPlayerTile({ player, role }: { player: ModelPlayer; role: 'starter
             ) : null}
             {player.fixture ? (
                 <>
-                    <div className="draft-fixture">
-                        <span>Дараагийн {player.fixture.nextOpponent} {player.fixture.nextIsHome ? '(H)' : '(A)'}</span>
-                        <b
-                            className={`fdr fdr-${Math.round(player.fixture.nextDifficulty)}`}
-                            title="FDR: 1 хамгийн хялбар, 5 хамгийн хүнд"
-                        >
-                            FDR {player.fixture.nextDifficulty} ↓
-                        </b>
-                    </div>
                     <div className="draft-fixture-run" aria-label="Дараагийн 5 тоглолт">
                         {player.fixture.fixtures.slice(0, 5).map((fixture, index) => (
                             <span
                                 className={`draft-fixture-pill fdr-bg-${Math.round(fixture.difficulty)}`}
-                                title={`${fixture.opponentName} · ${fixture.isHome ? 'Талбайдаа' : 'Айлд'} · FDR ${fixture.difficulty}/5`}
                                 key={`${fixture.opponent}-${fixture.event}-${index}`}
                             >
                                 <b>{fixture.opponentName}</b>
@@ -436,7 +458,7 @@ function DraftPlayerTile({ player, role }: { player: ModelPlayer; role: 'starter
                 </div>
             )}
             <details className="draft-player-details">
-                <summary>Яагаад сонгосон бэ?</summary>
+                <summary>Дэлгэрэнгүй статистик ба нотолгоо</summary>
                 <div className="draft-selection-reasons">
                     {selectionReasons.length
                         ? selectionReasons.slice(0, 5).map((reason) => <span key={reason}>✓ {reason}</span>)
@@ -488,13 +510,13 @@ function DraftPlayerTile({ player, role }: { player: ModelPlayer; role: 'starter
                         <strong>Сүүлийн 8 хоногийн external signals</strong>
                         {player.externalNews.slice(0, 3).map((signal) => (
                             <a href={signal.url} target="_blank" rel="noreferrer" key={`${signal.url}-${signal.headline}`}>
-                                {signal.tier} · {signal.category}: {signal.headline}
+                                {signal.verification} · {signal.tier} · {signal.category}: {signal.headline}
                             </a>
                         ))}
                     </div>
                 ) : null}
-                <PlayerDetailButton playerId={player.id} />
             </details>
+            <PlayerDetailButton playerId={player.id} />
         </div>
     );
 }
@@ -695,6 +717,11 @@ function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUs
     const playerCount = draft.players?.length || 0;
     const positions = ['GKP', 'DEF', 'MID', 'FWD'];
     const finalReady = draft.validation.valid && draft.trust?.status === 'verified';
+    const positionAudit = positions.map((position) => {
+        const players = (draft.players || []).filter((player: ModelPlayer) => player.position === position);
+        const checks = players.flatMap((player: ModelPlayer) => positionMetricChecks(player));
+        return { position, players: players.length, passed: checks.filter(Boolean).length, total: checks.length };
+    });
 
     return (
         <details className="draft-team-card" open={draft.mode === 'Best'}>
@@ -739,6 +766,24 @@ function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUs
             </summary>
 
             <div className="draft-team-body">
+                <div className="draft-audit-strip">
+                    <span><small>News scan</small><b>{draft.trust?.newsCheckedPlayers || 0}/15</b></span>
+                    <span><small>Data streams</small><b>{draft.trust?.sourceCount || 0}/6</b></span>
+                    {positionAudit.map((audit) => (
+                        <span key={audit.position}>
+                            <small>{audit.position} · {audit.players} player</small>
+                            <b>{audit.passed}/{audit.total}</b>
+                        </span>
+                    ))}
+                </div>
+                <div className="notice draft-algorithm-summary">
+                    <b>Dream Team сонголт:</b>{' '}
+                    1) availability, role, мэдээний strict gate →{' '}
+                    2) нэг удаа тооцсон appearance-adjusted xP + 3/5/8 GW projection →{' '}
+                    3) £100m, 2/5/5/3, клубээс ≤3 →{' '}
+                    4) бүх formation-оос хамгийн сайн XI + captain/vice + сэлгээ орох магадлал + bank/flexibility.
+                    Эх сурвалжийн coverage нь итгэлцлийн gate болохоос performance bonus биш.
+                </div>
                 <div className="draft-toolbar">
                     <div>
                         <span className="draft-toolbar-label">Сонгосон formation (байрлал)</span>
@@ -752,8 +797,8 @@ function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUs
                         <span style={{ width: `${Math.min(100, totalCost)}%` }} />
                     </div>
                     {onUse ? (
-                        <button type="button" className="btn secondary" onClick={() => onUse(draft)}>
-                            Энэ draft-ийг миний pre-season баг болгох
+                        <button type="button" className="btn secondary" disabled={!finalReady} onClick={() => onUse(draft)}>
+                            {finalReady ? 'Энэ final draft-ийг миний баг болгох' : 'Final verification хүлээгдэж байна'}
                         </button>
                     ) : null}
                 </div>
@@ -785,6 +830,7 @@ function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUs
                             <span><b>{draft.trust.goodDataPlayers}</b> good data</span>
                             <span><b>{draft.trust.limitedDataPlayers}</b> limited</span>
                             <span><b>{draft.trust.unknownDataPlayers}</b> unknown</span>
+                            <span><b>{draft.trust.newsCheckedPlayers || 0}/15</b> recent news checked</span>
                         </div>
                         {draft.trust.blockers?.length ? (
                             <div className="draft-trust-blockers">
@@ -846,7 +892,7 @@ function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUs
                                 return (
                                     <div className={`pitch-line pitch-${position.toLowerCase()}`} key={position}>
                                         {players.map((player: ModelPlayer) => (
-                                            <DraftPlayerTile player={player} role="starter" key={player.id} />
+                                            <DraftPlayerTile player={player} role="starter" audit={draft.selectionAudit?.[player.id]} key={player.id} />
                                         ))}
                                     </div>
                                 );
@@ -867,7 +913,7 @@ function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUs
                             {draft.bench?.map((player: ModelPlayer, index: number) => (
                                 <div className="draft-bench-player" key={player.id}>
                                     <span className="bench-order">{index + 1}</span>
-                                    <DraftPlayerTile player={player} role="bench" />
+                                    <DraftPlayerTile player={player} role="bench" audit={draft.selectionAudit?.[player.id]} />
                                 </div>
                             ))}
                         </div>
@@ -1205,6 +1251,15 @@ export default function Home() {
                 <section className="grid grid-3">
                     <Card title={t.dataFoundation} subtitle={t.dataText} helpHref="/docs#player-evaluation">
                         <div className="engine-status good-engine"><span>✓</span><strong>Official FPL API</strong><small>Үндсэн өгөгдлийн эх сурвалж</small></div>
+                        <div className={`engine-status ${boot?.apiFootball?.matchedPlayers ? 'good-engine' : ''}`}>
+                            <span>{boot?.apiFootball?.matchedPlayers ? '✓' : '△'}</span>
+                            <strong>API-Football</strong>
+                            <small>
+                                {boot?.apiFootball?.enabled
+                                    ? `${boot.apiFootball.matchedPlayers} тоглогч · ${boot.apiFootball.fixturesChecked} тоглолтын lineup/stat`
+                                    : 'Key тохируулаагүй'}
+                            </small>
+                        </div>
                         <div className="engine-facts">
                             <div><span>Players</span><b>{boot?.playerCount ?? '...'}</b></div>
                             <div><span>Teams</span><b>{boot?.teamCount ?? '...'}</b></div>

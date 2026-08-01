@@ -13,15 +13,12 @@ function eventIds(players: ModelPlayer[]) {
 }
 
 function eventProjection(player: ModelPlayer, eventId: number) {
-  const fixtures = (player.fixture?.fixtures || []).filter(
-    (fixture) => fixture.event === eventId,
+  return Number(
+    player.projection.byEvent
+      .filter((item) => item.event === eventId)
+      .reduce((sum, item) => sum + item.points, 0)
+      .toFixed(2),
   );
-  return Number(fixtures.reduce((sum, fixture) => {
-    const difficultyAdjustment =
-      (3 - fixture.difficulty) * (player.position === 'GKP' || player.position === 'DEF' ? 0.48 : 0.56);
-    const venueAdjustment = fixture.isHome ? 0.16 : -0.12;
-    return sum + Math.max(0.4, player.expectedPoints + difficultyAdjustment + venueAdjustment);
-  }, 0).toFixed(2));
 }
 
 function captainRoadmapScore(player: ModelPlayer) {
@@ -29,9 +26,8 @@ function captainRoadmapScore(player: ModelPlayer) {
     (player.setPieceRoles.penalties === 1 ? 0.8 : 0) +
     (player.setPieceRoles.directFreeKicks === 1 ? 0.25 : 0);
   return (
-    player.expectedPoints * 1.55 +
-    player.starterConfidence * 0.025 +
-    player.predictedMinutes * 0.018 +
+    player.expectedPoints * 1.8 +
+    player.appearanceProbability * 0.8 +
     setPieceBonus -
     player.risk * 0.045
   );

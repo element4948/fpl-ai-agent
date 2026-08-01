@@ -13,10 +13,10 @@ export function chipPlanner({
 }) {
   if (isPreSeason) {
     return [
-      { chip: 'Wildcard', action: 'Hold', confidence: 95, reason: 'Wait for prices, fixtures, injuries, and GW1 information.' },
+      { chip: 'Wildcard', action: 'Hold', confidence: 95, reason: '2026/27 has two chip sets. Preserve the first-half Wildcard until squad weakness and fixture swings are clear; the first set expires before GW19.' },
       { chip: 'Triple Captain', action: 'Hold', confidence: 98, reason: 'Do not plan TC before confirmed fixtures and captain candidates.' },
       { chip: 'Bench Boost', action: 'Hold', confidence: 96, reason: 'Needs bench value and fixture density.' },
-      { chip: 'Free Hit', action: 'Hold', confidence: 99, reason: 'Best saved for blank/chaotic gameweeks.' },
+      { chip: 'Free Hit', action: 'Hold', confidence: 99, reason: 'Free Hit cannot be used in GW1. Save the first-half chip for a confirmed blank or disruption before its GW19 expiry.' },
     ];
   }
   const blankWeek = roadmap?.weeks.find((week) => week.blankPlayers >= 4);

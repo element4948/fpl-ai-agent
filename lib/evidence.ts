@@ -91,8 +91,18 @@ export function buildDraftTrust(
   const missingFixturePlayers = squad.filter(
     (player) => !player.fixture?.fixtures.length,
   );
+  const newsCheckedPlayers = squad.filter((player) => player.newsCheckedAt).length;
   const officialWarnings = squad.filter((player) =>
     player.signals.some((signal) => signal.severity === 'high'),
+  );
+  const currentRoleVerifiedStarters = startingXI.filter((player) =>
+    Boolean(
+      (player.apiFootball?.currentSeason &&
+        player.apiFootball.currentTeamMatched &&
+        player.apiFootball.matches >= 2) ||
+      (player.roleAssessment?.role === 'first-choice' &&
+        player.roleAssessment.confidence >= 75),
+    ),
   );
   const averageCoverage = squad.length
     ? squad.reduce((sum, player) => sum + (player.evidence?.coverageScore || 0), 0) /
@@ -103,6 +113,7 @@ export function buildDraftTrust(
       lowCoverageStarters.length * 7 -
       unreliableStarters.length * 8 -
       officialWarnings.length * 8 -
+      (squad.length - newsCheckedPlayers) * 3 -
       unknownDataPlayers * 2,
   );
   const score = goodDataPlayers === 0 ? Math.min(72, rawScore) : rawScore;
@@ -126,6 +137,16 @@ export function buildDraftTrust(
   if (missingFixturePlayers.length) {
     blockers.push(`${missingFixturePlayers.length} тоглогчийн Official FPL fixture data алга.`);
   }
+  if (newsCheckedPlayers < squad.length) {
+    blockers.push(
+      `${squad.length - newsCheckedPlayers} тоглогч recent injury/transfer/news scan-д хамрагдаагүй.`,
+    );
+  }
+  if (currentRoleVerifiedStarters.length < startingXI.length) {
+    blockers.push(
+      `${startingXI.length - currentRoleVerifiedStarters.length} гарааны тоглогчийн current-team role хоёр дахь эх сурвалжаар баталгаажаагүй.`,
+    );
+  }
   if (limitedDataPlayers) warnings.push(`${limitedDataPlayers} тоглогч limited data-тай.`);
   if (unknownDataPlayers) warnings.push(`${unknownDataPlayers} тоглогч unknown data-тай.`);
   if (!squad.some((player) => player.expectedGoalInvolvements > 0)) {
@@ -137,16 +158,21 @@ export function buildDraftTrust(
     status:
       blockers.length || score < 52
         ? 'insufficient'
-        : score >= 78 && goodDataPlayers >= 8
+        : score >= 80 &&
+            newsCheckedPlayers === squad.length &&
+            unknownDataPlayers === 0 &&
+            currentRoleVerifiedStarters.length === startingXI.length
           ? 'verified'
           : 'provisional',
     sourceCount:
       3 +
       (squad.some((player) => player.externalNews?.some((signal) => signal.tier === 'official')) ? 1 : 0) +
-      (squad.some((player) => player.externalNews?.some((signal) => signal.tier === 'reliable')) ? 1 : 0),
+      (squad.some((player) => player.externalNews?.some((signal) => signal.tier === 'reliable')) ? 1 : 0) +
+      (squad.some((player) => Boolean(player.apiFootball)) ? 1 : 0),
     goodDataPlayers,
     limitedDataPlayers,
     unknownDataPlayers,
+    newsCheckedPlayers,
     blockers,
     warnings,
   };

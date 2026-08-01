@@ -34,24 +34,20 @@ function enrichPlayer(player: ModelPlayer, riskProfile: RiskProfile): ModelPlaye
 }
 
 export function playerDecisionScore(p: ModelPlayer, riskProfile: RiskProfile = 'balanced', goal: Goal = 'both') {
-  const riskWeight = riskProfile === 'safe' ? 0.13 : riskProfile === 'aggressive' ? 0.05 : 0.085;
+  const riskWeight = riskProfile === 'safe' ? 0.04 : riskProfile === 'aggressive' ? 0.012 : 0.025;
   const ownershipWeight = goal === 'league' && riskProfile !== 'safe' ? -0.018 : goal === 'overall' ? 0.018 : 0;
   const valueWeight = riskProfile === 'safe' ? 1.15 : riskProfile === 'aggressive' ? 0.75 : 0.95;
-  const fixtureWeight = inputFixtureWeight(riskProfile);
+  const gameweeks = Math.max(1, p.projection.gameweeks);
+  const horizon =
+    (p.projection.next3 / Math.min(3, gameweeks)) * 0.55 +
+    (p.projection.next5 / Math.min(5, gameweeks)) * 0.45;
   const upside =
-    p.expectedPoints * 2.35 +
-    p.form * 0.7 +
-    p.confidence * 0.06 +
+    p.expectedPoints * 1.4 +
+    horizon * 1.35 +
     p.valueScore * valueWeight +
-    p.starterConfidence * 0.08 +
-    p.predictedMinutes * 0.05 +
-    (p.fixtureScore || 3) * fixtureWeight;
+    p.appearanceProbability * (riskProfile === 'safe' ? 1.8 : 1.1);
   const penalty = p.risk * riskWeight + p.price * 0.035 + p.ownership * ownershipWeight;
   return Number((upside - penalty).toFixed(2));
-}
-
-function inputFixtureWeight(riskProfile: RiskProfile) {
-  return riskProfile === 'safe' ? 0.8 : riskProfile === 'aggressive' ? 1.05 : 0.92;
 }
 
 export function buildDecision(input: DecisionInput) {

@@ -55,15 +55,10 @@ function transferGain(inn: ModelPlayer, out: ModelPlayer) {
     Math.max(1, Math.min(5, inn.projection.gameweeks, out.projection.gameweeks));
   return (
     (inn.expectedPoints - out.expectedPoints) * 0.45 +
-    nextThreeGain * 0.38 +
-    nextFiveGain * 0.17 +
-    (inn.confidence - out.confidence) * 0.025 +
-    (inn.starterConfidence - out.starterConfidence) * 0.045 +
-    (inn.predictedMinutes - out.predictedMinutes) * 0.025 -
-    (inn.risk - out.risk) * 0.035 +
-    (inn.valueScore - out.valueScore) * 0.35
-    + ((out.fixture?.averageDifficulty ?? 3) - (inn.fixture?.averageDifficulty ?? 3)) * 0.3
-    + ((inn.evidence?.coverageScore || 0) - (out.evidence?.coverageScore || 0)) * 0.01
+    nextThreeGain * 0.35 +
+    nextFiveGain * 0.2 -
+    (inn.risk - out.risk) * 0.012 +
+    (inn.appearanceProbability - out.appearanceProbability) * 0.6
   );
 }
 

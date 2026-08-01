@@ -141,13 +141,26 @@ export function isReliableStarter(
     starterConfidence: number;
     predictedMinutes: number;
     starterLabel: StarterLabel;
+    dataQuality?: 'good' | 'limited' | 'unknown';
+    roleAssessment?: { role: 'first-choice' | 'competition' | 'backup' | 'unknown' };
+    externalNews?: Array<{ severity: 'low' | 'medium' | 'high'; verification: 'confirmed' | 'corroborated' | 'single-source' | 'unverified' }>;
   },
-  minimumConfidence = 68,
+  minimumConfidence = 72,
 ) {
+  const verifiedWarning = player.externalNews?.some(
+    (signal) => signal.severity === 'high' && (signal.verification === 'confirmed' || signal.verification === 'corroborated'),
+  );
   return (
     (player.status || 'a') === 'a' &&
     player.starterLabel !== 'unavailable' &&
+    player.starterLabel !== 'rotation' &&
+    player.starterLabel !== 'bench' &&
+    player.starterLabel !== 'unknown' &&
+    player.dataQuality !== 'unknown' &&
+    player.roleAssessment?.role !== 'backup' &&
+    player.roleAssessment?.role !== 'competition' &&
+    !verifiedWarning &&
     player.starterConfidence >= minimumConfidence &&
-    player.predictedMinutes >= 60
+    player.predictedMinutes >= 65
   );
 }

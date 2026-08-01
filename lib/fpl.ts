@@ -240,6 +240,14 @@ export function toModelPlayers(
             (player.corners_and_indirect_freekicks_order === 1 ? 0.35 : 0) +
             (player.direct_freekicks_order === 1 ? 0.35 : 0) +
             (player.penalties_order === 1 ? 0.55 : 0);
+        const defensiveThreshold = player.element_type === 2 ? 10 : 12;
+        const defensiveContributionPoints = Number(
+            (Math.min(1, defensiveContributionPer90 / defensiveThreshold) * 2).toFixed(2),
+        );
+        const historicalBonusPerStart = starts > 0 ? bonus / starts : 0;
+        const bonusPotential = Number(
+            Math.min(1.5, historicalBonusPerStart * 0.65).toFixed(2),
+        );
         const positionUpside =
             player.element_type === 1
                 ? Math.min(1, cleanSheetRate * 1.8) +
@@ -260,14 +268,26 @@ export function toModelPlayers(
                       Math.min(0.9, minutes >= 90 ? (threat / minutes) * 90 * 0.011 : 0) +
                       setPieceUpside;
 
-        const preseasonBase = fixtureProjection * 0.9 + teamStrength * 0.25 + Math.min(ownership, 35) * 0.018;
+        const preseasonBase =
+            1.35 +
+            fixtureProjection * 0.72 +
+            teamStrength * 0.2 +
+            underlyingContribution * 0.65 +
+            positionUpside * 0.5 +
+            defensiveContributionPoints * 0.55 +
+            bonusPotential * 0.45;
 
-        const liveBase =
-            expectedApiPoints * 0.32 +
-            pointsPerGame * 0.2 +
-            form * 0.14 +
-            fixtureProjection * 0.7 +
-            underlyingContribution;
+        const independentLiveBase =
+            pointsPerGame * 0.34 +
+            form * 0.18 +
+            fixtureProjection * 0.58 +
+            underlyingContribution * 0.72 +
+            positionUpside * 0.42 +
+            defensiveContributionPoints * 0.5 +
+            bonusPotential * 0.45;
+        const liveBase = expectedApiPoints > 0
+            ? expectedApiPoints * 0.68 + independentLiveBase * 0.32
+            : independentLiveBase;
 
         const confidenceBase = hasSeasonData
             ? 36 + minutesScore * 28 + Math.min(18, form * 2.5) + fixtureScore * 2
@@ -275,20 +295,25 @@ export function toModelPlayers(
 
         const confidence = Math.round(clamp(confidenceBase - risk * 0.32, 5, 98));
 
-        const rawExpectedPoints =
-            (hasSeasonData ? liveBase : preseasonBase) +
-            positionUpside * 0.55 +
-            confidence / 160;
-        const minutesAvailability = clamp(
-            0.35 + (starter.predictedMinutes / 90) * 0.65,
-            0.35,
-            1,
+        const rawExpectedPoints = hasSeasonData ? liveBase : preseasonBase;
+        const statusAvailability =
+            player.chance_of_playing_next_round == null
+                ? player.status === 'a' || !player.status ? 1 : 0.45
+                : clamp(player.chance_of_playing_next_round / 100, 0, 1);
+        const startProbability = clamp(starter.confidence / 100, 0.05, 1);
+        const minutesShare = clamp(starter.predictedMinutes / 90, 0.05, 1);
+        const appearanceProbability = Number(
+            clamp(
+                statusAvailability * (startProbability * 0.72 + minutesShare * 0.28),
+                0.03,
+                1,
+            ).toFixed(3),
         );
         const preseasonRegression = completedGameweeks === 0 ? 0.86 : 1;
         const expectedPoints = Number(
             Math.max(
-                0.5,
-                rawExpectedPoints * minutesAvailability * preseasonRegression,
+                0.1,
+                rawExpectedPoints * appearanceProbability * preseasonRegression,
             ).toFixed(2),
         );
         const projectedFixtures = fixture?.fixtures.slice(0, 8) || [];
@@ -373,6 +398,10 @@ export function toModelPlayers(
             threat,
             ictIndex,
             expectedPoints,
+            rawExpectedPoints: Number(rawExpectedPoints.toFixed(2)),
+            appearanceProbability,
+            defensiveContributionPoints,
+            bonusPotential,
             projection: {
                 next1: projectionTotal(1),
                 next3: projectionTotal(3),
@@ -380,6 +409,7 @@ export function toModelPlayers(
                 next8: projectionTotal(8),
                 games: projectionValues.length,
                 gameweeks: gameweekTotals.length,
+                byEvent: projectionValues,
             },
             valueScore: Number((expectedPoints / Math.max(price, 1)).toFixed(2)),
             confidence,

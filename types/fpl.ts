@@ -156,7 +156,7 @@ export type PlayerEvidence = {
   availableMetrics: string[];
   missingMetrics: string[];
   sources: Array<{
-    id: 'official-fpl' | 'official-fpl-history' | 'official-fpl-fixtures';
+    id: 'official-fpl' | 'official-fpl-history' | 'official-fpl-fixtures' | 'api-football';
     label: string;
     status: 'available' | 'limited' | 'missing';
   }>;
@@ -192,6 +192,8 @@ export type ExternalNewsSignal = {
     | 'friendly'
     | 'fatigue';
   severity: 'low' | 'medium' | 'high';
+  verification: 'confirmed' | 'corroborated' | 'single-source' | 'unverified';
+  corroboratingSourceCount: number;
 };
 
 export type ForecastPlayer = {
@@ -268,6 +270,7 @@ export type DraftTrust = {
   goodDataPlayers: number;
   limitedDataPlayers: number;
   unknownDataPlayers: number;
+  newsCheckedPlayers: number;
   blockers: string[];
   warnings: string[];
 };
@@ -346,6 +349,10 @@ export type ModelPlayer = {
   threat: number;
   ictIndex: number;
   expectedPoints: number;
+  rawExpectedPoints: number;
+  appearanceProbability: number;
+  defensiveContributionPoints: number;
+  bonusPotential: number;
   projection: {
     next1: number;
     next3: number;
@@ -353,6 +360,7 @@ export type ModelPlayer = {
     next8: number;
     games: number;
     gameweeks: number;
+    byEvent: Array<{ event: number; points: number }>;
   };
   valueScore: number;
   confidence: number;
@@ -365,6 +373,21 @@ export type ModelPlayer = {
   evidence?: PlayerEvidence;
   roleAssessment?: PlayerRoleAssessment;
   externalNews?: ExternalNewsSignal[];
+  newsCheckedAt?: string;
+  apiFootball?: {
+    matches: number;
+    starts: number;
+    minutes: number;
+    rating: number;
+    shots: number;
+    keyPasses: number;
+    tackles: number;
+    saves: number;
+    checkedAt: string;
+    season: number;
+    currentSeason: boolean;
+    currentTeamMatched: boolean;
+  };
   news?: string;
   status?: string;
   riskBreakdown?: {
@@ -401,6 +424,15 @@ export type DraftTeam = {
   validation: SquadValidation;
   trust: DraftTrust;
   flexibility: DraftFlexibility;
+  selectionAudit: Record<number, {
+    rank: number;
+    totalCandidates: number;
+    eligibleRank: number;
+    eligibleCandidates: number;
+    higherRankedRejected: number;
+    passedMetrics: number;
+    totalMetrics: number;
+  }>;
   explanation: string[];
 };
 

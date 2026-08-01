@@ -12,6 +12,26 @@ function primarySetPieceBonus(player: ModelPlayer) {
   );
 }
 
+export function positionMetricChecks(player: ModelPlayer) {
+  const common = [
+    player.starterConfidence >= 68,
+    player.predictedMinutes >= 60,
+    player.risk <= 40,
+    player.expectedPoints >= 3.5,
+    (player.fixture?.averageDifficulty ?? 5) <= 3.3,
+  ];
+  if (player.position === 'GKP') {
+    return [...common, player.cleanSheets > 0, player.saves > 0, player.teamDefensiveStrength >= 3];
+  }
+  if (player.position === 'DEF') {
+    return [...common, player.cleanSheets > 0, player.expectedGoalInvolvements > 0, player.defensiveContributionPer90 > 0, player.teamDefensiveStrength >= 3];
+  }
+  if (player.position === 'MID') {
+    return [...common, player.expectedGoalInvolvements > 0, player.form > 0, Object.values(player.setPieceRoles || {}).some((order) => order === 1), player.teamOverallStrength >= 3];
+  }
+  return [...common, player.expectedGoalInvolvements > 0, player.goalsScored > 0, player.threat > 0, player.teamOverallStrength >= 3];
+}
+
 export function positionUpsideScore(player: ModelPlayer): number {
   const xgi90 = per90(player.expectedGoalInvolvements, player.minutes);
   const goal90 = per90(player.goalsScored, player.minutes);

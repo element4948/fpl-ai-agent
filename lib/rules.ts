@@ -2,7 +2,7 @@ import { likelyStarterCount, selectBestLineup } from '@/lib/lineup';
 import { buildDraftTrust } from '@/lib/evidence';
 import { calculateDraftFlexibility, maximumDraftSpend } from '@/lib/flexibility';
 import { isReliableStarter } from '@/lib/starter';
-import { positionUpsideScore } from '@/lib/position-model';
+import { positionMetricChecks } from '@/lib/position-model';
 import { optimizeSquadGlobally } from '@/lib/squad-optimizer';
 import type { DraftTeam, ModelPlayer, SquadValidation } from '@/types/fpl';
 
@@ -22,42 +22,72 @@ function roundMoney(value: number): number {
 }
 
 function playerScore(player: ModelPlayer, mode: DraftMode): number {
-    const fixtureScore = player.fixtureScore ?? 3;
-    const nextDifficulty = player.fixture?.nextDifficulty ?? 3;
-    const averageDifficulty = player.fixture?.averageDifficulty ?? 3;
-
-    const nextFixtureBonus = (6 - nextDifficulty) * 0.45;
-    const fixtureRunBonus = (6 - averageDifficulty) * 0.3;
-    const homeBonus = player.fixture?.nextIsHome ? 0.15 : 0;
-
-    const fixtureContribution = fixtureScore * 0.9 + nextFixtureBonus + fixtureRunBonus + homeBonus;
-    const starterContribution =
-        player.starterConfidence * 0.22 +
-        player.predictedMinutes * 0.16 -
-        (player.dataQuality === 'unknown' ? 24 : player.dataQuality === 'limited' ? 6 : 0);
-    const evidenceContribution =
-        (player.evidence?.coverageScore || 0) * 0.12 -
-        (player.evidence?.trustLevel === 'low' ? 8 : 0);
-    const positionContribution = positionUpsideScore(player) * 2.2;
-    const multiGameweekContribution =
-        player.projection.gameweeks >= 3
-            ? (player.projection.next3 / 3) * 0.8 +
-              (player.projection.next5 / player.projection.gameweeks) * 0.55
-            : 0;
+    const gameweeks = Math.max(1, player.projection.gameweeks);
+    const horizon =
+        (player.projection.next3 / Math.min(3, gameweeks)) * 0.45 +
+        (player.projection.next5 / Math.min(5, gameweeks)) * 0.35 +
+        (player.projection.next8 / Math.min(8, gameweeks)) * 0.2;
+    const availability = player.appearanceProbability;
+    const uncertaintyPenalty =
+        player.dataQuality === 'unknown' ? 3 : player.dataQuality === 'limited' ? 0.6 : 0;
 
     if (mode === 'Differential') {
-        return player.expectedPoints * 1.15 + player.valueScore * 2.2 + fixtureContribution * 1.05 + starterContribution + evidenceContribution + positionContribution + multiGameweekContribution - player.ownership * 0.075 - player.risk * 0.035;
+        return player.expectedPoints + horizon * 1.2 + player.valueScore * 0.45 + availability * 0.8 - player.ownership * 0.025 - player.risk * 0.012 - uncertaintyPenalty;
     }
 
     if (mode === 'Safe') {
-        return player.expectedPoints * 1.2 + player.confidence * 0.055 + starterContribution * 1.25 + evidenceContribution * 1.2 + fixtureContribution * 0.9 + positionContribution + multiGameweekContribution - player.risk * 0.075;
+        return player.expectedPoints * 0.95 + horizon * 1.1 + availability * 1.8 - player.risk * 0.03 - uncertaintyPenalty * 1.4;
     }
 
     if (mode === 'Alternative') {
-        return player.expectedPoints * 0.9 + player.valueScore * 3 + starterContribution + evidenceContribution + fixtureContribution * 0.95 + positionContribution + multiGameweekContribution - player.ownership * 0.012 - player.risk * 0.035;
+        return player.expectedPoints * 0.85 + horizon * 1.05 + player.valueScore * 0.9 + availability - player.risk * 0.016 - uncertaintyPenalty;
     }
 
-    return player.expectedPoints * 1.55 + player.valueScore * 1.1 + starterContribution + evidenceContribution + fixtureContribution + positionContribution + multiGameweekContribution - player.risk * 0.05;
+    return player.expectedPoints * 1.1 + horizon * 1.3 + player.valueScore * 0.35 + availability - player.risk * 0.018 - uncertaintyPenalty;
+}
+
+function isSquadEligible(player: ModelPlayer, mode: DraftMode) {
+    if (isReliableStarter(player)) return true;
+    if (mode === 'Safe') return false;
+    const verifiedHighWarning = player.externalNews?.some(
+        (signal) => signal.severity === 'high' &&
+            (signal.verification === 'confirmed' || signal.verification === 'corroborated'),
+    );
+    return player.status === 'a' &&
+        player.dataQuality !== 'unknown' &&
+        player.roleAssessment?.role !== 'backup' &&
+        player.roleAssessment?.role !== 'competition' &&
+        !verifiedHighWarning &&
+        player.starterConfidence >= 58 &&
+        player.predictedMinutes >= 50;
+}
+
+function buildSelectionAudit(
+    selected: ModelPlayer[],
+    evaluatedPlayers: ModelPlayer[],
+    eligiblePlayers: ModelPlayer[],
+    mode: DraftMode,
+) {
+    return Object.fromEntries(selected.map((player) => {
+        const pool = evaluatedPlayers
+            .filter((candidate) => candidate.position === player.position)
+            .sort((a, b) => playerScore(b, mode) - playerScore(a, mode));
+        const eligiblePool = eligiblePlayers
+            .filter((candidate) => candidate.position === player.position)
+            .sort((a, b) => playerScore(b, mode) - playerScore(a, mode));
+        const rank = Math.max(1, pool.findIndex((candidate) => candidate.id === player.id) + 1);
+        const eligibleRank = Math.max(1, eligiblePool.findIndex((candidate) => candidate.id === player.id) + 1);
+        const checks = positionMetricChecks(player);
+        return [player.id, {
+            rank,
+            totalCandidates: pool.length,
+            eligibleRank,
+            eligibleCandidates: eligiblePool.length,
+            higherRankedRejected: Math.max(0, rank - eligibleRank),
+            passedMetrics: checks.filter(Boolean).length,
+            totalMetrics: checks.length,
+        }];
+    }));
 }
 
 export function validateSquad(players: ModelPlayer[], budget = TOTAL_BUDGET): SquadValidation {
@@ -288,10 +318,12 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
     );
 
     const reliablePlayers = availablePlayers.filter(isReliableStarter);
+    const eligiblePlayers = availablePlayers.filter((player) => isSquadEligible(player, mode));
     const globallyOptimized = optimizeSquadGlobally(
-        reliablePlayers,
+        eligiblePlayers,
         maximumDraftSpend(mode),
         (player) => playerScore(player, mode),
+        mode,
     );
     const baseSquad = globallyOptimized.length === 15
         ? globallyOptimized
@@ -313,6 +345,7 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
             validation,
             trust,
             flexibility,
+            selectionAudit: buildSelectionAudit(baseSquad, availablePlayers, eligiblePlayers, mode),
             explanation: [...baseDraftExplanation(mode), 'Could not create a complete 15-player squad from current API data'],
         };
     }
@@ -358,7 +391,7 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
         (player) => player.dataQuality === 'unknown',
     );
 
-    const requiredReliableDefenders = 5;
+    const requiredReliableDefenders = mode === 'Safe' ? 5 : 4;
     if (playableDefenders < requiredReliableDefenders) {
         validation.valid = false;
         validation.errors.push(
@@ -370,19 +403,19 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
         validation.valid = false;
         validation.errors.push('No goalkeeper is currently likely to start.');
     }
-    if (playableGoalkeepers < 2) {
+    if (mode === 'Safe' && playableGoalkeepers < 2) {
         validation.valid = false;
         validation.errors.push(
             `Only ${playableGoalkeepers} goalkeeper is a reliable starter. Every draft requires two playable goalkeepers.`,
         );
     }
 
-    if (playableMidfielders < 5) {
+    if (playableMidfielders < (mode === 'Safe' ? 5 : 4)) {
         validation.valid = false;
         validation.errors.push(`Only ${playableMidfielders} midfielders are reliable starters. All 5 are required.`);
     }
 
-    if (playableForwards < 3) {
+    if (playableForwards < (mode === 'Safe' ? 3 : 2)) {
         validation.valid = false;
         validation.errors.push(`Only ${playableForwards} forwards are reliable starters. All 3 are required.`);
     }
@@ -422,6 +455,7 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
         validation,
         trust,
         flexibility,
+        selectionAudit: buildSelectionAudit(sortedSquad, availablePlayers, eligiblePlayers, mode),
 
         explanation: [
             ...baseDraftExplanation(mode),

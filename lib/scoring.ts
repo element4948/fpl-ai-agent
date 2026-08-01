@@ -1,5 +1,4 @@
 import { ModelPlayer } from '@/types/fpl';
-import { positionUpsideScore } from '@/lib/position-model';
 
 export function rankCaptainCandidates(players: ModelPlayer[], limit = 8) {
   return [...players]
@@ -16,22 +15,14 @@ export function rankCaptainCandidates(players: ModelPlayer[], limit = 8) {
 }
 
 export function captainScore(p: ModelPlayer) {
-  const nextFixtureBonus = p.fixture
-    ? (6 - p.fixture.nextDifficulty) * (p.position === 'DEF' ? 0.45 : 0.6) +
-      (p.fixture.nextIsHome ? 0.2 : 0) +
-      (p.fixture.trend === 'improving' ? 0.25 : p.fixture.trend === 'hardening' ? -0.2 : 0)
-    : 0;
+  const setPieceBonus =
+    (p.setPieceRoles.penalties === 1 ? 0.35 : 0) +
+    (p.setPieceRoles.directFreeKicks === 1 ? 0.12 : 0);
   return (
-    p.expectedPoints * 1.55 +
-    p.form * 0.7 +
-    p.confidence * 0.04 +
-    p.starterConfidence * 0.055 +
-    p.predictedMinutes * 0.035 +
-    Math.min(1.8, p.minutes >= 90 ? (p.expectedGoalInvolvements / p.minutes) * 90 * 1.5 : 0) +
-    (p.evidence?.coverageScore || 0) * 0.018 +
-    nextFixtureBonus +
-    Math.min(8, p.ownership * 0.08) -
-    p.risk * 0.08
+    p.expectedPoints * 2.1 +
+    p.appearanceProbability * 1.5 +
+    setPieceBonus -
+    p.risk * 0.02
   );
 }
 
@@ -48,34 +39,23 @@ export function topTargetsByPosition(players: ModelPlayer[]) {
     }
   }
   for (const key of Object.keys(groups)) {
-    const fixtureMultiplier = key === 'GKP' || key === 'DEF' ? 0.34 : 0.28;
     groups[key] = groups[key]
-      .sort((a, b) => targetScore(b, fixtureMultiplier) - targetScore(a, fixtureMultiplier))
+      .sort((a, b) => targetScore(b) - targetScore(a))
       .slice(0, 8);
   }
   return groups;
 }
 
-function targetScore(player: ModelPlayer, fixtureMultiplier: number) {
-  const xgiPer90 =
-    player.minutes >= 90
-      ? (player.expectedGoalInvolvements / player.minutes) * 90
-      : 0;
-  const positionUpside = positionUpsideScore(player);
+function targetScore(player: ModelPlayer) {
+  const gameweeks = Math.max(1, player.projection.gameweeks);
+  const horizon =
+    (player.projection.next3 / Math.min(3, gameweeks)) * 0.55 +
+    (player.projection.next5 / Math.min(5, gameweeks)) * 0.45;
   return (
-    player.expectedPoints +
-    player.valueScore +
-    player.starterConfidence * 0.04 +
-    player.predictedMinutes * 0.025 +
-    (player.evidence?.coverageScore || 0) * 0.025 +
-    Math.min(1.2, xgiPer90) +
-    positionUpside -
-    (player.fixture?.nextDifficulty ?? 3) * fixtureMultiplier +
-    (player.fixture?.trend === 'improving'
-      ? 0.3
-      : player.fixture?.trend === 'hardening'
-        ? -0.2
-        : 0) -
-    player.risk * 0.025
+    player.expectedPoints * 1.15 +
+    horizon * 1.2 +
+    player.valueScore * 0.55 +
+    player.appearanceProbability -
+    player.risk * 0.018
   );
 }
