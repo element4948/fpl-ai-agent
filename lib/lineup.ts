@@ -1,5 +1,6 @@
 import type { Formation, ModelPlayer } from '@/types/fpl';
 import { isReliableStarter } from './starter';
+import { fantasyReturnRouteScore } from './position-model';
 
 type FormationRule = {
     formation: Formation;
@@ -175,10 +176,16 @@ function chooseFormation(
     const extraDefenders = Math.max(0, rule.DEF - 3);
     const formationPenalty = extraDefenders * uncertainShare *
         (mode === 'Safe' ? 0.35 : mode === 'Best' ? 0.65 : mode === 'Alternative' ? 0.75 : 0.9);
+    const lowUpsideMidfielders = startingXI.filter(
+        (player) => player.position === 'MID' && fantasyReturnRouteScore(player) < 0.85,
+    ).length;
+    const midfieldRoutePenalty = Math.max(0, lowUpsideMidfielders - 1) *
+        (mode === 'Safe' ? 0.55 : 1.1);
     const score =
         startingXI.reduce((sum, player) => sum + lineupScore(player), 0) +
         benchResilienceScore -
         formationPenalty -
+        midfieldRoutePenalty -
         unavailableStarters.length * 25 -
         warnings.length * 10;
 

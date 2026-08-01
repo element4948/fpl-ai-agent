@@ -12,6 +12,37 @@ function primarySetPieceBonus(player: ModelPlayer) {
   );
 }
 
+export function fantasyReturnRouteScore(player: ModelPlayer): number {
+  const xgi90 = per90(player.expectedGoalInvolvements, player.minutes);
+  const returnsPerStart = player.starts > 0
+    ? (player.goalsScored + player.assists) / player.starts
+    : 0;
+  const bonusPerStart = player.starts > 0 ? player.bonus / player.starts : 0;
+  const setPieces = primarySetPieceBonus(player);
+
+  if (player.position === 'MID') {
+    return (
+      Math.min(1.8, xgi90 * 3.2) +
+      Math.min(1.1, returnsPerStart * 2) +
+      setPieces +
+      Math.min(0.7, player.defensiveContributionPoints * 0.35) +
+      Math.min(0.35, bonusPerStart * 0.18) +
+      Math.max(0, (player.teamOverallStrength - 3) * 0.12)
+    );
+  }
+
+  if (player.position === 'FWD') {
+    return (
+      Math.min(2.2, xgi90 * 3.5) +
+      Math.min(1.2, returnsPerStart * 2.2) +
+      setPieces +
+      Math.min(0.3, bonusPerStart * 0.15)
+    );
+  }
+
+  return positionUpsideScore(player);
+}
+
 export function positionMetricChecks(player: ModelPlayer) {
   const common = [
     player.starterConfidence >= 68,
@@ -106,6 +137,10 @@ export function positionSelectionReasons(player: ModelPlayer): string[] {
     if (player.goalsScored + player.assists > 0) {
       reasons.push(`${player.goalsScored} goal · ${player.assists} assist`);
     }
+  }
+
+  if (player.position === 'MID' && fantasyReturnRouteScore(player) >= 1) {
+    reasons.push('Оноо авах олон замтай');
   }
 
   if (player.setPieceRoles?.penalties === 1) reasons.push('1-р penalty taker');

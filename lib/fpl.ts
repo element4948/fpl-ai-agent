@@ -140,7 +140,9 @@ export function toModelPlayers(
 
     return players.map((player) => {
         const form = Number(player.form || 0);
-        const expectedApiPoints = Number(player.ep_next || player.ep_this || player.points_per_game || 0);
+        // points_per_game is historical performance, not an official fixture-adjusted
+        // forecast. Treating it as ep_next suppressed the fixture model in pre-season.
+        const expectedApiPoints = Number(player.ep_next || player.ep_this || 0);
 
         const pointsPerGame = Number(player.points_per_game || 0);
 
@@ -241,8 +243,12 @@ export function toModelPlayers(
             (player.direct_freekicks_order === 1 ? 0.35 : 0) +
             (player.penalties_order === 1 ? 0.55 : 0);
         const defensiveThreshold = player.element_type === 2 ? 10 : 12;
+        const defensiveThresholdRatio = defensiveContributionPer90 / defensiveThreshold;
+        const defensiveThresholdProbability = defensiveContributionPer90 <= 0
+            ? 0
+            : 1 / (1 + Math.exp(-5 * (defensiveThresholdRatio - 1)));
         const defensiveContributionPoints = Number(
-            (Math.min(1, defensiveContributionPer90 / defensiveThreshold) * 2).toFixed(2),
+            (defensiveThresholdProbability * 2).toFixed(2),
         );
         const historicalBonusPerStart = starts > 0 ? bonus / starts : 0;
         const bonusPotential = Number(
@@ -256,7 +262,6 @@ export function toModelPlayers(
                 : player.element_type === 2
                   ? Math.min(1.4, xgiPer90 * 2.2) +
                     Math.min(0.8, cleanSheetRate * 1.6) +
-                    Math.min(0.7, defensiveContributionPer90 / 14) +
                     Math.max(0, (teamDefensiveStrength - 3) * 0.12) +
                     setPieceUpside
                   : player.element_type === 3
@@ -295,7 +300,9 @@ export function toModelPlayers(
 
         const confidence = Math.round(clamp(confidenceBase - risk * 0.32, 5, 98));
 
-        const rawExpectedPoints = hasSeasonData ? liveBase : preseasonBase;
+        const rawExpectedPoints = completedGameweeks > 0 && hasSeasonData
+            ? liveBase
+            : preseasonBase;
         const statusAvailability =
             player.chance_of_playing_next_round == null
                 ? player.status === 'a' || !player.status ? 1 : 0.45
@@ -315,6 +322,15 @@ export function toModelPlayers(
                 0.1,
                 rawExpectedPoints * appearanceProbability * preseasonRegression,
             ).toFixed(2),
+        );
+        const neutralFixtureProjection = getFixtureProjection(3, 3, 3, false);
+        const fixtureModelWeight = completedGameweeks === 0
+            ? 0.72
+            : expectedApiPoints > 0
+              ? 0.58 * 0.32
+              : 0.58;
+        const fixtureImpact = Number(
+            ((fixtureProjection - neutralFixtureProjection) * fixtureModelWeight * appearanceProbability * preseasonRegression).toFixed(2),
         );
         const projectedFixtures = fixture?.fixtures.slice(0, 8) || [];
         const projectionValues = projectedFixtures.map((item, index) => {
@@ -423,6 +439,7 @@ export function toModelPlayers(
             status: player.status || 'a',
             fixture,
             fixtureScore,
+            fixtureImpact,
         };
         modelPlayer.roleAssessment = starterResult.assessment;
         modelPlayer.evidence = buildPlayerEvidence(modelPlayer);

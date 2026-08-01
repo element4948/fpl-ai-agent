@@ -436,6 +436,9 @@ function DraftPlayerTile({ player, role, audit }: { player: ModelPlayer; role: '
             ) : null}
             {player.fixture ? (
                 <>
+                    <div className={player.fixtureImpact >= 0 ? 'draft-why-compact' : 'draft-player-reject'}>
+                        Fixture нөлөө {player.fixtureImpact >= 0 ? '+' : ''}{player.fixtureImpact.toFixed(2)} xP · FDR бага байх тусам сайн
+                    </div>
                     <div className="draft-fixture-run" aria-label="Дараагийн 5 тоглолт">
                         {player.fixture.fixtures.slice(0, 5).map((fixture, index) => (
                             <span

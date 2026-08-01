@@ -403,6 +403,7 @@ export type ModelPlayer = {
   warnings?: string[];
   fixture?: FixtureSummary;
   fixtureScore?: number;
+  fixtureImpact: number;
 };
 
 export type Formation =

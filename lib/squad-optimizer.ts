@@ -1,4 +1,5 @@
 import { isReliableStarter } from '@/lib/starter';
+import { fantasyReturnRouteScore } from '@/lib/position-model';
 import type { DraftTeam, ModelPlayer } from '@/types/fpl';
 
 type Position = 'GKP' | 'DEF' | 'MID' | 'FWD';
@@ -144,10 +145,15 @@ function completedSquadScore(
         : mode === 'Differential'
           ? players.reduce((sum, player) => sum + Math.max(0, 12 - player.ownership), 0) * 0.003
           : 0;
+    const lowUpsideMidfielders = starters.filter(
+      (player) => player.position === 'MID' && fantasyReturnRouteScore(player) < 0.85,
+    ).length;
+    const midfieldRoutePenalty = Math.max(0, lowUpsideMidfielders - 1) *
+      (mode === 'Safe' ? 0.55 : 1.1);
     best = Math.max(
       best,
       starterScore + captainExtra + viceFallback + benchCover + goalkeeperCover + modePreference -
-        formationUncertaintyPenalty(starters, formation, mode),
+        formationUncertaintyPenalty(starters, formation, mode) - midfieldRoutePenalty,
     );
   }
   return best;
