@@ -99,7 +99,11 @@ function playersByPosition(squad: ModelPlayer[], position: string): ModelPlayer[
     return squad.filter((player) => player.position === position).sort((a, b) => lineupScore(b) - lineupScore(a));
 }
 
-function chooseFormation(squad: ModelPlayer[], rule: FormationRule): LineupResult | null {
+function chooseFormation(
+    squad: ModelPlayer[],
+    rule: FormationRule,
+    mode: 'Best' | 'Alternative' | 'Differential' | 'Safe',
+): LineupResult | null {
     const goalkeepers = playersByPosition(squad, 'GKP');
 
     const defenders = playersByPosition(squad, 'DEF');
@@ -159,9 +163,15 @@ function chooseFormation(squad: ModelPlayer[], rule: FormationRule): LineupResul
     const benchResilienceScore = reliableOutfieldBench
         .slice(0, 2)
         .reduce((sum, player) => sum + lineupScore(player) * 0.12, 0);
+    const uncertainShare = startingXI.filter((player) => player.dataQuality !== 'good').length /
+        Math.max(1, startingXI.length);
+    const extraDefenders = Math.max(0, rule.DEF - 3);
+    const formationPenalty = extraDefenders * uncertainShare *
+        (mode === 'Safe' ? 0.35 : mode === 'Best' ? 0.65 : mode === 'Alternative' ? 0.75 : 0.9);
     const score =
         startingXI.reduce((sum, player) => sum + lineupScore(player), 0) +
         benchResilienceScore -
+        formationPenalty -
         unavailableStarters.length * 25 -
         warnings.length * 10;
 
@@ -174,8 +184,11 @@ function chooseFormation(squad: ModelPlayer[], rule: FormationRule): LineupResul
     };
 }
 
-export function selectBestLineup(squad: ModelPlayer[]): LineupResult {
-    const options = FORMATIONS.map((rule) => chooseFormation(squad, rule)).filter((option): option is LineupResult => option !== null);
+export function selectBestLineup(
+    squad: ModelPlayer[],
+    mode: 'Best' | 'Alternative' | 'Differential' | 'Safe' = 'Best',
+): LineupResult {
+    const options = FORMATIONS.map((rule) => chooseFormation(squad, rule, mode)).filter((option): option is LineupResult => option !== null);
 
     const validOptions = options.filter((option) => option.warnings.length === 0);
 

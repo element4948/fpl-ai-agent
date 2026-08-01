@@ -29,6 +29,18 @@ const FORMATIONS: Array<Record<Position, number>> = [
   { GKP: 1, DEF: 5, MID: 4, FWD: 1 },
 ];
 
+function formationUncertaintyPenalty(
+  starters: ModelPlayer[],
+  formation: Record<Position, number>,
+  mode: DraftTeam['mode'],
+) {
+  const uncertainShare = starters.filter((player) => player.dataQuality !== 'good').length /
+    Math.max(1, starters.length);
+  const extraDefenders = Math.max(0, formation.DEF - 3);
+  const modeWeight = mode === 'Safe' ? 0.35 : mode === 'Best' ? 0.65 : mode === 'Alternative' ? 0.75 : 0.9;
+  return extraDefenders * uncertainShare * modeWeight;
+}
+
 function money(value: number) {
   return Math.round(value * 10) / 10;
 }
@@ -120,7 +132,8 @@ function completedSquadScore(
       : 0;
     best = Math.max(
       best,
-      starterScore + captainExtra + viceFallback + benchCover + goalkeeperCover,
+      starterScore + captainExtra + viceFallback + benchCover + goalkeeperCover -
+        formationUncertaintyPenalty(starters, formation, mode),
     );
   }
   return best;
@@ -133,10 +146,10 @@ export function optimizeSquadGlobally(
   mode: DraftTeam['mode'],
 ): ModelPlayer[] {
   const pools = {
-    GKP: candidatePool(players, 'GKP', scorePlayer, 20, 10),
-    DEF: candidatePool(players, 'DEF', scorePlayer, 36, 12),
-    MID: candidatePool(players, 'MID', scorePlayer, 36, 12),
-    FWD: candidatePool(players, 'FWD', scorePlayer, 28, 10),
+    GKP: candidatePool(players, 'GKP', scorePlayer, 12, 6),
+    DEF: candidatePool(players, 'DEF', scorePlayer, 24, 8),
+    MID: candidatePool(players, 'MID', scorePlayer, 24, 8),
+    FWD: candidatePool(players, 'FWD', scorePlayer, 18, 7),
   } satisfies Record<Position, ModelPlayer[]>;
 
   if (Object.values(pools).some((pool) => !pool.length)) return [];
@@ -191,18 +204,14 @@ export function optimizeSquadGlobally(
         .sort(([a], [b]) => a - b)
         .map(([club, count]) => `${club}:${count}`)
         .join(',');
-      const selectedSignature = state.players
-        .map((player) => player.id)
-        .sort((a, b) => a - b)
-        .join(',');
-      const key = `${state.players.length}:${Math.round(state.cost * 2)}:${clubSignature}:${selectedSignature}`;
+      const key = `${state.players.length}:${Math.round(state.cost * 2)}:${clubSignature}`;
       const current = bestByBucket.get(key);
       if (!current || state.score > current.score) bestByBucket.set(key, state);
     }
 
     states = [...bestByBucket.values()]
       .sort((a, b) => b.score - a.score)
-      .slice(0, 12000);
+      .slice(0, 3200);
 
     if (!states.length) return [];
   }

@@ -371,7 +371,7 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
         return playerScore(b, mode) - playerScore(a, mode);
     });
 
-    const lineup = selectBestLineup(sortedSquad);
+    const lineup = selectBestLineup(sortedSquad, mode);
 
     const playableDefenders = likelyStarterCount(sortedSquad, 'DEF');
 

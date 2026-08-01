@@ -100,14 +100,14 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
     .filter((item) => ['FT', 'AET', 'PEN', 'LIVE', '1H', '2H', 'HT'].includes(item.fixture?.status?.short || ''))
     .map((item) => item.fixture?.id)
     .filter((id): id is number => Number.isFinite(id))
-    .slice(-10);
+    .slice(-8);
 
   // Pre-season үед шинэ улирал тоглолтгүй байдаг тул өмнөх PL улирлын
   // сүүлийн тоглолтуудыг starter/minutes-ийн суурь нотолгоо болгоно.
   if (!fixtureIds.length) {
     evidenceSeason = currentSeason - 1;
     fixtures = await apiFetch<FixtureResponse>(
-      `/fixtures?league=${PREMIER_LEAGUE_ID}&season=${evidenceSeason}&last=20`,
+      `/fixtures?league=${PREMIER_LEAGUE_ID}&season=${evidenceSeason}&last=8`,
     );
     fixtureIds = (fixtures?.response || [])
       .map((item) => item.fixture?.id)

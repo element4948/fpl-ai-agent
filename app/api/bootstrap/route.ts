@@ -18,17 +18,16 @@ export async function GET() {
   const apiFootballScan = await getApiFootballEvidence(basePlayers);
   const statsPlayers = applyApiFootballEvidence(basePlayers, apiFootballScan);
   const modes = ['Best','Alternative','Differential','Safe'] as const;
-  const preliminaryDrafts = modes.map((mode) => buildDraft(statsPlayers, mode));
-  const preliminaryIds = [...new Set(preliminaryDrafts.flatMap((draft) => draft.players.map((player) => player.id)))];
-  const firstPassPlayers = applyExternalNewsSignals(
-    statsPlayers,
-    await getExternalNewsSignals(statsPlayers, preliminaryIds),
+  const finalCandidateIds = ['GKP', 'DEF', 'MID', 'FWD'].flatMap((position) =>
+    statsPlayers
+      .filter((player) => player.position === position)
+      .sort((a, b) =>
+        (b.expectedPoints + b.projection.next5 / Math.max(1, b.projection.gameweeks) + b.valueScore * 0.4) -
+        (a.expectedPoints + a.projection.next5 / Math.max(1, a.projection.gameweeks) + a.valueScore * 0.4),
+      )
+      .slice(0, 12)
+      .map((player) => player.id),
   );
-  const firstPassDrafts = modes.map((mode) => buildDraft(firstPassPlayers, mode));
-  const finalCandidateIds = [...new Set([
-    ...preliminaryIds,
-    ...firstPassDrafts.flatMap((draft) => draft.players.map((player) => player.id)),
-  ])];
   const players = applyExternalNewsSignals(
     statsPlayers,
     await getExternalNewsSignals(statsPlayers, finalCandidateIds),
