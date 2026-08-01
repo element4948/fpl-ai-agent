@@ -27,7 +27,6 @@ function captainRoadmapScore(player: ModelPlayer) {
     (player.setPieceRoles.directFreeKicks === 1 ? 0.25 : 0);
   return (
     player.expectedPoints * 1.8 +
-    player.appearanceProbability * 0.8 +
     setPieceBonus -
     player.risk * 0.045
   );

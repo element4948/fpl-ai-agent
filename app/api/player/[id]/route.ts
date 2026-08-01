@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 
 import { getBootstrap, getFixtures, getPlayerSummary, nextEvent, toModelPlayers } from '@/lib/fpl';
 import { analyzePlayerHistory } from '@/lib/player-history';
+import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-football';
+import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external-news';
 
 export async function GET(
   _request: Request,
@@ -27,7 +29,7 @@ export async function GET(
     );
   }
 
-  const player = toModelPlayers(
+  const basePlayer = toModelPlayers(
     boot.elements.filter((item) => item.id === playerId),
     boot.teams,
     boot.element_types,
@@ -36,9 +38,16 @@ export async function GET(
     boot.events.filter((event) => event.finished).length,
   )[0];
 
-  if (!player) {
+  if (!basePlayer) {
     return NextResponse.json({ error: 'Player not found' }, { status: 404 });
   }
+
+  const apiFootballScan = await getApiFootballEvidence([basePlayer]);
+  const statsPlayer = applyApiFootballEvidence([basePlayer], apiFootballScan)[0];
+  const player = applyExternalNewsSignals(
+    [statsPlayer],
+    await getExternalNewsSignals([statsPlayer], [statsPlayer.id]),
+  )[0];
 
   return NextResponse.json({
     player,
@@ -46,6 +55,14 @@ export async function GET(
     history: summary.history.slice(-10),
     upcomingFixtures: summary.fixtures.slice(0, 5),
     updatedAt: new Date().toISOString(),
-    source: 'Official FPL API',
+    source: apiFootballScan.matchedPlayers
+      ? 'Official FPL API + API-Football + verified news scan'
+      : 'Official FPL API + verified news scan',
+    apiFootball: {
+      enabled: apiFootballScan.enabled,
+      matchedPlayers: apiFootballScan.matchedPlayers,
+      fixturesChecked: apiFootballScan.fixturesChecked,
+      error: apiFootballScan.error,
+    },
   });
 }

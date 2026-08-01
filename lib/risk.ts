@@ -67,13 +67,19 @@ export function calculateRisk(player: ModelPlayer): RiskBreakdown {
         ? 15
         : 0;
   const externalSignalSeverity = player.externalNews?.some(
-    (signal) => signal.severity === 'high' && signal.tier !== 'secondary',
+    (signal) => signal.severity === 'high' &&
+      (signal.verification === 'confirmed' || signal.verification === 'corroborated'),
   )
     ? 75
     : player.externalNews?.some(
-          (signal) => signal.severity === 'medium' && signal.tier !== 'secondary',
+          (signal) => signal.severity === 'medium' &&
+            (signal.verification === 'confirmed' || signal.verification === 'corroborated'),
         )
       ? 45
+      : player.externalNews?.some(
+            (signal) => signal.tier === 'reliable' && signal.verification === 'single-source',
+          )
+        ? 28
       : 0;
   const news = Math.max(
     player.news?.trim() ? 45 : 0,

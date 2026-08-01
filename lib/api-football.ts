@@ -185,17 +185,52 @@ export function applyApiFootballEvidence(players: ModelPlayer[], scan: ApiFootba
     const startRate = api.matches ? api.starts / api.matches : 0;
     const canConfirmCurrentRole = api.currentSeason && api.currentTeamMatched && api.matches >= 2;
     const starterConfidence = canConfirmCurrentRole
-      ? Math.round(Math.min(98, Math.max(player.starterConfidence, startRate * 92)))
+      ? Math.round(Math.min(98, Math.max(2, player.starterConfidence * 0.35 + startRate * 100 * 0.65)))
       : player.starterConfidence;
     const predictedMinutes = canConfirmCurrentRole
-      ? Math.round(Math.min(90, Math.max(player.predictedMinutes, api.minutes)))
+      ? Math.round(Math.min(90, Math.max(0, player.predictedMinutes * 0.35 + api.minutes * 0.65)))
       : player.predictedMinutes;
+    const previousAvailabilityCore = Math.max(
+      0.03,
+      player.starterConfidence / 100 * 0.72 + player.predictedMinutes / 90 * 0.28,
+    );
+    const statusFactor = Math.max(
+      0.03,
+      Math.min(1, player.appearanceProbability / previousAvailabilityCore),
+    );
+    const appearanceProbability = canConfirmCurrentRole
+      ? Number(
+          Math.max(
+            0.03,
+            Math.min(1, statusFactor * (starterConfidence / 100 * 0.72 + predictedMinutes / 90 * 0.28)),
+          ).toFixed(3),
+        )
+      : player.appearanceProbability;
+    const projectionFactor = canConfirmCurrentRole
+      ? appearanceProbability / Math.max(0.03, player.appearanceProbability)
+      : 1;
+    const expectedPoints = Number((player.expectedPoints * projectionFactor).toFixed(2));
     const existingSources = player.evidence?.sources || [];
     return {
       ...player,
       apiFootball: api,
       starterConfidence,
       predictedMinutes,
+      appearanceProbability,
+      expectedPoints,
+      fixtureImpact: Number((player.fixtureImpact * projectionFactor).toFixed(2)),
+      valueScore: Number((expectedPoints / Math.max(player.price, 1)).toFixed(2)),
+      projection: {
+        ...player.projection,
+        next1: Number((player.projection.next1 * projectionFactor).toFixed(2)),
+        next3: Number((player.projection.next3 * projectionFactor).toFixed(2)),
+        next5: Number((player.projection.next5 * projectionFactor).toFixed(2)),
+        next8: Number((player.projection.next8 * projectionFactor).toFixed(2)),
+        byEvent: player.projection.byEvent.map((item) => ({
+          ...item,
+          points: Number((item.points * projectionFactor).toFixed(2)),
+        })),
+      },
       evidence: player.evidence ? {
         ...player.evidence,
         coverageScore: Math.min(100, player.evidence.coverageScore + (canConfirmCurrentRole ? 12 : 4)),

@@ -165,7 +165,9 @@ export function buildDraftTrust(
           ? 'verified'
           : 'provisional',
     sourceCount:
-      3 +
+      1 +
+      (squad.some((player) => Boolean(player.fixture?.fixtures.length)) ? 1 : 0) +
+      (squad.some((player) => player.dataQuality !== 'unknown') ? 1 : 0) +
       (squad.some((player) => player.externalNews?.some((signal) => signal.tier === 'official')) ? 1 : 0) +
       (squad.some((player) => player.externalNews?.some((signal) => signal.tier === 'reliable')) ? 1 : 0) +
       (squad.some((player) => Boolean(player.apiFootball)) ? 1 : 0),
