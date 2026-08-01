@@ -73,8 +73,16 @@ export type LineupResult = {
     bench: ModelPlayer[];
     formation: Formation;
     score: number;
+    alternatives: Array<{ formation: Formation; projectedScore: number; gap: number }>;
     warnings: string[];
 };
+
+function horizonProjection(player: ModelPlayer): number {
+    const gameweeks = Math.max(1, player.projection.gameweeks);
+    const next3Average = player.projection.next3 / Math.min(3, gameweeks);
+    const next5Average = player.projection.next5 / Math.min(5, gameweeks);
+    return player.expectedPoints * 0.6 + next3Average * 0.25 + next5Average * 0.15;
+}
 
 function lineupScore(player: ModelPlayer): number {
     const reliable = isReliableStarter(player);
@@ -87,9 +95,8 @@ function lineupScore(player: ModelPlayer): number {
               : 0;
 
     return (
-        player.expectedPoints * 2.4 +
-        player.appearanceProbability * 1.2 -
-        player.risk * 0.025 -
+        horizonProjection(player) * 2.4 -
+        player.risk * 0.01 -
         availabilityPenalty -
         roleUncertaintyPenalty
     );
@@ -180,6 +187,7 @@ function chooseFormation(
         bench,
         formation: rule.formation,
         score,
+        alternatives: [],
         warnings,
     };
 }
@@ -194,10 +202,18 @@ export function selectBestLineup(
 
     const candidates = validOptions.length > 0 ? validOptions : options;
 
-    const best = candidates.sort((a, b) => b.score - a.score)[0];
+    const ranked = candidates.sort((a, b) => b.score - a.score);
+    const best = ranked[0];
 
     if (best) {
-        return best;
+        return {
+            ...best,
+            alternatives: ranked.slice(0, 4).map((option) => ({
+                formation: option.formation,
+                projectedScore: Number(option.score.toFixed(2)),
+                gap: Number((best.score - option.score).toFixed(2)),
+            })),
+        };
     }
 
     return {
@@ -205,6 +221,7 @@ export function selectBestLineup(
         bench: squad,
         formation: '4-4-2',
         score: 0,
+        alternatives: [],
         warnings: ['Дүрэм хангасан гарааны бүрэлдэхүүн үүсгэж чадсангүй.'],
     };
 }

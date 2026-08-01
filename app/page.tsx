@@ -802,6 +802,15 @@ function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUs
                         </button>
                     ) : null}
                 </div>
+                {draft.formationAlternatives?.length ? (
+                    <div className="tabs" style={{ marginBottom: 12 }}>
+                        {draft.formationAlternatives.map((option: Any, index: number) => (
+                            <span className={`tab ${index === 0 ? 'good-tab' : ''}`} key={option.formation}>
+                                {option.formation} · {index === 0 ? 'сонгосон' : `−${option.gap.toFixed(2)} model pts`}
+                            </span>
+                        ))}
+                    </div>
+                ) : null}
 
                 {!draft.validation.valid && draft.validation.errors?.length ? (
                     <div className="warning-box draft-warning">

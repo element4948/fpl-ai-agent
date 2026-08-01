@@ -421,6 +421,7 @@ export type DraftTeam = {
   startingXI: ModelPlayer[];
   bench: ModelPlayer[];
   formation: Formation;
+  formationAlternatives: Array<{ formation: Formation; projectedScore: number; gap: number }>;
   validation: SquadValidation;
   trust: DraftTrust;
   flexibility: DraftFlexibility;

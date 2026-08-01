@@ -341,6 +341,7 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
             startingXI: [],
             bench: baseSquad,
             formation: '4-4-2',
+            formationAlternatives: [],
 
             validation,
             trust,
@@ -451,6 +452,7 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
         startingXI: lineup.startingXI,
         bench: lineup.bench,
         formation: lineup.formation,
+        formationAlternatives: lineup.alternatives,
 
         validation,
         trust,

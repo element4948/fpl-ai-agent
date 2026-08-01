@@ -78,6 +78,13 @@ function candidatePool(
     .sort((a, b) => scorePlayer(b) - scorePlayer(a));
 }
 
+function lineupUtility(player: ModelPlayer) {
+  const gameweeks = Math.max(1, player.projection.gameweeks);
+  const next3Average = player.projection.next3 / Math.min(3, gameweeks);
+  const next5Average = player.projection.next5 / Math.min(5, gameweeks);
+  return player.expectedPoints * 0.6 + next3Average * 0.25 + next5Average * 0.15;
+}
+
 /*
  * A fantasy squad is not 15 equal starters. Re-rank completed states by the
  * strongest legal XI, while the bench receives only a cover value. This keeps
@@ -94,21 +101,21 @@ function completedSquadScore(
     const starters = (Object.keys(formation) as Position[]).flatMap((position) =>
       players
         .filter((player) => player.position === position && isReliableStarter(player))
-        .sort((a, b) => scorePlayer(b) - scorePlayer(a))
+        .sort((a, b) => lineupUtility(b) - lineupUtility(a))
         .slice(0, formation[position]),
     );
     if (starters.length !== 11) continue;
     const ids = new Set(starters.map((player) => player.id));
     const bench = players.filter((player) => !ids.has(player.id));
-    const starterScore = starters.reduce((sum, player) => sum + scorePlayer(player), 0);
+    const starterScore = starters.reduce((sum, player) => sum + lineupUtility(player), 0);
     const captainCandidates = starters
       .filter((player) => player.position !== 'GKP')
-      .sort((a, b) => b.expectedPoints - a.expectedPoints);
+      .sort((a, b) => lineupUtility(b) - lineupUtility(a));
     const captain = captainCandidates[0];
     const viceCaptain = captainCandidates[1];
-    const captainExtra = captain?.expectedPoints || 0;
+    const captainExtra = captain ? lineupUtility(captain) : 0;
     const viceFallback = viceCaptain
-      ? viceCaptain.expectedPoints * (1 - (captain?.appearanceProbability || 0)) * 0.65
+      ? lineupUtility(viceCaptain) * (1 - (captain?.appearanceProbability || 0)) * 0.65
       : 0;
 
     const expectedOutfieldAbsences = starters
@@ -116,23 +123,30 @@ function completedSquadScore(
       .reduce((sum, player) => sum + (1 - player.appearanceProbability), 0);
     const outfieldBench = bench
       .filter((player) => player.position !== 'GKP')
-      .sort((a, b) => b.expectedPoints - a.expectedPoints);
+      .sort((a, b) => lineupUtility(b) - lineupUtility(a));
     const modeCoverMultiplier = mode === 'Safe' ? 1.15 : mode === 'Differential' ? 0.8 : 1;
     const benchCover = outfieldBench.reduce((sum, player, index) => {
       const activationProbability = Math.max(
         0,
         Math.min(1, expectedOutfieldAbsences - index * 0.65),
       );
-      return sum + player.expectedPoints * activationProbability * modeCoverMultiplier;
+      return sum + lineupUtility(player) * activationProbability * modeCoverMultiplier;
     }, 0);
     const startingGoalkeeper = starters.find((player) => player.position === 'GKP');
     const backupGoalkeeper = bench.find((player) => player.position === 'GKP');
     const goalkeeperCover = startingGoalkeeper && backupGoalkeeper
-      ? backupGoalkeeper.expectedPoints * (1 - startingGoalkeeper.appearanceProbability)
+      ? lineupUtility(backupGoalkeeper) * (1 - startingGoalkeeper.appearanceProbability)
       : 0;
+    const modePreference = mode === 'Safe'
+      ? players.reduce((sum, player) => sum + player.appearanceProbability, 0) * 0.04
+      : mode === 'Alternative'
+        ? players.reduce((sum, player) => sum + player.valueScore, 0) * 0.025
+        : mode === 'Differential'
+          ? players.reduce((sum, player) => sum + Math.max(0, 12 - player.ownership), 0) * 0.003
+          : 0;
     best = Math.max(
       best,
-      starterScore + captainExtra + viceFallback + benchCover + goalkeeperCover -
+      starterScore + captainExtra + viceFallback + benchCover + goalkeeperCover + modePreference -
         formationUncertaintyPenalty(starters, formation, mode),
     );
   }
