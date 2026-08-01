@@ -443,6 +443,12 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
             `GW1 flexibility requires £${flexibility.targetBank.toFixed(1)}m bank. Current: £${flexibility.bank.toFixed(1)}m.`,
         );
     }
+    if (flexibility.benchCost > flexibility.benchBudgetTarget + 1.5) {
+        validation.valid = false;
+        validation.errors.push(
+            `Bench spend £${flexibility.benchCost.toFixed(1)}m is too high for ${mode}. Target: £${flexibility.benchBudgetTarget.toFixed(1)}m.`,
+        );
+    }
 
     return {
         mode,
@@ -466,6 +472,7 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
             `${playableMidfielders}/5 midfielders and ${playableForwards}/3 forwards are reliable starters`,
             `${sortedSquad.filter((player) => player.dataQuality === 'good').length}/15 players have good data quality`,
             `Flexibility ${flexibility.score}/100 · £${flexibility.bank.toFixed(1)}m bank · ${flexibility.pricePointCount} price points`,
+            `Starting XI £${flexibility.startingCost.toFixed(1)}m · bench £${flexibility.benchCost.toFixed(1)}m (target £${flexibility.benchBudgetTarget.toFixed(1)}m)`,
             ...lineup.warnings,
         ],
     };

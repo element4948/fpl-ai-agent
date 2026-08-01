@@ -9,6 +9,13 @@ export function targetBankForMode(mode: DraftMode) {
   return 0.5;
 }
 
+export function targetBenchSpendForMode(mode: DraftMode) {
+  if (mode === 'Safe') return 20.5;
+  if (mode === 'Alternative') return 19;
+  if (mode === 'Differential') return 18.5;
+  return 18;
+}
+
 export function maximumDraftSpend(mode: DraftMode) {
   return Number((100 - targetBankForMode(mode)).toFixed(1));
 }
@@ -22,6 +29,9 @@ export function calculateDraftFlexibility(
   const totalCost = squad.reduce((sum, player) => sum + player.price, 0);
   const bank = Number(Math.max(0, 100 - totalCost).toFixed(1));
   const targetBank = targetBankForMode(mode);
+  const benchCost = Number(bench.reduce((sum, player) => sum + player.price, 0).toFixed(1));
+  const startingCost = Number(Math.max(0, totalCost - benchCost).toFixed(1));
+  const benchBudgetTarget = targetBenchSpendForMode(mode);
   const selectedIds = new Set(squad.map((player) => player.id));
   const pricePointCount = new Set(
     squad
@@ -49,11 +59,12 @@ export function calculateDraftFlexibility(
   const benchScore = Math.min(25, (reliableBenchPlayers / 3) * 25);
   const upgradeScore = Math.min(15, (upgradePaths / 5) * 15);
   const fixtureScore = Math.min(10, (fixtureReadyPlayers / 11) * 10);
+  const benchOverspendPenalty = Math.max(0, benchCost - benchBudgetTarget) * 8;
   const score = Math.max(
     0,
     Math.min(
       100,
-      Math.round(bankScore + pricePointScore + benchScore + upgradeScore + fixtureScore),
+      Math.round(bankScore + pricePointScore + benchScore + upgradeScore + fixtureScore - benchOverspendPenalty),
     ),
   );
   const warnings: string[] = [];
@@ -72,12 +83,20 @@ export function calculateDraftFlexibility(
   if (upgradePaths < 3) {
     warnings.push('£0.5m доторх шууд upgrade path цөөн байна.');
   }
+  if (benchCost > benchBudgetTarget) {
+    warnings.push(
+      `Bench-д £${benchCost.toFixed(1)}m зарцуулсан нь ${mode} target £${benchBudgetTarget.toFixed(1)}m-оос өндөр байна.`,
+    );
+  }
 
   return {
     score,
     status: score >= 70 ? 'flexible' : score >= 50 ? 'balanced' : 'rigid',
     bank,
     targetBank,
+    benchCost,
+    startingCost,
+    benchBudgetTarget,
     pricePointCount,
     reliableBenchPlayers,
     upgradePaths,

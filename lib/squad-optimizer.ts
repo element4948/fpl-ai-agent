@@ -1,5 +1,6 @@
 import { isReliableStarter } from '@/lib/starter';
 import { fantasyReturnRouteScore } from '@/lib/position-model';
+import { targetBenchSpendForMode } from '@/lib/flexibility';
 import type { DraftTeam, ModelPlayer } from '@/types/fpl';
 
 type Position = 'GKP' | 'DEF' | 'MID' | 'FWD';
@@ -138,6 +139,15 @@ function completedSquadScore(
     const goalkeeperCover = startingGoalkeeper && backupGoalkeeper
       ? lineupUtility(backupGoalkeeper) * (1 - startingGoalkeeper.appearanceProbability)
       : 0;
+    const benchCost = bench.reduce((sum, player) => sum + player.price, 0);
+    const benchBudgetTarget = targetBenchSpendForMode(mode);
+    const excessBenchSpend = Math.max(0, benchCost - benchBudgetTarget);
+    const expensiveBenchPlayers = bench.filter((player) =>
+      player.position === 'GKP' ? player.price > 5 : player.price > 5.5,
+    ).length;
+    const benchSpendPenalty =
+      excessBenchSpend * (mode === 'Safe' ? 0.75 : mode === 'Alternative' ? 1 : 1.35) +
+      expensiveBenchPlayers * (mode === 'Safe' ? 0.25 : 0.65);
     const modePreference = mode === 'Safe'
       ? players.reduce((sum, player) => sum + player.appearanceProbability, 0) * 0.04
       : mode === 'Alternative'
@@ -153,7 +163,7 @@ function completedSquadScore(
     best = Math.max(
       best,
       starterScore + captainExtra + viceFallback + benchCover + goalkeeperCover + modePreference -
-        formationUncertaintyPenalty(starters, formation, mode) - midfieldRoutePenalty,
+        formationUncertaintyPenalty(starters, formation, mode) - midfieldRoutePenalty - benchSpendPenalty,
     );
   }
   return best;

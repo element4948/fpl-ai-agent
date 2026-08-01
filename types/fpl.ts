@@ -281,6 +281,9 @@ export type DraftFlexibility = {
   status: 'flexible' | 'balanced' | 'rigid';
   bank: number;
   targetBank: number;
+  benchCost: number;
+  startingCost: number;
+  benchBudgetTarget: number;
   pricePointCount: number;
   reliableBenchPlayers: number;
   upgradePaths: number;
