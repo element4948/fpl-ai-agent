@@ -6,12 +6,18 @@ export function Navbar({ lang, onLang }: { lang: 'mn' | 'en'; onLang: () => void
   return <nav className="nav">
     <a className="brand" href="#top"><span>⚽</span> AI Agent</a>
     <div className="nav-links">
-      <a href="#settings">{t.navSettings}</a>
+      <a href="#decision">Шийдвэр</a>
       <a href="#team">{t.navTeam}</a>
-      <a href="#league">{t.navLeague}</a>
       <a href="#drafts">{t.navDrafts}</a>
-      <a href="/docs">Docs (гарын авлага)</a>
-      <button className="ghost" onClick={onLang}>{lang === 'mn' ? 'EN' : 'MN'}</button>
+      <details className="nav-more">
+        <summary>Бусад</summary>
+        <div>
+          <a href="#settings">{t.navSettings}</a>
+          <a href="#league">{t.navLeague}</a>
+          <a href="/docs">Гарын авлага</a>
+          <button className="ghost" onClick={onLang}>{lang === 'mn' ? 'English' : 'Монгол'}</button>
+        </div>
+      </details>
     </div>
   </nav>;
 }

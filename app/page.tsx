@@ -31,6 +31,31 @@ import { useEffect, useState } from 'react';
 
 type Any = any;
 
+function MoreSection({
+    title,
+    summary,
+    children,
+    id,
+}: {
+    title: string;
+    summary: string;
+    children: React.ReactNode;
+    id?: string;
+}) {
+    return (
+        <details className="more-section" id={id}>
+            <summary>
+                <div>
+                    <strong>{title}</strong>
+                    <span>{summary}</span>
+                </div>
+                <b>Дэлгэрэнгүй</b>
+            </summary>
+            <div className="more-section-body">{children}</div>
+        </details>
+    );
+}
+
 const DASHBOARD_CACHE_KEY = 'fpl-ai-dashboard-cache-v6';
 const DASHBOARD_CACHE_MAX_AGE = 6 * 60 * 60 * 1000;
 const DECISION_CACHE_KEY = 'fpl-ai-decision-cache-v1';
@@ -828,6 +853,9 @@ function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUs
             </summary>
 
             <div className="draft-team-body">
+                <details className="draft-meta-disclosure">
+                    <summary>Шалгалт, algorithm ба төсвийн дэлгэрэнгүй</summary>
+                    <div className="draft-meta-body">
                 <div className="draft-audit-strip">
                     <span><small>News scan</small><b>{draft.trust?.newsCheckedPlayers || 0}/15</b></span>
                     <span title="Саналд бодитоор орсон төрлийн data stream. Энэ нь 6 тусдаа сайт бүх тоглогчийг баталсан гэсэн үг биш."><small>Available streams</small><b>{draft.trust?.sourceCount || 0}/6</b></span>
@@ -947,6 +975,8 @@ function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUs
                         ) : null}
                     </div>
                 ) : null}
+                    </div>
+                </details>
 
                 <div className="draft-layout">
                     <div>
@@ -991,22 +1021,22 @@ function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUs
                             ))}
                         </div>
 
-                        <div className="draft-legend">
+                        <details className="draft-legend">
+                            <summary>Үзүүлэлтүүдийг тайлбарлах</summary>
                             <h4>Үзүүлэлтийг унших</h4>
                             <p><b>Starter ↑</b> — их байх тусам сайн.</p>
                             <p><b>Minutes ↑</b> — их байх тусам тоглох боломж өндөр.</p>
                             <p><b>FDR ↓</b> — бага байх тусам сайн. 1 хялбар, 5 хүнд.</p>
                             <p><b>Next 5 average ↓</b> — бага байх тусам хуваарь таатай.</p>
                             <p><b>Risk ↓</b> — бага байх тусам сайн.</p>
-                        </div>
+                        </details>
                     </aside>
                 </div>
 
-                <div className="draft-reasons">
-                    {draft.explanation?.map((item: string) => (
-                        <span key={item}>✓ {item}</span>
-                    ))}
-                </div>
+                <details className="draft-reasons">
+                    <summary>Багийг сонгосон нэмэлт шалтгаан</summary>
+                    {draft.explanation?.map((item: string) => <span key={item}>✓ {item}</span>)}
+                </details>
             </div>
         </details>
     );
@@ -1015,6 +1045,7 @@ function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUs
 function SeasonRoadmapCard({ roadmap }: { roadmap: Any }) {
     const weeks = roadmap?.weeks || [];
     return (
+        <MoreSection title="Season Roadmap" summary="Дараагийн 3–8 Gameweek-ийн captain, transfer болон chip төлөвлөгөө">
         <Card
             title="Season Roadmap (3–8 Gameweek төлөвлөгөө)"
             subtitle="team xP = captain multiplier ороогүй гарааны 11-ийн таамаг оноо. Transfer watch = шууд солих тушаал биш, ажиглах shortlist."
@@ -1068,6 +1099,7 @@ function SeasonRoadmapCard({ roadmap }: { roadmap: Any }) {
                 </div>
             ) : null}
         </Card>
+        </MoreSection>
     );
 }
 
@@ -1279,20 +1311,7 @@ export default function Home() {
                             <a className="help-button" href="/docs#player-evaluation" aria-label="AI Brain v2 тайлбар">?</a>
                         </div>
                         <h1>{t.heroTitle}</h1>
-                        <p className="lead">{t.heroLead}</p>
-                        <div className="brain-capabilities">
-                            <span>✓ Starter Intelligence (гарааны магадлал)</span>
-                            <span>✓ Formation Optimizer (байрлал сонголт)</span>
-                            <span>✓ Fixture & Risk (хуваарь ба эрсдэл)</span>
-                        </div>
-                        <div className="actions">
-                            <a className="button-link" href="#drafts">
-                                {t.navDrafts}
-                            </a>
-                            <a className="button-link secondary" href="#settings">
-                                {t.navSettings}
-                            </a>
-                        </div>
+                        <p className="lead">Captain, transfer, chip болон хамгийн боломжит багийг нэг дор санал болгоно.</p>
                     </div>
                     <Card title={t.seasonStatus} subtitle={t.optionalIds} helpHref="/docs#start">
                         <div className="season-status-main">
@@ -1321,7 +1340,7 @@ export default function Home() {
                     </Card>
                 </section>
 
-                <Card title={t.thisWeekDecision} subtitle={t.decisionSub} helpHref="/docs#decision">
+                <Card id="decision" title={t.thisWeekDecision} subtitle={t.decisionSub} helpHref="/docs#decision">
                     <div className="decision-status-line">
                         <span className={`decision-dot ${decision?.actionPlan?.decisionStatus === 'ready' ? 'ready' : ''}`} />
                         <strong>{decision?.actionPlan ? decisionStatusLabel(decision.actionPlan.decisionStatus, lang) : t.loading}</strong>
@@ -1373,6 +1392,10 @@ export default function Home() {
 
                 <SeasonRoadmapCard roadmap={roadmap} />
 
+                <MoreSection
+                    title="Системийн бэлэн байдал"
+                    summary={`Data, дүрэм, risk ба calibration · ${boot?.playerCount ?? '…'} тоглогч`}
+                >
                 <section className="grid grid-3">
                     <Card title={t.dataFoundation} subtitle={t.dataText} helpHref="/docs#player-evaluation">
                         <div className="engine-status good-engine"><span>✓</span><strong>Official FPL API</strong><small>Үндсэн өгөгдлийн эх сурвалж</small></div>
@@ -1457,8 +1480,10 @@ export default function Home() {
                 </Card>
 
                 <RiskMonitor items={boot?.riskMonitor || []} />
+                </MoreSection>
 
-                <Card id="settings" title={t.settings} subtitle={t.optionalIds} helpHref="/docs#start">
+                <MoreSection id="settings" title={t.settings} summary={settings.entryId ? `Entry ${settings.entryId} холбогдсон` : 'Entry ID, League ID, хэл болон strategy'}>
+                <Card title={t.settings} subtitle={t.optionalIds} helpHref="/docs#start">
                     <div className="grid grid-3">
                         <label className="field">
                             <span>{t.entryId}</span>
@@ -1520,6 +1545,7 @@ export default function Home() {
                         </div>
                     </div>
                 </Card>
+                </MoreSection>
 
                 <section id="team" className="grid grid-2">
                     <Card title={t.navTeam} subtitle={t.liveTeamSub} helpHref="/docs#team">
@@ -1714,7 +1740,8 @@ export default function Home() {
                     </Card>
                 </section>
 
-                <Card id="league" title={t.leagueIntelligence} subtitle={t.leagueSub} helpHref="/docs#league">
+                <MoreSection id="league" title={t.leagueIntelligence} summary="Rank gap, өрсөлдөгчид болон mini-league strategy">
+                <Card title={t.leagueIntelligence} subtitle={t.leagueSub} helpHref="/docs#league">
                     <button className="btn secondary" disabled={loading} onClick={runLeague}>
                         {loading ? t.loading : t.runLeagueAnalysis}
                     </button>
@@ -1744,8 +1771,10 @@ export default function Home() {
                         </div>
                     ) : null}
                 </Card>
+                </MoreSection>
 
-                <section id="drafts" className="target-sections">
+                <MoreSection title="Player shortlist" summary="Top Targets болон байрлал тус бүрийн шилдэг сонголтууд">
+                <section className="target-sections">
                     <Card
                         title={t.topTargets}
                         subtitle="Бүх байрлалаас хамгийн өндөр үнэлгээтэй shortlist (товч жагсаалт)"
@@ -1796,8 +1825,9 @@ export default function Home() {
                         </div>
                     </Card>
                 </section>
+                </MoreSection>
 
-                <Card title={t.draftTeams} subtitle={t.draftTeamsSub} helpHref="/docs#drafts">
+                <Card id="drafts" title={t.draftTeams} subtitle="Best Draft шууд харагдана · бусад хувилбарыг нэр дээр нь дарж нээнэ" helpHref="/docs#drafts">
                     {boot?.verificationPending ? (
                         <div className="notice" style={{ marginBottom: 14 }}>
                             Best draft түрүүлж гарлаа. Бусад хувилбар болон news/API-Football баталгаажуулалт ард шинэчлэгдэж байна.

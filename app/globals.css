@@ -320,7 +320,36 @@
 .draft-flex-metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-top:10px}.draft-flex-metrics>span{display:grid;gap:2px;padding:8px;border:1px solid var(--line);border-radius:9px;background:rgba(255,255,255,.025)}.draft-flex-metrics small{color:var(--muted);font-size:7px}.draft-flex-metrics b{font-size:14px}.draft-flex-metrics i{color:var(--muted);font-size:6px;font-style:normal}
 .draft-flex-warnings{display:grid;gap:4px;margin-top:9px;color:#ffe8a3;font-size:8px}
 @media(max-width:700px){.draft-flex-title{align-items:flex-start;flex-direction:column}.draft-flex-metrics{grid-template-columns:repeat(2,1fr)}}
+
+/* Documentation stays searchable but only the selected topic expands. */
+.docs-main .doc-section{padding:14px 16px;margin:0 0 8px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.018)}
+.docs-main .doc-section>h2{margin:0;font-size:15px}
+.docs-main .doc-section>:not(h2){display:none}
+.docs-main .doc-section:target{padding:22px;background:rgba(110,168,254,.035)}
+.docs-main .doc-section:target>:not(h2){display:grid}
+.docs-main .doc-section:target>p,.docs-main .doc-section:target>.docs-callout,.docs-main .doc-section:target>.doc-note{display:block}
+.docs-hero{padding-bottom:18px}.docs-hero p{max-width:760px}.docs-sidebar nav{max-height:calc(100vh - 190px);overflow:auto}
 @media(max-width:700px){.draft-audit-strip{grid-template-columns:repeat(3,1fr)}.football-pitch{height:610px;min-height:610px;overflow-x:auto}.pitch-line{min-width:445px}.draft-player-tile{min-width:82px}}
+
+/* Minimal information architecture */
+.more-section{border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.018);overflow:hidden}
+.more-section>summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:15px 18px;cursor:pointer;list-style:none}
+.more-section>summary::-webkit-details-marker,.draft-meta-disclosure>summary::-webkit-details-marker,.nav-more>summary::-webkit-details-marker{display:none}
+.more-section>summary>div{display:grid;gap:3px}.more-section>summary strong{font-size:14px}.more-section>summary span{color:var(--muted);font-size:9px}
+.more-section>summary>b{padding:6px 9px;border:1px solid var(--line);border-radius:9px;color:#cfe0ff;font-size:8px}
+.more-section[open]>summary{border-bottom:1px solid var(--line);background:rgba(110,168,254,.035)}
+.more-section[open]>summary>b:after{content:" хаах"}.more-section-body{display:grid;gap:14px;padding:14px}.more-section-body>.card{margin:0}
+.draft-meta-disclosure{margin-bottom:10px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.02)}
+.draft-meta-disclosure>summary,.draft-legend>summary,.draft-reasons>summary{padding:8px 10px;cursor:pointer;color:#cfe0ff;font-size:8px;font-weight:850;list-style:none}
+.draft-meta-body{padding:0 10px 10px}.draft-legend{margin-top:9px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.025)}
+.draft-legend>h4,.draft-legend>p{margin-left:10px;margin-right:10px}.draft-legend>p:last-child{margin-bottom:10px}
+.draft-reasons{margin-top:10px;border:1px solid var(--line);border-radius:10px}.draft-reasons>span{margin:0 8px 8px}.draft-reasons>summary+span{margin-top:2px}
+.nav-more{position:relative}.nav-more>summary{padding:9px 13px;border:1px solid var(--line);border-radius:999px;color:var(--muted);cursor:pointer;font-size:10px;list-style:none}
+.nav-more>div{position:absolute;right:0;top:calc(100% + 8px);z-index:30;display:grid;min-width:170px;padding:7px;border:1px solid var(--line);border-radius:13px;background:#091524;box-shadow:0 18px 45px rgba(0,0,0,.4)}
+.nav-more>div a,.nav-more>div button{width:100%;padding:9px 10px;border-radius:8px;text-align:left;white-space:nowrap}
+.hero{margin-bottom:2px}.hero-panel{padding-block:12px}.hero-panel h1{margin-bottom:6px}.hero-panel .lead{max-width:720px;margin-bottom:0}
+main{gap:13px}.card{padding:16px}.decision-glance{min-height:98px}
+@media(max-width:700px){.more-section>summary{padding:13px}.more-section>summary span{max-width:230px}.nav-more>div{position:fixed;top:62px;right:12px}.card{padding:13px}}
 
 /* Risk and official-news monitor */
 .risk-monitor-head{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-bottom:13px}
