@@ -42,9 +42,10 @@ export async function GET(request: Request) {
   );
   const calibrationEvent = liveUnfinishedEvent ? null : lastFinishedEvent;
   const topPlayers = [...players].sort((a,b) => (b.expectedPoints + b.valueScore - b.risk * 0.03) - (a.expectedPoints + a.valueScore - a.risk * 0.03)).slice(0, 40);
-  // Draft optimization is the heaviest CPU step. Do not block the first paint;
-  // the verified request that follows fills drafts and the roadmap in.
-  const drafts = fast ? [] : modes.map((mode) => buildDraft(players, mode));
+  // Always return usable Official-FPL drafts in the fast response. External
+  // verification can replace them later, but a failed/slow enrichment request
+  // must never leave the Draft Teams section empty.
+  const drafts = modes.map((mode) => buildDraft(players, mode));
   const roadmap = fast ? null : buildSeasonRoadmap(drafts[0]?.players || [], players);
   return NextResponse.json({
     nextEvent: isPreSeason ? null : next,
