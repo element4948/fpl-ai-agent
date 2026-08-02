@@ -14,6 +14,7 @@ async function safeFetch<T>(url: string): Promise<T | null> {
             next: {
                 revalidate: 900,
             },
+            signal: AbortSignal.timeout(8000),
         });
 
         if (!response.ok) {

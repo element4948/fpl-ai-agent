@@ -1078,6 +1078,7 @@ export default function Home() {
     const [analysis, setAnalysis] = useState<Any>(null);
     const [league, setLeague] = useState<Any>(null);
     const [decision, setDecision] = useState<Any>(null);
+    const [fixtureStatus, setFixtureStatus] = useState<Any>(null);
     const [calibrationResults, setCalibrationResults] = useState<CalibrationResult[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -1128,6 +1129,18 @@ export default function Home() {
             cancelled = true;
         };
         /* eslint-disable-next-line react-hooks/exhaustive-deps */
+    }, []);
+    useEffect(() => {
+        let cancelled = false;
+        fetch('/api/fixture-status')
+            .then((response) => response.json())
+            .then((data) => {
+                if (!cancelled) setFixtureStatus(data);
+            })
+            .catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
     }, []);
     useEffect(() => {
         setCalibrationResults(loadCalibrationResults());
@@ -1292,7 +1305,12 @@ export default function Home() {
                         </div>
                         <div className="season-facts">
                             <div><span>{t.nextDeadline}</span><b>{deadline}</b></div>
-                            <div><span>Fixture data</span><b className={boot?.fixtureReady ? 'good' : 'yellow'}>{boot?.fixtureReady ? 'Official FPL · Ready' : 'Waiting'}</b></div>
+                            <div>
+                                <span>Fixture data</span>
+                                <b className={(fixtureStatus?.fixtureReady ?? boot?.fixtureReady) ? 'good' : 'yellow'}>
+                                    {(fixtureStatus?.fixtureReady ?? boot?.fixtureReady) ? 'Official FPL · Ready' : 'Loading…'}
+                                </b>
+                            </div>
                             <div><span>Entry ID</span><b className={settings.entryId ? 'good' : 'yellow'}>{settings.entryId ? 'Connected' : 'Optional'}</b></div>
                         </div>
                         {!settings.entryId && (
@@ -1371,7 +1389,7 @@ export default function Home() {
                         <div className="engine-facts">
                             <div><span>Players</span><b>{boot?.playerCount ?? '...'}</b></div>
                             <div><span>Teams</span><b>{boot?.teamCount ?? '...'}</b></div>
-                            <div><span>Fixtures</span><b>{boot?.fixtureCount ?? '...'}</b></div>
+                            <div><span>Fixtures</span><b>{fixtureStatus?.fixtureCount ?? boot?.fixtureCount ?? '...'}</b></div>
                         </div>
                         <p className="engine-footnote">Player, team, price, fixture болон status мэдээлэл 15 минутын cache ашиглана.</p>
                     </Card>
