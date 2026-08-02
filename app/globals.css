@@ -350,6 +350,10 @@
 .hero{margin-bottom:2px}.hero-panel{padding-block:12px}.hero-panel h1{margin-bottom:6px}.hero-panel .lead{max-width:720px;margin-bottom:0}
 main{gap:13px}.card{padding:16px}.decision-glance{min-height:98px}
 @media(max-width:700px){.more-section>summary{padding:13px}.more-section>summary span{max-width:230px}.nav-more>div{position:fixed;top:62px;right:12px}.card{padding:13px}}
+.cloud-sync-card{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px;padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.025)}
+.cloud-sync-card>div:first-child{display:grid;gap:3px}.cloud-sync-card strong{font-size:11px}.cloud-sync-card span{color:var(--muted);font-size:8px}.cloud-connected{border-color:rgba(55,214,122,.28);background:rgba(55,214,122,.045)}
+.cloud-login,.cloud-actions{display:flex;gap:7px;align-items:center}.cloud-login input{width:170px;padding:9px 10px}.cloud-login .btn{padding:9px 12px}.cloud-actions .ghost{padding:8px 10px}.cloud-actions .danger{color:#ffd2d2}
+@media(max-width:700px){.cloud-sync-card{align-items:stretch;flex-direction:column}.cloud-login{align-items:stretch}.cloud-login input{width:100%}.cloud-actions{justify-content:flex-end}}
 
 /* Risk and official-news monitor */
 .risk-monitor-head{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-bottom:13px}

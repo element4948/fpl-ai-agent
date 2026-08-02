@@ -3,6 +3,7 @@ node_modules
 .env.local
 .vercel
 .env*
+!.env.example
 *.tsbuildinfo
 .DS_Store
 **/.DS_Store

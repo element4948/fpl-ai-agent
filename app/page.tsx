@@ -1113,6 +1113,8 @@ export default function Home() {
     const [fixtureStatus, setFixtureStatus] = useState<Any>(null);
     const [calibrationResults, setCalibrationResults] = useState<CalibrationResult[]>([]);
     const [loading, setLoading] = useState(false);
+    const [cloud, setCloud] = useState({ configured: false, authenticated: false, loading: true, error: '' });
+    const [loginPassword, setLoginPassword] = useState('');
 
     const lang = settings.lang || 'mn';
     const t = dict[lang];
@@ -1122,6 +1124,38 @@ export default function Home() {
         setSettings(loaded);
         const cachedDecision = readDecisionCache(loaded);
         if (cachedDecision) setDecision(cachedDecision);
+    }, []);
+    useEffect(() => {
+        let cancelled = false;
+        async function loadCloudProfile() {
+            try {
+                const sessionResponse = await fetch('/api/session', { cache: 'no-store' });
+                const session = await sessionResponse.json();
+                if (cancelled) return;
+                setCloud({ ...session, loading: false, error: '' });
+                if (!session.authenticated) return;
+                const profileResponse = await fetch('/api/profile', { cache: 'no-store' });
+                const profile = await profileResponse.json();
+                if (!profileResponse.ok || cancelled) return;
+                if (!profile.settings) {
+                    await fetch('/api/profile', {
+                        method: 'PUT',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ settings: loadSettings() }),
+                    });
+                    return;
+                }
+                const synced = { ...defaultSettings, ...profile.settings };
+                setSettings(synced);
+                saveSettings(synced);
+                const cachedDecision = readDecisionCache(synced);
+                if (cachedDecision) setDecision(cachedDecision);
+            } catch {
+                if (!cancelled) setCloud((current) => ({ ...current, loading: false, error: 'Cloud sync шалгаж чадсангүй.' }));
+            }
+        }
+        void loadCloudProfile();
+        return () => { cancelled = true; };
     }, []);
     useEffect(() => {
         let cancelled = false;
@@ -1245,11 +1279,67 @@ export default function Home() {
         setSaved(false);
     }
 
-    function persist() {
+    async function saveCloudSettings(nextSettings: UserSettings) {
+        if (!cloud.authenticated) return;
+        const response = await fetch('/api/profile', {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ settings: nextSettings }),
+        });
+        if (!response.ok) throw new Error('Cloud хадгалалт амжилтгүй боллоо.');
+    }
+
+    async function persist() {
         saveSettings(settings);
-        setSaved(true);
+        try {
+            await saveCloudSettings(settings);
+            setSaved(true);
+            setCloud((current) => ({ ...current, error: '' }));
+        } catch (error) {
+            setCloud((current) => ({ ...current, error: error instanceof Error ? error.message : 'Cloud хадгалалт амжилтгүй.' }));
+        }
         void runDecision(settings);
         setTimeout(() => setSaved(false), 1600);
+    }
+
+    async function login() {
+        setCloud((current) => ({ ...current, loading: true, error: '' }));
+        const response = await fetch('/api/session', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ password: loginPassword }),
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            setCloud((current) => ({ ...current, loading: false, error: result.error || 'Нэвтрэхэд алдаа гарлаа.' }));
+            return;
+        }
+        const profileResponse = await fetch('/api/profile', { cache: 'no-store' });
+        const profile = await profileResponse.json();
+        const synced = profile.settings
+            ? { ...defaultSettings, ...profile.settings }
+            : settings;
+        if (!profile.settings) await saveCloudSettings(synced);
+        setSettings(synced);
+        saveSettings(synced);
+        setLoginPassword('');
+        setCloud({ configured: true, authenticated: true, loading: false, error: '' });
+        void runDecision(synced);
+    }
+
+    async function logout() {
+        await fetch('/api/session', { method: 'DELETE' });
+        setCloud((current) => ({ ...current, authenticated: false, error: '' }));
+    }
+
+    async function resetProfile() {
+        if (!window.confirm('Cloud болон энэ browser дээрх хувийн тохиргоог бүрэн reset хийх үү?')) return;
+        if (cloud.authenticated) await fetch('/api/profile', { method: 'DELETE' });
+        localStorage.removeItem('fpl-ai-settings');
+        localStorage.removeItem(DECISION_CACHE_KEY);
+        setSettings(defaultSettings);
+        setDecision(null);
+        setSaved(false);
     }
 
     function usePlannedDraft(draft: Any) {
@@ -1257,6 +1347,9 @@ export default function Home() {
         const nextSettings = { ...settings, plannedSquadIds };
         setSettings(nextSettings);
         saveSettings(nextSettings);
+        void saveCloudSettings(nextSettings).catch(() => {
+            setCloud((current) => ({ ...current, error: 'Planned squad cloud-д хадгалагдсангүй.' }));
+        });
         setSaved(true);
         setAnalysis({
             mode: 'planned-draft',
@@ -1484,6 +1577,41 @@ export default function Home() {
 
                 <MoreSection id="settings" title={t.settings} summary={settings.entryId ? `Entry ${settings.entryId} холбогдсон` : 'Entry ID, League ID, хэл болон strategy'}>
                 <Card title={t.settings} subtitle={t.optionalIds} helpHref="/docs#start">
+                    <div className={`cloud-sync-card ${cloud.authenticated ? 'cloud-connected' : ''}`}>
+                        <div>
+                            <strong>Cloud sync</strong>
+                            <span>
+                                {cloud.loading
+                                    ? 'Төлөв шалгаж байна…'
+                                    : cloud.authenticated
+                                      ? '✓ Нэвтэрсэн · settings болон planned squad бүх browser дээр ижил'
+                                      : cloud.configured
+                                        ? 'Өөрийн нууц үгээр нэвтэрч төхөөрөмжүүдээ холбоно.'
+                                        : 'Cloud storage-ийн environment variables тохируулаагүй.'}
+                            </span>
+                        </div>
+                        {cloud.configured && !cloud.authenticated ? (
+                            <div className="cloud-login">
+                                <input
+                                    type="password"
+                                    value={loginPassword}
+                                    placeholder="Нууц үг"
+                                    onChange={(event) => setLoginPassword(event.target.value)}
+                                    onKeyDown={(event) => { if (event.key === 'Enter') void login(); }}
+                                />
+                                <button className="btn" type="button" disabled={cloud.loading || !loginPassword} onClick={() => void login()}>
+                                    Нэвтрэх
+                                </button>
+                            </div>
+                        ) : null}
+                        {cloud.authenticated ? (
+                            <div className="cloud-actions">
+                                <button className="ghost" type="button" onClick={() => void logout()}>Гарах</button>
+                                <button className="ghost danger" type="button" onClick={() => void resetProfile()}>Reset</button>
+                            </div>
+                        ) : null}
+                    </div>
+                    {cloud.error ? <p className="bad">{cloud.error}</p> : null}
                     <div className="grid grid-3">
                         <label className="field">
                             <span>{t.entryId}</span>
