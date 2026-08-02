@@ -31,6 +31,65 @@ import { useEffect, useState } from 'react';
 
 type Any = any;
 
+const DASHBOARD_CACHE_KEY = 'fpl-ai-dashboard-cache-v4';
+const DASHBOARD_CACHE_MAX_AGE = 6 * 60 * 60 * 1000;
+const DECISION_CACHE_KEY = 'fpl-ai-decision-cache-v1';
+const DECISION_CACHE_MAX_AGE = 30 * 60 * 1000;
+
+function readDashboardCache() {
+    if (typeof window === 'undefined') return null;
+    try {
+        const cached = JSON.parse(localStorage.getItem(DASHBOARD_CACHE_KEY) || 'null');
+        if (!cached?.savedAt || !cached?.data) return null;
+        return Date.now() - cached.savedAt <= DASHBOARD_CACHE_MAX_AGE ? cached.data : null;
+    } catch {
+        return null;
+    }
+}
+
+function writeDashboardCache(data: Any) {
+    if (typeof window === 'undefined' || !data?.drafts?.length) return;
+    try {
+        localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data }));
+    } catch {
+        // Storage may be unavailable or full. Network loading remains usable.
+    }
+}
+
+function decisionSettingsKey(settings: UserSettings) {
+    return JSON.stringify({
+        entryId: settings.entryId || '',
+        riskProfile: settings.riskProfile,
+        goal: settings.goal,
+        freeTransfers: settings.freeTransfers ?? 1,
+        plannedSquadIds: settings.plannedSquadIds || [],
+    });
+}
+
+function readDecisionCache(settings: UserSettings) {
+    if (typeof window === 'undefined') return null;
+    try {
+        const cached = JSON.parse(localStorage.getItem(DECISION_CACHE_KEY) || 'null');
+        if (!cached?.savedAt || cached?.settingsKey !== decisionSettingsKey(settings)) return null;
+        return Date.now() - cached.savedAt <= DECISION_CACHE_MAX_AGE ? cached.data : null;
+    } catch {
+        return null;
+    }
+}
+
+function writeDecisionCache(settings: UserSettings, data: Any) {
+    if (typeof window === 'undefined' || !data) return;
+    try {
+        localStorage.setItem(DECISION_CACHE_KEY, JSON.stringify({
+            savedAt: Date.now(),
+            settingsKey: decisionSettingsKey(settings),
+            data,
+        }));
+    } catch {
+        // A cache failure must not block live analysis.
+    }
+}
+
 function openPlayerDetail(playerId: number) {
     window.dispatchEvent(new CustomEvent('open-player-detail', { detail: playerId }));
 }
@@ -1028,24 +1087,36 @@ export default function Home() {
     useEffect(() => {
         const loaded = loadSettings();
         setSettings(loaded);
+        const cachedDecision = readDecisionCache(loaded);
+        if (cachedDecision) setDecision(cachedDecision);
     }, []);
     useEffect(() => {
         let cancelled = false;
         async function loadDashboard() {
             try {
+                const cached = readDashboardCache();
+                if (cached && !cancelled) setBoot(cached);
+
                 const fastResponse = await fetch('/api/bootstrap?fast=1');
                 const fastData = await fastResponse.json();
-                if (!cancelled) setBoot(fastData);
+                if (!cancelled) {
+                    setBoot(fastData);
+                    writeDashboardCache(fastData);
+                }
 
                 const verifiedResponse = await fetch('/api/bootstrap');
                 const verifiedData = await verifiedResponse.json();
                 if (cancelled) return;
                 setBoot(verifiedData);
+                writeDashboardCache(verifiedData);
 
                 // Do not duplicate the expensive verification calls during the
                 // first render. Decision analysis starts after the verified
                 // dashboard response has warmed the server-side fetch cache.
-                await runDecision(loadSettings());
+                const activeSettings = loadSettings();
+                if (!readDecisionCache(activeSettings)) {
+                    await runDecision(activeSettings);
+                }
             } catch (error) {
                 if (!cancelled) {
                     setBoot({ error: error instanceof Error ? error.message : 'Dashboard load failed' });
@@ -1095,7 +1166,9 @@ export default function Home() {
                 plannedSquadIds: activeSettings.plannedSquadIds || [],
             }),
         });
-        setDecision(await res.json());
+        const data = await res.json();
+        setDecision(data);
+        writeDecisionCache(activeSettings, data);
         setLoading(false);
     }
 

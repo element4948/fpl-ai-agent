@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 import { getBootstrap, getFixtures, nextEvent, toModelPlayers } from '@/lib/fpl';
 import { buildDraft } from '@/lib/rules';
 import { rankCaptainCandidates, topTargetsByPosition } from '@/lib/scoring';
@@ -13,8 +14,31 @@ export const revalidate = 900;
 
 export async function GET(request: Request) {
   const fast = new URL(request.url).searchParams.get('fast') === '1';
+  const payload = fast ? await getFastDashboard() : await getVerifiedDashboard();
+  return NextResponse.json(payload, {
+    headers: {
+      'Cache-Control': fast
+        ? 'public, s-maxage=300, stale-while-revalidate=1800'
+        : 'public, s-maxage=900, stale-while-revalidate=3600',
+    },
+  });
+}
+
+const getFastDashboard = unstable_cache(
+  () => buildDashboardPayload(true),
+  ['fpl-dashboard-fast-v4'],
+  { revalidate: 300 },
+);
+
+const getVerifiedDashboard = unstable_cache(
+  () => buildDashboardPayload(false),
+  ['fpl-dashboard-verified-v4'],
+  { revalidate: 900 },
+);
+
+async function buildDashboardPayload(fast: boolean) {
   const [boot, fixtures] = await Promise.all([getBootstrap(), getFixtures()]);
-  if (!boot) return NextResponse.json({ error: 'FPL API unavailable', isPreSeason: true, drafts: [], topPlayers: [] }, { status: 200 });
+  if (!boot) return { error: 'FPL API unavailable', isPreSeason: true, drafts: [], topPlayers: [] };
   const next = nextEvent(boot.events);
   const completedGameweeks = boot.events.filter((event) => event.finished).length;
   const basePlayers = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], next?.id, completedGameweeks);
@@ -47,7 +71,7 @@ export async function GET(request: Request) {
   // must never leave the Draft Teams section empty.
   const drafts = modes.map((mode) => buildDraft(players, mode));
   const roadmap = fast ? null : buildSeasonRoadmap(drafts[0]?.players || [], players);
-  return NextResponse.json({
+  return {
     nextEvent: isPreSeason ? null : next,
     isPreSeason,
     playerCount: players.length,
@@ -85,7 +109,7 @@ export async function GET(request: Request) {
       isPreSeason,
       ...(roadmap ? { roadmap } : {}),
     }),
-  });
+  };
 }
 
 function finalCandidateIdsFor(players: ReturnType<typeof toModelPlayers>) {
