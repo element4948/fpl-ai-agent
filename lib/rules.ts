@@ -311,7 +311,11 @@ function baseDraftExplanation(mode: DraftMode): string[] {
     return ['Highest projected points bias', 'Budget, value, fixture and risk used together', 'Main recommended draft'];
 }
 
-export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
+export function buildDraft(
+    players: ModelPlayer[],
+    mode: DraftMode,
+    quality: 'fast' | 'full' = 'full',
+): DraftTeam {
     const availablePlayers = players.filter(
         (player) => ['GKP', 'DEF', 'MID', 'FWD'].includes(player.position) && player.price > 0 && player.status !== 'u',
     );
@@ -323,6 +327,7 @@ export function buildDraft(players: ModelPlayer[], mode: DraftMode): DraftTeam {
         maximumDraftSpend(mode),
         (player) => playerScore(player, mode),
         mode,
+        quality === 'fast' ? 900 : 4800,
     );
     const baseSquad = globallyOptimized.length === 15
         ? globallyOptimized

@@ -26,13 +26,13 @@ export async function GET(request: Request) {
 
 const getFastDashboard = unstable_cache(
   () => buildDashboardPayload(true),
-  ['fpl-dashboard-fast-v4'],
+  ['fpl-dashboard-fast-v5'],
   { revalidate: 300 },
 );
 
 const getVerifiedDashboard = unstable_cache(
   () => buildDashboardPayload(false),
-  ['fpl-dashboard-verified-v4'],
+  ['fpl-dashboard-verified-v5'],
   { revalidate: 900 },
 );
 
@@ -54,7 +54,9 @@ async function buildDashboardPayload(fast: boolean) {
         getExternalNewsSignals(basePlayers, finalCandidateIdsFor(basePlayers)),
       ]);
   const statsPlayers = applyApiFootballEvidence(basePlayers, apiFootballScan);
-  const modes = ['Best','Alternative','Differential','Safe'] as const;
+  const modes = fast
+    ? (['Best'] as const)
+    : (['Best','Alternative','Differential','Safe'] as const);
   const players = newsScan ? applyExternalNewsSignals(statsPlayers, newsScan) : statsPlayers;
   const isOldGw38 = next?.name?.includes('38') && next?.deadline_time && new Date(next.deadline_time).getTime() < Date.now();
   const isPreSeason = completedGameweeks === 0 || !next || !next.deadline_time || !!isOldGw38;
@@ -69,7 +71,7 @@ async function buildDashboardPayload(fast: boolean) {
   // Always return usable Official-FPL drafts in the fast response. External
   // verification can replace them later, but a failed/slow enrichment request
   // must never leave the Draft Teams section empty.
-  const drafts = modes.map((mode) => buildDraft(players, mode));
+  const drafts = modes.map((mode) => buildDraft(players, mode, fast ? 'fast' : 'full'));
   const roadmap = fast ? null : buildSeasonRoadmap(drafts[0]?.players || [], players);
   return {
     nextEvent: isPreSeason ? null : next,

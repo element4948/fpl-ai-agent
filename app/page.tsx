@@ -48,7 +48,7 @@ function readDashboardCache() {
 }
 
 function writeDashboardCache(data: Any) {
-    if (typeof window === 'undefined' || !data?.drafts?.length) return;
+    if (typeof window === 'undefined' || !data?.drafts?.length || data.verificationPending) return;
     try {
         localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data }));
     } catch {
@@ -1100,9 +1100,8 @@ export default function Home() {
 
                 const fastResponse = await fetch('/api/bootstrap?fast=1');
                 const fastData = await fastResponse.json();
-                if (!cancelled) {
+                if (!cancelled && !cached) {
                     setBoot(fastData);
-                    writeDashboardCache(fastData);
                 }
 
                 const verifiedResponse = await fetch('/api/bootstrap');
@@ -1799,6 +1798,11 @@ export default function Home() {
                 </section>
 
                 <Card title={t.draftTeams} subtitle={t.draftTeamsSub} helpHref="/docs#drafts">
+                    {boot?.verificationPending ? (
+                        <div className="notice" style={{ marginBottom: 14 }}>
+                            Best draft түрүүлж гарлаа. Бусад хувилбар болон news/API-Football баталгаажуулалт ард шинэчлэгдэж байна.
+                        </div>
+                    ) : null}
                     {boot?.drafts?.length ? (
                         boot.drafts.map((d: Any) => <DraftCard draft={d} key={d.mode} lang={lang} onUse={usePlannedDraft} />)
                     ) : (

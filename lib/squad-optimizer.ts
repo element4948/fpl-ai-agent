@@ -190,6 +190,7 @@ export function optimizeSquadGlobally(
   maximumSpend: number,
   scorePlayer: (player: ModelPlayer) => number,
   mode: DraftTeam['mode'],
+  beamWidth = 4800,
 ): ModelPlayer[] {
   const pools = {
     GKP: candidatePool(players, 'GKP', scorePlayer, 12, 6),
@@ -275,23 +276,33 @@ export function optimizeSquadGlobally(
         bucket.push(state);
       }
       bucket.sort((a, b) => b.score - a.score);
-      bestByBucket.set(key, bucket.slice(0, 2));
+      bestByBucket.set(key, bucket.slice(0, beamWidth <= 1200 ? 1 : 2));
     }
 
     states = [...bestByBucket.values()].flat()
       .sort((a, b) => b.score - a.score)
-      .slice(0, 4800);
+      .slice(0, beamWidth);
 
     if (!states.length) return [];
   }
 
-  return (
-    states
-      .filter((state) => state.players.length === 15 && state.cost <= maximumSpend)
-      .sort(
-        (a, b) =>
-          completedSquadScore(b.players, scorePlayer, mode, viablePriceFloors) -
-          completedSquadScore(a.players, scorePlayer, mode, viablePriceFloors),
-      )[0]?.players || []
-  );
+  // Score every completed state exactly once. Array.sort previously called the
+  // expensive eight-formation evaluator repeatedly from its comparator,
+  // multiplying cold draft time by tens of thousands of evaluations.
+  let bestState: State | null = null;
+  let bestCompletedScore = Number.NEGATIVE_INFINITY;
+  for (const state of states) {
+    if (state.players.length !== 15 || state.cost > maximumSpend) continue;
+    const finalScore = completedSquadScore(
+      state.players,
+      scorePlayer,
+      mode,
+      viablePriceFloors,
+    );
+    if (finalScore > bestCompletedScore) {
+      bestCompletedScore = finalScore;
+      bestState = state;
+    }
+  }
+  return bestState?.players || [];
 }
