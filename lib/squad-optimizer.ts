@@ -1,6 +1,5 @@
 import { isReliableStarter } from '@/lib/starter';
 import { fantasyReturnRouteScore } from '@/lib/position-model';
-import { targetBenchSpendForMode } from '@/lib/flexibility';
 import { lineupProjection, orderBenchForAutoSubs } from '@/lib/lineup';
 import type { DraftTeam, ModelPlayer } from '@/types/fpl';
 
@@ -91,6 +90,7 @@ function completedSquadScore(
   players: ModelPlayer[],
   scorePlayer: (player: ModelPlayer) => number,
   mode: DraftTeam['mode'],
+  viablePriceFloors: Record<Position, number>,
 ) {
   let best = Number.NEGATIVE_INFINITY;
   for (const formation of FORMATIONS) {
@@ -117,15 +117,22 @@ function completedSquadScore(
     const modeCoverMultiplier = mode === 'Safe' ? 1.15 : mode === 'Differential' ? 0.8 : 1;
     const autoSubPlan = orderBenchForAutoSubs(starters, bench);
     const benchCover = autoSubPlan.expectedCoverValue * modeCoverMultiplier;
-    const benchCost = bench.reduce((sum, player) => sum + player.price, 0);
-    const benchBudgetTarget = targetBenchSpendForMode(mode);
-    const excessBenchSpend = Math.max(0, benchCost - benchBudgetTarget);
-    const expensiveBenchPlayers = bench.filter((player) =>
-      player.position === 'GKP' ? player.price > 5 : player.price > 5.5,
-    ).length;
-    const benchSpendPenalty =
-      excessBenchSpend * (mode === 'Safe' ? 0.75 : mode === 'Alternative' ? 1 : 1.35) +
-      expensiveBenchPlayers * (mode === 'Safe' ? 0.25 : 0.65);
+    const orderedOutfield = autoSubPlan.bench.filter((player) => player.position !== 'GKP');
+    const backupGoalkeeper = autoSubPlan.bench.find((player) => player.position === 'GKP');
+    const premiumWeights = mode === 'Safe' ? [0.7, 1.25, 1.8] : [0.9, 1.5, 2.15];
+    const outfieldPremiumPenalty = orderedOutfield.reduce((penalty, player, index) => {
+      const premium = Math.max(0, player.price - viablePriceFloors[player.position]);
+      return penalty + premium * (premiumWeights[index] ?? 2.15);
+    }, 0);
+    const goalkeeperPremium = backupGoalkeeper
+      ? Math.max(0, backupGoalkeeper.price - viablePriceFloors.GKP) *
+        ((starters.find((player) => player.position === 'GKP')?.appearanceProbability ?? 0.9) >= 0.85 ? 1.8 : 0.8)
+      : 0;
+    const plannedRotationValue = fixtureRotationValue(starters, orderedOutfield);
+    const benchSpendPenalty = Math.max(
+      0,
+      outfieldPremiumPenalty + goalkeeperPremium - plannedRotationValue,
+    );
     const modePreference = mode === 'Safe'
       ? players.reduce((sum, player) => sum + player.appearanceProbability, 0) * 0.04
       : mode === 'Alternative'
@@ -147,6 +154,33 @@ function completedSquadScore(
   return best;
 }
 
+function projectedForEvent(player: ModelPlayer, eventId: number) {
+  return player.projection.byEvent.find((item) => item.event === eventId)?.points ?? 0;
+}
+
+function fixtureRotationValue(starters: ModelPlayer[], bench: ModelPlayer[]) {
+  const eventIds = [...new Set(
+    starters.flatMap((player) => player.projection.byEvent.slice(0, 5).map((item) => item.event)),
+  )].slice(0, 5);
+  if (!eventIds.length) return 0;
+  const totalGain = eventIds.reduce((total, eventId) => {
+    let bestGain = 0;
+    for (const reserve of bench) {
+      for (const starter of starters) {
+        if (reserve.position !== starter.position) continue;
+        bestGain = Math.max(
+          bestGain,
+          projectedForEvent(reserve, eventId) - projectedForEvent(starter, eventId),
+        );
+      }
+    }
+    return total + Math.max(0, bestGain);
+  }, 0);
+  // Planned rotation is useful, but it must not justify spreading premium
+  // money across the entire bench.
+  return (totalGain / eventIds.length) * 0.35;
+}
+
 export function optimizeSquadGlobally(
   players: ModelPlayer[],
   maximumSpend: number,
@@ -161,6 +195,21 @@ export function optimizeSquadGlobally(
   } satisfies Record<Position, ModelPlayer[]>;
 
   if (Object.values(pools).some((pool) => !pool.length)) return [];
+
+  const viablePriceFloors = (Object.keys(pools) as Position[]).reduce(
+    (result, position) => {
+      const viable = pools[position].filter(
+        (player) =>
+          isReliableStarter(player, 55) &&
+          player.appearanceProbability >= 0.65 &&
+          player.risk <= 45 &&
+          player.roleAssessment?.role !== 'backup',
+      );
+      result[position] = Math.min(...(viable.length ? viable : pools[position]).map((player) => player.price));
+      return result;
+    },
+    { GKP: 0, DEF: 0, MID: 0, FWD: 0 } as Record<Position, number>,
+  );
 
   let states: State[] = [
     {
@@ -237,8 +286,8 @@ export function optimizeSquadGlobally(
       .filter((state) => state.players.length === 15 && state.cost <= maximumSpend)
       .sort(
         (a, b) =>
-          completedSquadScore(b.players, scorePlayer, mode) -
-          completedSquadScore(a.players, scorePlayer, mode),
+          completedSquadScore(b.players, scorePlayer, mode, viablePriceFloors) -
+          completedSquadScore(a.players, scorePlayer, mode, viablePriceFloors),
       )[0]?.players || []
   );
 }

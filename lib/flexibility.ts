@@ -10,10 +10,62 @@ export function targetBankForMode(mode: DraftMode) {
 }
 
 export function targetBenchSpendForMode(mode: DraftMode) {
-  if (mode === 'Safe') return 20.5;
-  if (mode === 'Alternative') return 19;
-  if (mode === 'Differential') return 18.5;
-  return 18;
+  if (mode === 'Safe') return 18.5;
+  if (mode === 'Alternative') return 18;
+  if (mode === 'Differential') return 17.5;
+  return 17.5;
+}
+
+function isViableBenchPlayer(player: ModelPlayer) {
+  return (
+    isReliableStarter(player, 55) &&
+    player.appearanceProbability >= 0.65 &&
+    player.risk <= 45 &&
+    player.roleAssessment?.role !== 'backup'
+  );
+}
+
+function cheapestViablePrice(position: string, allPlayers: ModelPlayer[]) {
+  const prices = allPlayers
+    .filter((player) => player.position === position && isViableBenchPlayer(player))
+    .map((player) => player.price);
+  return prices.length ? Math.min(...prices) : 0;
+}
+
+function fixtureRotationAllowance(
+  bench: ModelPlayer[],
+  squad: ModelPlayer[],
+  allPlayers: ModelPlayer[],
+) {
+  const benchIds = new Set(bench.map((player) => player.id));
+  const starters = squad.filter((player) => !benchIds.has(player.id));
+  return bench.reduce((allowance, player) => {
+    if (player.position === 'GKP') return allowance;
+    const complementaryStarter = starters.some(
+      (starter) =>
+        starter.position === player.position &&
+        (starter.fixture?.averageDifficulty ?? 3) >= 3.35 &&
+        (player.fixture?.averageDifficulty ?? 3) <= 3,
+    );
+    if (!complementaryStarter) return allowance;
+    const floor = cheapestViablePrice(player.position, allPlayers);
+    return allowance + Math.min(0.5, Math.max(0, player.price - floor));
+  }, 0);
+}
+
+export function dynamicBenchBudget(
+  squad: ModelPlayer[],
+  bench: ModelPlayer[],
+  allPlayers: ModelPlayer[],
+  mode: DraftMode,
+) {
+  const minimumViableCost = bench.reduce((sum, player) => {
+    const floor = cheapestViablePrice(player.position, allPlayers);
+    return sum + (floor || player.price);
+  }, 0);
+  const firstSubAllowance = mode === 'Safe' ? 0.8 : mode === 'Alternative' ? 0.6 : 0.5;
+  const rotationAllowance = fixtureRotationAllowance(bench, squad, allPlayers);
+  return Number((minimumViableCost + firstSubAllowance + rotationAllowance).toFixed(1));
 }
 
 export function maximumDraftSpend(mode: DraftMode) {
@@ -31,7 +83,7 @@ export function calculateDraftFlexibility(
   const targetBank = targetBankForMode(mode);
   const benchCost = Number(bench.reduce((sum, player) => sum + player.price, 0).toFixed(1));
   const startingCost = Number(Math.max(0, totalCost - benchCost).toFixed(1));
-  const benchBudgetTarget = targetBenchSpendForMode(mode);
+  const benchBudgetTarget = dynamicBenchBudget(squad, bench, allPlayers, mode);
   const selectedIds = new Set(squad.map((player) => player.id));
   const pricePointCount = new Set(
     squad
