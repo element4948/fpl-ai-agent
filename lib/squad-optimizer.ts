@@ -119,14 +119,14 @@ function completedSquadScore(
     const benchCover = autoSubPlan.expectedCoverValue * modeCoverMultiplier;
     const orderedOutfield = autoSubPlan.bench.filter((player) => player.position !== 'GKP');
     const backupGoalkeeper = autoSubPlan.bench.find((player) => player.position === 'GKP');
-    const premiumWeights = mode === 'Safe' ? [0.7, 1.25, 1.8] : [0.9, 1.5, 2.15];
+    const premiumWeights = mode === 'Safe' ? [0.95, 1.6, 2.3] : [1.15, 1.9, 2.7];
     const outfieldPremiumPenalty = orderedOutfield.reduce((penalty, player, index) => {
       const premium = Math.max(0, player.price - viablePriceFloors[player.position]);
       return penalty + premium * (premiumWeights[index] ?? 2.15);
     }, 0);
     const goalkeeperPremium = backupGoalkeeper
       ? Math.max(0, backupGoalkeeper.price - viablePriceFloors.GKP) *
-        ((starters.find((player) => player.position === 'GKP')?.appearanceProbability ?? 0.9) >= 0.85 ? 1.8 : 0.8)
+        ((starters.find((player) => player.position === 'GKP')?.appearanceProbability ?? 0.9) >= 0.85 ? 2.4 : 1.1)
       : 0;
     const plannedRotationValue = fixtureRotationValue(starters, orderedOutfield);
     const benchSpendPenalty = Math.max(
@@ -163,7 +163,7 @@ function fixtureRotationValue(starters: ModelPlayer[], bench: ModelPlayer[]) {
     starters.flatMap((player) => player.projection.byEvent.slice(0, 5).map((item) => item.event)),
   )].slice(0, 5);
   if (!eventIds.length) return 0;
-  const totalGain = eventIds.reduce((total, eventId) => {
+  const weeklyGains = eventIds.map((eventId) => {
     let bestGain = 0;
     for (const reserve of bench) {
       for (const starter of starters) {
@@ -174,11 +174,15 @@ function fixtureRotationValue(starters: ModelPlayer[], bench: ModelPlayer[]) {
         );
       }
     }
-    return total + Math.max(0, bestGain);
-  }, 0);
-  // Planned rotation is useful, but it must not justify spreading premium
-  // money across the entire bench.
-  return (totalGain / eventIds.length) * 0.35;
+    return Math.max(0, bestGain);
+  });
+  const usefulWeeks = weeklyGains.filter((gain) => gain >= 1).length;
+  const totalGain = weeklyGains.reduce((sum, gain) => sum + gain, 0);
+  // One isolated hard fixture is handled by holding the strong starter or by a
+  // free transfer when the wider plan supports it. It cannot fund a premium
+  // bench player for the whole season.
+  if (usefulWeeks < 2 || totalGain < 2.5) return 0;
+  return Math.min(0.5, (totalGain / eventIds.length) * 0.22);
 }
 
 export function optimizeSquadGlobally(

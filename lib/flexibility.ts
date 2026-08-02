@@ -41,15 +41,23 @@ function fixtureRotationAllowance(
   const starters = squad.filter((player) => !benchIds.has(player.id));
   return bench.reduce((allowance, player) => {
     if (player.position === 'GKP') return allowance;
-    const complementaryStarter = starters.some(
-      (starter) =>
-        starter.position === player.position &&
-        (starter.fixture?.averageDifficulty ?? 3) >= 3.35 &&
-        (player.fixture?.averageDifficulty ?? 3) <= 3,
+    const samePositionStarters = starters.filter(
+      (starter) => starter.position === player.position,
     );
-    if (!complementaryStarter) return allowance;
+    const gains = player.projection.byEvent.slice(0, 5).map((week) => {
+      const weakestStarter = samePositionStarters.reduce((lowest, starter) => {
+        const points = starter.projection.byEvent.find((item) => item.event === week.event)?.points;
+        return points == null ? lowest : Math.min(lowest, points);
+      }, Number.POSITIVE_INFINITY);
+      return Number.isFinite(weakestStarter) ? week.points - weakestStarter : 0;
+    });
+    const usefulWeeks = gains.filter((gain) => gain >= 1).length;
+    const totalGain = gains.reduce((sum, gain) => sum + Math.max(0, gain), 0);
+    // A single hard fixture never justifies buying a dearer reserve. Rotation
+    // premium is allowed only when the player is a genuine two-week option.
+    if (usefulWeeks < 2 || totalGain < 2.5) return allowance;
     const floor = cheapestViablePrice(player.position, allPlayers);
-    return allowance + Math.min(0.5, Math.max(0, player.price - floor));
+    return allowance + Math.min(0.4, Math.max(0, player.price - floor));
   }, 0);
 }
 
@@ -63,7 +71,7 @@ export function dynamicBenchBudget(
     const floor = cheapestViablePrice(player.position, allPlayers);
     return sum + (floor || player.price);
   }, 0);
-  const firstSubAllowance = mode === 'Safe' ? 0.8 : mode === 'Alternative' ? 0.6 : 0.5;
+  const firstSubAllowance = mode === 'Safe' ? 0.5 : mode === 'Alternative' ? 0.4 : 0.3;
   const rotationAllowance = fixtureRotationAllowance(bench, squad, allPlayers);
   return Number((minimumViableCost + firstSubAllowance + rotationAllowance).toFixed(1));
 }
