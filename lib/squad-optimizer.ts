@@ -32,6 +32,21 @@ function isViableReserve(player: ModelPlayer) {
   );
 }
 
+function isBudgetReserve(player: ModelPlayer) {
+  const verifiedHighWarning = player.externalNews?.some(
+    (signal) => signal.severity === 'high' &&
+      (signal.verification === 'confirmed' || signal.verification === 'corroborated'),
+  );
+  return player.status === 'a' &&
+    player.dataQuality !== 'unknown' &&
+    player.starterConfidence >= 38 &&
+    player.predictedMinutes >= 25 &&
+    player.appearanceProbability >= 0.4 &&
+    player.risk <= 55 &&
+    player.roleAssessment?.role !== 'backup' &&
+    !verifiedHighWarning;
+}
+
 const SLOTS: Position[] = [
   'GKP', 'GKP',
   'FWD', 'FWD', 'FWD',
@@ -110,6 +125,7 @@ function completedSquadScore(
   scorePlayer: (player: ModelPlayer) => number,
   mode: DraftTeam['mode'],
   viablePriceFloors: Record<Position, number>,
+  budgetPriceFloors: Record<Position, number>,
 ) {
   let best = Number.NEGATIVE_INFINITY;
   for (const formation of FORMATIONS) {
@@ -133,34 +149,42 @@ function completedSquadScore(
       ? lineupProjection(viceCaptain) * (1 - (captain?.appearanceProbability || 0)) * 0.65
       : 0;
 
-    const modeCoverMultiplier = mode === 'Safe' ? 1.15 : mode === 'Differential' ? 0.8 : 1;
+    const modeCoverMultiplier = mode === 'Safe' ? 0.5 : mode === 'Best' ? 0.38 : 0.25;
     const autoSubPlan = orderBenchForAutoSubs(starters, bench);
     const benchCover = autoSubPlan.expectedCoverValue * modeCoverMultiplier;
     const orderedOutfield = autoSubPlan.bench.filter((player) => player.position !== 'GKP');
     const backupGoalkeeper = autoSubPlan.bench.find((player) => player.position === 'GKP');
-    const premiumWeights = mode === 'Safe' ? [0.95, 1.6, 2.3] : [1.15, 1.9, 2.7];
+    const premiumWeights = mode === 'Safe' ? [2.8, 5.5, 8] : [3.5, 7, 10];
     const outfieldPremiumPenalty = orderedOutfield.reduce((penalty, player, index) => {
-      const premium = Math.max(0, player.price - viablePriceFloors[player.position]);
+      const floor = index === 0 ? viablePriceFloors[player.position] : budgetPriceFloors[player.position];
+      const premium = Math.max(0, player.price - floor);
       return penalty + premium * (premiumWeights[index] ?? 2.15);
     }, 0);
     const goalkeeperPremium = backupGoalkeeper
       ? Math.max(0, backupGoalkeeper.price - viablePriceFloors.GKP) *
-        ((starters.find((player) => player.position === 'GKP')?.appearanceProbability ?? 0.9) >= 0.85 ? 2.4 : 1.1)
+        ((starters.find((player) => player.position === 'GKP')?.appearanceProbability ?? 0.9) >= 0.85 ? 10 : 4)
       : 0;
-    const plannedRotationValue = fixtureRotationValue(starters, orderedOutfield);
-    const viableBaselineCost = bench.reduce(
-      (sum, player) => sum + viablePriceFloors[player.position],
-      0,
+    const viableBaselineCost = orderedOutfield.reduce(
+      (sum, player) => sum + budgetPriceFloors[player.position],
+      backupGoalkeeper ? budgetPriceFloors.GKP : 0,
     );
     const benchCost = bench.reduce((sum, player) => sum + player.price, 0);
-    const allowedPremium = mode === 'Safe' ? 0.5 : mode === 'Alternative' ? 0.3 : 0.2;
+    const allowedPremium = mode === 'Safe' ? 0.7 : mode === 'Best' ? 0.4 : mode === 'Alternative' ? 0.3 : 0.2;
     const unjustifiedBenchSpend = Math.max(
       0,
       benchCost - viableBaselineCost - allowedPremium,
     );
+    // Bench budget is a squad-construction rule, not a late warning. A state
+    // that spends beyond the cheapest legal cover plus a small first-sub
+    // allowance cannot win, irrespective of fixture rotation.
+    if (unjustifiedBenchSpend > 0.001) continue;
+    if (orderedOutfield.some((player) => !isBudgetReserve(player))) continue;
+    const startingGoalkeeper = starters.find((player) => player.position === 'GKP');
+    if (backupGoalkeeper && startingGoalkeeper && startingGoalkeeper.appearanceProbability >= 0.85 &&
+        backupGoalkeeper.price > budgetPriceFloors.GKP + 0.1) continue;
     const benchSpendPenalty = Math.max(
       0,
-      outfieldPremiumPenalty + goalkeeperPremium + unjustifiedBenchSpend * 7 - plannedRotationValue,
+      outfieldPremiumPenalty + goalkeeperPremium + unjustifiedBenchSpend * 12,
     );
     const modePreference = mode === 'Safe'
       ? players.reduce((sum, player) => sum + player.appearanceProbability, 0) * 0.04
@@ -183,37 +207,6 @@ function completedSquadScore(
   return best;
 }
 
-function projectedForEvent(player: ModelPlayer, eventId: number) {
-  return player.projection.byEvent.find((item) => item.event === eventId)?.points ?? 0;
-}
-
-function fixtureRotationValue(starters: ModelPlayer[], bench: ModelPlayer[]) {
-  const eventIds = [...new Set(
-    starters.flatMap((player) => player.projection.byEvent.slice(0, 5).map((item) => item.event)),
-  )].slice(0, 5);
-  if (!eventIds.length) return 0;
-  const weeklyGains = eventIds.map((eventId) => {
-    let bestGain = 0;
-    for (const reserve of bench) {
-      for (const starter of starters) {
-        if (reserve.position !== starter.position) continue;
-        bestGain = Math.max(
-          bestGain,
-          projectedForEvent(reserve, eventId) - projectedForEvent(starter, eventId),
-        );
-      }
-    }
-    return Math.max(0, bestGain);
-  });
-  const usefulWeeks = weeklyGains.filter((gain) => gain >= 1).length;
-  const totalGain = weeklyGains.reduce((sum, gain) => sum + gain, 0);
-  // One isolated hard fixture is handled by holding the strong starter or by a
-  // free transfer when the wider plan supports it. It cannot fund a premium
-  // bench player for the whole season.
-  if (usefulWeeks < 2 || totalGain < 2.5) return 0;
-  return Math.min(0.5, (totalGain / eventIds.length) * 0.22);
-}
-
 export function optimizeSquadGlobally(
   players: ModelPlayer[],
   maximumSpend: number,
@@ -234,6 +227,14 @@ export function optimizeSquadGlobally(
     (result, position) => {
       const viable = pools[position].filter(isViableReserve);
       result[position] = Math.min(...(viable.length ? viable : pools[position]).map((player) => player.price));
+      return result;
+    },
+    { GKP: 0, DEF: 0, MID: 0, FWD: 0 } as Record<Position, number>,
+  );
+  const budgetPriceFloors = (Object.keys(pools) as Position[]).reduce(
+    (result, position) => {
+      const budgetOptions = pools[position].filter(isBudgetReserve);
+      result[position] = Math.min(...(budgetOptions.length ? budgetOptions : pools[position]).map((player) => player.price));
       return result;
     },
     { GKP: 0, DEF: 0, MID: 0, FWD: 0 } as Record<Position, number>,
@@ -302,9 +303,31 @@ export function optimizeSquadGlobally(
       bestByBucket.set(key, bucket.slice(0, beamWidth <= 1200 ? 1 : 2));
     }
 
-    states = [...bestByBucket.values()].flat()
+    const bucketStates = [...bestByBucket.values()].flat();
+    const scoreQuota = Math.ceil(beamWidth * 0.55);
+    const valueQuota = beamWidth - scoreQuota;
+    const byRawScore = [...bucketStates]
       .sort((a, b) => b.score - a.score)
-      .slice(0, beamWidth);
+      .slice(0, scoreQuota);
+    /*
+     * Keep a second beam for budget-efficient structures. Without this, the
+     * partial search spends on all 15 slots, prunes cheap reserve routes, then
+     * reaches the final XI/bench evaluator with no legal low-cost bench left.
+     * The cost weight grows after the first XI-sized core can exist, so money
+     * is deliberately preserved for the starters rather than substitutes.
+     */
+    const selectedCount = slotIndex + 1;
+    const costWeight = selectedCount >= 11 ? 1.8 : selectedCount >= 8 ? 1.1 : 0.55;
+    const byBudgetEfficiency = [...bucketStates]
+      .sort((a, b) =>
+        (b.score - b.cost * costWeight) - (a.score - a.cost * costWeight))
+      .slice(0, valueQuota);
+    const retained = new Map<string, State>();
+    for (const state of [...byRawScore, ...byBudgetEfficiency]) {
+      const signature = state.players.map((player) => player.id).sort((a, b) => a - b).join(',');
+      retained.set(signature, state);
+    }
+    states = [...retained.values()].slice(0, beamWidth);
 
     if (!states.length) return [];
   }
@@ -321,6 +344,7 @@ export function optimizeSquadGlobally(
       scorePlayer,
       mode,
       viablePriceFloors,
+      budgetPriceFloors,
     );
     if (finalScore > bestCompletedScore) {
       bestCompletedScore = finalScore;

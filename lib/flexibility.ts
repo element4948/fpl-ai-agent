@@ -10,9 +10,9 @@ export function targetBankForMode(mode: DraftMode) {
 }
 
 export function targetBenchSpendForMode(mode: DraftMode) {
-  if (mode === 'Safe') return 18.5;
-  if (mode === 'Alternative') return 18;
-  if (mode === 'Differential') return 17.5;
+  if (mode === 'Safe') return 18;
+  if (mode === 'Alternative') return 17.5;
+  if (mode === 'Differential') return 17;
   return 17.5;
 }
 
@@ -42,33 +42,19 @@ function cheapestViablePrice(position: string, allPlayers: ModelPlayer[]) {
   return prices.length ? Math.min(...prices) : 0;
 }
 
-function fixtureRotationAllowance(
-  bench: ModelPlayer[],
-  squad: ModelPlayer[],
-  allPlayers: ModelPlayer[],
-) {
-  const benchIds = new Set(bench.map((player) => player.id));
-  const starters = squad.filter((player) => !benchIds.has(player.id));
-  return bench.reduce((allowance, player) => {
-    if (player.position === 'GKP') return allowance;
-    const samePositionStarters = starters.filter(
-      (starter) => starter.position === player.position,
-    );
-    const gains = player.projection.byEvent.slice(0, 5).map((week) => {
-      const weakestStarter = samePositionStarters.reduce((lowest, starter) => {
-        const points = starter.projection.byEvent.find((item) => item.event === week.event)?.points;
-        return points == null ? lowest : Math.min(lowest, points);
-      }, Number.POSITIVE_INFINITY);
-      return Number.isFinite(weakestStarter) ? week.points - weakestStarter : 0;
-    });
-    const usefulWeeks = gains.filter((gain) => gain >= 1).length;
-    const totalGain = gains.reduce((sum, gain) => sum + Math.max(0, gain), 0);
-    // A single hard fixture never justifies buying a dearer reserve. Rotation
-    // premium is allowed only when the player is a genuine two-week option.
-    if (usefulWeeks < 2 || totalGain < 2.5) return allowance;
-    const floor = cheapestViablePrice(player.position, allPlayers);
-    return allowance + Math.min(0.4, Math.max(0, player.price - floor));
-  }, 0);
+function cheapestBudgetCoverPrice(position: string, allPlayers: ModelPlayer[]) {
+  const prices = allPlayers
+    .filter((player) =>
+      player.position === position &&
+      player.status === 'a' &&
+      player.dataQuality !== 'unknown' &&
+      player.roleAssessment?.role !== 'backup' &&
+      player.starterConfidence >= 38 &&
+      player.predictedMinutes >= 25 &&
+      player.appearanceProbability >= 0.4 &&
+      player.risk <= 55)
+    .map((player) => player.price);
+  return prices.length ? Math.min(...prices) : cheapestViablePrice(position, allPlayers);
 }
 
 export function dynamicBenchBudget(
@@ -78,12 +64,16 @@ export function dynamicBenchBudget(
   mode: DraftMode,
 ) {
   const minimumViableCost = bench.reduce((sum, player) => {
-    const floor = cheapestViablePrice(player.position, allPlayers);
+    const floor = cheapestBudgetCoverPrice(player.position, allPlayers);
     return sum + (floor || player.price);
   }, 0);
-  const firstSubAllowance = mode === 'Safe' ? 0.5 : mode === 'Alternative' ? 0.3 : 0.2;
-  const rotationAllowance = fixtureRotationAllowance(bench, squad, allPlayers);
-  return Number((minimumViableCost + firstSubAllowance + rotationAllowance).toFixed(1));
+  const firstSubAllowance = mode === 'Safe' ? 0.5 : mode === 'Best' ? 0.3 : mode === 'Alternative' ? 0.2 : 0.1;
+  // Planned fixture rotation is handled by the roadmap/free-transfer engine.
+  // It must not increase permanent bench spend.
+  // FPL prices move in £0.1m, but initial prices and practical enabler bands
+  // commonly sit on £0.5m steps. Round the target upward so the cheapest
+  // actually constructible bench is not incorrectly marked as overspend.
+  return Math.ceil((minimumViableCost + firstSubAllowance) * 2 - 0.001) / 2;
 }
 
 export function maximumDraftSpend(mode: DraftMode) {
@@ -109,6 +99,15 @@ export function calculateDraftFlexibility(
       .map((player) => `${player.position}:${Math.floor(player.price * 2) / 2}`),
   ).size;
   const reliableBenchPlayers = bench.filter((player) => isReliableStarter(player, 55)).length;
+  const emergencyBenchPlayers = bench.filter((player) =>
+    player.status === 'a' &&
+    player.dataQuality !== 'unknown' &&
+    player.starterConfidence >= 38 &&
+    player.predictedMinutes >= 25 &&
+    player.appearanceProbability >= 0.4 &&
+    player.risk <= 55 &&
+    player.roleAssessment?.role !== 'backup',
+  ).length;
   const fixtureReadyPlayers = squad.filter(
     (player) => (player.fixture?.averageDifficulty ?? 5) <= 3.3,
   ).length;
@@ -126,7 +125,9 @@ export function calculateDraftFlexibility(
   const bankScore =
     targetBank === 0 ? 25 : Math.min(25, (bank / targetBank) * 25);
   const pricePointScore = Math.min(25, (pricePointCount / 10) * 25);
-  const benchScore = Math.min(25, (reliableBenchPlayers / 3) * 25);
+  const benchScore = Math.min(25,
+    Math.min(1, reliableBenchPlayers) * 15 + Math.min(2, emergencyBenchPlayers) * 5,
+  );
   const upgradeScore = Math.min(15, (upgradePaths / 5) * 15);
   const fixtureScore = Math.min(10, (fixtureReadyPlayers / 11) * 10);
   const benchOverspendPenalty = Math.max(0, benchCost - benchBudgetTarget) * 8;
@@ -147,8 +148,8 @@ export function calculateDraftFlexibility(
   if (pricePointCount < 7) {
     warnings.push('Price-point coverage бага тул нэг transfer-ээр шилжих сонголт хязгаарлагдана.');
   }
-  if (reliableBenchPlayers < 2) {
-    warnings.push('Bench cover сул; injury/rotation үед forced transfer үүсэх эрсдэлтэй.');
+  if (emergencyBenchPlayers < 3) {
+    warnings.push('Emergency bench cover сул; бүх 3 outfield reserve минут авах боломжтой байх шаардлагатай.');
   }
   if (upgradePaths < 3) {
     warnings.push('£0.5m доторх шууд upgrade path цөөн байна.');

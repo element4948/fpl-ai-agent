@@ -252,8 +252,15 @@ function chooseFormation(
     const playableDefenders = startingXI.filter((player) => player.position === 'DEF' && isReliableStarter(player)).length;
 
     const warnings: string[] = [];
-    const reliableOutfieldBench = bench.filter(
-        (player) => player.position !== 'GKP' && isReliableStarter(player),
+    const emergencyOutfieldCover = bench.filter(
+        (player) => player.position !== 'GKP' &&
+            player.status === 'a' &&
+            player.dataQuality !== 'unknown' &&
+            player.starterConfidence >= 38 &&
+            player.predictedMinutes >= 25 &&
+            player.appearanceProbability >= 0.4 &&
+            player.risk <= 55 &&
+            player.roleAssessment?.role !== 'backup',
     );
     const reliableDefenderCover = bench.some(
         (player) => player.position === 'DEF' && isReliableStarter(player),
@@ -266,8 +273,8 @@ function chooseFormation(
     if (playableDefenders < 3) {
         warnings.push('Гараанд тоглох боломжтой хамгийн багадаа 3 хамгаалагч шаардлагатай.');
     }
-    if (reliableOutfieldBench.length < 2) {
-        warnings.push('Bench cover хангалтгүй: дор хаяж 2 найдвартай outfield сэлгээ шаардлагатай.');
+    if (emergencyOutfieldCover.length < 3) {
+        warnings.push('Emergency cover хангалтгүй: бүх 3 outfield сэлгээ минут авах боломжтой байх шаардлагатай.');
     }
     if (rule.DEF === 3 && !reliableDefenderCover) {
         warnings.push('3 хамгаалагчтай formation боловч найдвартай DEF bench cover алга.');

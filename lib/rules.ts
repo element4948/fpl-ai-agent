@@ -47,7 +47,26 @@ function playerScore(player: ModelPlayer, mode: DraftMode): number {
 
 function isSquadEligible(player: ModelPlayer, mode: DraftMode) {
     if (isReliableStarter(player)) return true;
-    if (mode === 'Safe') return false;
+    const verifiedHighWarning = player.externalNews?.some(
+        (signal) => signal.severity === 'high' &&
+            (signal.verification === 'confirmed' || signal.verification === 'corroborated'),
+    );
+    // A legal 15-player squad may contain low-cost cover that is not strong
+    // enough for the XI. The lineup gate below still requires reliable
+    // starters; this branch exists only so the optimizer can fund them with a
+    // cheap second/third substitute instead of buying 15 equal players.
+    const reserveThreshold = mode === 'Safe' ? 48 : 38;
+    return player.status === 'a' &&
+        player.dataQuality !== 'unknown' &&
+        player.roleAssessment?.role !== 'backup' &&
+        !verifiedHighWarning &&
+        player.starterConfidence >= reserveThreshold &&
+        player.predictedMinutes >= (mode === 'Safe' ? 35 : 25) &&
+        player.appearanceProbability >= (mode === 'Safe' ? 0.5 : 0.4) &&
+        player.risk <= 55;
+}
+
+function isBudgetBenchCandidate(player: ModelPlayer) {
     const verifiedHighWarning = player.externalNews?.some(
         (signal) => signal.severity === 'high' &&
             (signal.verification === 'confirmed' || signal.verification === 'corroborated'),
@@ -55,10 +74,120 @@ function isSquadEligible(player: ModelPlayer, mode: DraftMode) {
     return player.status === 'a' &&
         player.dataQuality !== 'unknown' &&
         player.roleAssessment?.role !== 'backup' &&
-        player.roleAssessment?.role !== 'competition' &&
         !verifiedHighWarning &&
-        player.starterConfidence >= 58 &&
-        player.predictedMinutes >= 50;
+        player.starterConfidence >= 38 &&
+        player.predictedMinutes >= 25 &&
+        player.appearanceProbability >= 0.4 &&
+        player.risk <= 55;
+}
+
+/*
+ * Build the reserve unit after the strongest legal XI is known. This is a
+ * deliberate two-budget model: starters compete for points, while substitutes
+ * compete on low price plus usable emergency cover. A future difficult fixture
+ * is handled by the transfer roadmap and never funds a permanent premium bench.
+ */
+function rebalanceBench(
+    squad: ModelPlayer[],
+    allPlayers: ModelPlayer[],
+    mode: DraftMode,
+) {
+    const initialLineup = selectBestLineup(squad, mode);
+    if (initialLineup.startingXI.length !== 11) return squad;
+
+    const starters = initialLineup.startingXI;
+    const starterIds = new Set(starters.map((player) => player.id));
+    const clubCounts = new Map<number, number>();
+    for (const player of starters) {
+        clubCounts.set(player.teamId, (clubCounts.get(player.teamId) || 0) + 1);
+    }
+    const required = { GKP: 2, DEF: 5, MID: 5, FWD: 3 } as Record<string, number>;
+    for (const player of starters) required[player.position] -= 1;
+    const slots = Object.entries(required).flatMap(([position, count]) =>
+        Array.from({ length: count }, () => position),
+    );
+    const pools = Object.fromEntries(
+        Object.keys(required).map((position) => [
+            position,
+            allPlayers
+                .filter((player) =>
+                    player.position === position &&
+                    !starterIds.has(player.id) &&
+                    isBudgetBenchCandidate(player))
+                .sort((a, b) => a.price - b.price || playerScore(b, mode) - playerScore(a, mode))
+                .slice(0, 14),
+        ]),
+    ) as Record<string, ModelPlayer[]>;
+    if (slots.some((position) => !pools[position]?.length)) return squad;
+
+    let bestBench: ModelPlayer[] | null = null;
+    let bestCost = Number.POSITIVE_INFINITY;
+    let bestTieBreak = Number.NEGATIVE_INFINITY;
+    const search = (
+        index: number,
+        selected: ModelPlayer[],
+        ids: Set<number>,
+        counts: Map<number, number>,
+        cost: number,
+    ) => {
+        if (cost > bestCost + 0.001) return;
+        if (index === slots.length) {
+            const total = roundMoney(starters.reduce((sum, player) => sum + player.price, 0) + cost);
+            if (total > maximumDraftSpend(mode) + 0.001) return;
+            const tieBreak = selected.reduce((sum, player) => sum + playerScore(player, mode), 0);
+            if (cost < bestCost - 0.001 || (Math.abs(cost - bestCost) < 0.001 && tieBreak > bestTieBreak)) {
+                bestBench = [...selected];
+                bestCost = cost;
+                bestTieBreak = tieBreak;
+            }
+            return;
+        }
+        const position = slots[index];
+        for (const player of pools[position]) {
+            if (ids.has(player.id) || (counts.get(player.teamId) || 0) >= 3) continue;
+            ids.add(player.id);
+            counts.set(player.teamId, (counts.get(player.teamId) || 0) + 1);
+            selected.push(player);
+            search(index + 1, selected, ids, counts, roundMoney(cost + player.price));
+            selected.pop();
+            const nextCount = (counts.get(player.teamId) || 1) - 1;
+            if (nextCount) counts.set(player.teamId, nextCount);
+            else counts.delete(player.teamId);
+            ids.delete(player.id);
+        }
+    };
+    search(0, [], new Set<number>(), new Map(clubCounts), 0);
+    if (!bestBench) return squad;
+
+    // Reinvest money released from the bench into the XI. Only same-position,
+    // reliable upgrades are considered, so formation and reserve prices stay
+    // intact while the highest marginal points gain receives the budget.
+    const leanBench: ModelPlayer[] = bestBench;
+    let upgradedStarters = [...starters];
+    for (let iteration = 0; iteration < 11; iteration += 1) {
+        const selected = [...upgradedStarters, ...leanBench];
+        const selectedIds = new Set(selected.map((player) => player.id));
+        const currentCost = selected.reduce((sum, player) => sum + player.price, 0);
+        let bestSwap: { index: number; player: ModelPlayer; gain: number } | null = null;
+        for (let index = 0; index < upgradedStarters.length; index += 1) {
+            const current = upgradedStarters[index];
+            for (const candidate of allPlayers) {
+                if (selectedIds.has(candidate.id) || candidate.position !== current.position || !isReliableStarter(candidate)) continue;
+                if (currentCost - current.price + candidate.price > maximumDraftSpend(mode) + 0.001) continue;
+                const remainingClubCount = selected.filter(
+                    (player) => player.id !== current.id && player.teamId === candidate.teamId,
+                ).length;
+                if (remainingClubCount >= 3) continue;
+                const gain = playerScore(candidate, mode) - playerScore(current, mode);
+                if (gain > 0.001 && (!bestSwap || gain > bestSwap.gain)) {
+                    bestSwap = { index, player: candidate, gain };
+                }
+            }
+        }
+        if (!bestSwap) break;
+        upgradedStarters[bestSwap.index] = bestSwap.player;
+    }
+    return [...upgradedStarters, ...leanBench];
 }
 
 function buildSelectionAudit(
@@ -359,7 +488,9 @@ export function buildDraft(
         ? globallyOptimized
         : optimizeSquad(baseSquad, availablePlayers, mode);
 
-    const sortedSquad = [...optimizedSquad].sort((a, b) => {
+    const benchBalancedSquad = rebalanceBench(optimizedSquad, availablePlayers, mode);
+
+    const sortedSquad = [...benchBalancedSquad].sort((a, b) => {
         const positionOrder: Record<string, number> = {
             GKP: 1,
             DEF: 2,
@@ -396,7 +527,7 @@ export function buildDraft(
         (player) => player.dataQuality === 'unknown',
     );
 
-    const requiredReliableDefenders = mode === 'Safe' ? 5 : 4;
+    const requiredReliableDefenders = 3;
     if (playableDefenders < requiredReliableDefenders) {
         validation.valid = false;
         validation.errors.push(
@@ -408,19 +539,12 @@ export function buildDraft(
         validation.valid = false;
         validation.errors.push('No goalkeeper is currently likely to start.');
     }
-    if (mode === 'Safe' && playableGoalkeepers < 2) {
-        validation.valid = false;
-        validation.errors.push(
-            `Only ${playableGoalkeepers} goalkeeper is a reliable starter. Every draft requires two playable goalkeepers.`,
-        );
-    }
-
-    if (playableMidfielders < (mode === 'Safe' ? 5 : 4)) {
+    if (playableMidfielders < 2) {
         validation.valid = false;
         validation.errors.push(`Only ${playableMidfielders} midfielders are reliable starters. All 5 are required.`);
     }
 
-    if (playableForwards < (mode === 'Safe' ? 3 : 2)) {
+    if (playableForwards < 1) {
         validation.valid = false;
         validation.errors.push(`Only ${playableForwards} forwards are reliable starters. All 3 are required.`);
     }
@@ -448,7 +572,7 @@ export function buildDraft(
             `GW1 flexibility requires £${flexibility.targetBank.toFixed(1)}m bank. Current: £${flexibility.bank.toFixed(1)}m.`,
         );
     }
-    if (flexibility.benchCost > flexibility.benchBudgetTarget + 0.5) {
+    if (flexibility.benchCost > flexibility.benchBudgetTarget + 0.1) {
         validation.valid = false;
         validation.errors.push(
             `Bench spend £${flexibility.benchCost.toFixed(1)}m is too high for ${mode}. Target: £${flexibility.benchBudgetTarget.toFixed(1)}m.`,
