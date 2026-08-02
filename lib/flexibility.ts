@@ -170,6 +170,7 @@ export function calculateDraftFlexibility(
     benchBudgetTarget,
     pricePointCount,
     reliableBenchPlayers,
+    emergencyBenchPlayers,
     upgradePaths,
     fixtureReadyPlayers,
     warnings,

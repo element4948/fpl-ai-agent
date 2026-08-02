@@ -962,9 +962,9 @@ function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUs
                         <div className="draft-flex-metrics">
                             <span><small>Bank</small><b>£{draft.flexibility.bank.toFixed(1)}m</b><i>Target £{draft.flexibility.targetBank.toFixed(1)}m</i></span>
                             <span><small>Starting XI</small><b>£{draft.flexibility.startingCost.toFixed(1)}m</b><i>Гарааны төсөв</i></span>
-                            <span><small>Bench spend</small><b>£{draft.flexibility.benchCost.toFixed(1)}m</b><i>Target ≤£{draft.flexibility.benchBudgetTarget.toFixed(1)}m</i></span>
+                            <span><small>Lean bench</small><b>£{draft.flexibility.benchCost.toFixed(1)}m</b><i>Usable floor £{draft.flexibility.benchBudgetTarget.toFixed(1)}m</i></span>
                             <span><small>Price points</small><b>{draft.flexibility.pricePointCount}</b><i>Солих үнийн шат</i></span>
-                            <span><small>Playable bench</small><b>{draft.flexibility.reliableBenchPlayers}/4</b><i>Rotation cover</i></span>
+                            <span><small>Emergency cover</small><b>{draft.flexibility.emergencyBenchPlayers ?? 0}/4</b><i>Хямд · минут авах боломжтой</i></span>
                             <span><small>Upgrade paths</small><b>{draft.flexibility.upgradePaths}</b><i>£0.5m дотор</i></span>
                             <span><small>Next 5 ready</small><b>{draft.flexibility.fixtureReadyPlayers}/15</b><i>FDR avg ≤3.3</i></span>
                         </div>

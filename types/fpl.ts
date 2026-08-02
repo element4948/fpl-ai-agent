@@ -286,6 +286,7 @@ export type DraftFlexibility = {
   benchBudgetTarget: number;
   pricePointCount: number;
   reliableBenchPlayers: number;
+  emergencyBenchPlayers: number;
   upgradePaths: number;
   fixtureReadyPlayers: number;
   warnings: string[];
