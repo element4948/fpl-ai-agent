@@ -23,12 +23,12 @@ export async function POST(req: Request) {
   const next = nextEvent(boot.events);
   const completedGameweeks = boot.events.filter(event => event.finished).length;
   const basePlayers = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], next?.id, completedGameweeks);
-  const apiFootballScan = await getApiFootballEvidence(basePlayers);
+  const [apiFootballScan, newsScan] = await Promise.all([
+    getApiFootballEvidence(basePlayers),
+    getExternalNewsSignals(basePlayers, plannedSquadIds),
+  ]);
   const statsPlayers = applyApiFootballEvidence(basePlayers, apiFootballScan);
-  const allPlayers = applyExternalNewsSignals(
-    statsPlayers,
-    await getExternalNewsSignals(statsPlayers, plannedSquadIds),
-  );
+  const allPlayers = applyExternalNewsSignals(statsPlayers, newsScan);
   const oldGw38 = next?.name?.includes('38') && next?.deadline_time && new Date(next.deadline_time).getTime() < Date.now();
   const isPreSeason = completedGameweeks === 0 || !next || !next.deadline_time || !!oldGw38;
 

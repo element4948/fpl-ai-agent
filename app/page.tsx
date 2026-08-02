@@ -1028,14 +1028,35 @@ export default function Home() {
     useEffect(() => {
         const loaded = loadSettings();
         setSettings(loaded);
-        void runDecision(loaded);
-        /* eslint-disable-next-line react-hooks/exhaustive-deps */
     }, []);
     useEffect(() => {
-        fetch('/api/bootstrap')
-            .then((r) => r.json())
-            .then(setBoot)
-            .catch((e) => setBoot({ error: e.message }));
+        let cancelled = false;
+        async function loadDashboard() {
+            try {
+                const fastResponse = await fetch('/api/bootstrap?fast=1');
+                const fastData = await fastResponse.json();
+                if (!cancelled) setBoot(fastData);
+
+                const verifiedResponse = await fetch('/api/bootstrap');
+                const verifiedData = await verifiedResponse.json();
+                if (cancelled) return;
+                setBoot(verifiedData);
+
+                // Do not duplicate the expensive verification calls during the
+                // first render. Decision analysis starts after the verified
+                // dashboard response has warmed the server-side fetch cache.
+                await runDecision(loadSettings());
+            } catch (error) {
+                if (!cancelled) {
+                    setBoot({ error: error instanceof Error ? error.message : 'Dashboard load failed' });
+                }
+            }
+        }
+        void loadDashboard();
+        return () => {
+            cancelled = true;
+        };
+        /* eslint-disable-next-line react-hooks/exhaustive-deps */
     }, []);
     useEffect(() => {
         setCalibrationResults(loadCalibrationResults());

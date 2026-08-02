@@ -11,29 +11,27 @@ import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-foot
 
 export const revalidate = 900;
 
-export async function GET() {
+export async function GET(request: Request) {
+  const fast = new URL(request.url).searchParams.get('fast') === '1';
   const [boot, fixtures] = await Promise.all([getBootstrap(), getFixtures()]);
   if (!boot) return NextResponse.json({ error: 'FPL API unavailable', isPreSeason: true, drafts: [], topPlayers: [] }, { status: 200 });
   const next = nextEvent(boot.events);
   const completedGameweeks = boot.events.filter((event) => event.finished).length;
   const basePlayers = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], next?.id, completedGameweeks);
-  const apiFootballScan = await getApiFootballEvidence(basePlayers);
+  // The fast response makes the page usable immediately. The client then asks
+  // for the fully verified version in the background.
+  const [apiFootballScan, newsScan] = fast
+    ? [
+        { enabled: false, matchedPlayers: 0, fixturesChecked: 0, evidence: new Map<number, never>() },
+        null,
+      ] as const
+    : await Promise.all([
+        getApiFootballEvidence(basePlayers),
+        getExternalNewsSignals(basePlayers, finalCandidateIdsFor(basePlayers)),
+      ]);
   const statsPlayers = applyApiFootballEvidence(basePlayers, apiFootballScan);
   const modes = ['Best','Alternative','Differential','Safe'] as const;
-  const finalCandidateIds = ['GKP', 'DEF', 'MID', 'FWD'].flatMap((position) =>
-    statsPlayers
-      .filter((player) => player.position === position)
-      .sort((a, b) =>
-        (b.expectedPoints + b.projection.next5 / Math.max(1, b.projection.gameweeks) + b.valueScore * 0.4) -
-        (a.expectedPoints + a.projection.next5 / Math.max(1, a.projection.gameweeks) + a.valueScore * 0.4),
-      )
-      .slice(0, 12)
-      .map((player) => player.id),
-  );
-  const players = applyExternalNewsSignals(
-    statsPlayers,
-    await getExternalNewsSignals(statsPlayers, finalCandidateIds),
-  );
+  const players = newsScan ? applyExternalNewsSignals(statsPlayers, newsScan) : statsPlayers;
   const isOldGw38 = next?.name?.includes('38') && next?.deadline_time && new Date(next.deadline_time).getTime() < Date.now();
   const isPreSeason = completedGameweeks === 0 || !next || !next.deadline_time || !!isOldGw38;
   const lastFinishedEvent = [...boot.events]
@@ -44,8 +42,10 @@ export async function GET() {
   );
   const calibrationEvent = liveUnfinishedEvent ? null : lastFinishedEvent;
   const topPlayers = [...players].sort((a,b) => (b.expectedPoints + b.valueScore - b.risk * 0.03) - (a.expectedPoints + a.valueScore - a.risk * 0.03)).slice(0, 40);
-  const drafts = modes.map((mode) => buildDraft(players, mode));
-  const roadmap = buildSeasonRoadmap(drafts[0]?.players || [], players);
+  // Draft optimization is the heaviest CPU step. Do not block the first paint;
+  // the verified request that follows fills drafts and the roadmap in.
+  const drafts = fast ? [] : modes.map((mode) => buildDraft(players, mode));
+  const roadmap = fast ? null : buildSeasonRoadmap(drafts[0]?.players || [], players);
   return NextResponse.json({
     nextEvent: isPreSeason ? null : next,
     isPreSeason,
@@ -61,6 +61,7 @@ export async function GET() {
       fixturesChecked: apiFootballScan.fixturesChecked,
       error: apiFootballScan.error,
     },
+    verificationPending: fast,
     topPlayers,
     topTargets: topTargetsByPosition(players),
     captainShortlist: rankCaptainCandidates(players, 10),
@@ -78,6 +79,23 @@ export async function GET() {
         }
       : null,
     drafts,
-    chips: chipPlanner({ hasEntry: false, isPreSeason, roadmap }),
+    chips: chipPlanner({
+      hasEntry: false,
+      isPreSeason,
+      ...(roadmap ? { roadmap } : {}),
+    }),
   });
+}
+
+function finalCandidateIdsFor(players: ReturnType<typeof toModelPlayers>) {
+  return ['GKP', 'DEF', 'MID', 'FWD'].flatMap((position) =>
+    players
+      .filter((player) => player.position === position)
+      .sort((a, b) =>
+        (b.expectedPoints + b.projection.next5 / Math.max(1, b.projection.gameweeks) + b.valueScore * 0.4) -
+        (a.expectedPoints + a.projection.next5 / Math.max(1, a.projection.gameweeks) + a.valueScore * 0.4),
+      )
+      .slice(0, 12)
+      .map((player) => player.id),
+  );
 }
