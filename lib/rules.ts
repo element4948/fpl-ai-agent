@@ -448,7 +448,7 @@ export function buildDraft(
             `GW1 flexibility requires £${flexibility.targetBank.toFixed(1)}m bank. Current: £${flexibility.bank.toFixed(1)}m.`,
         );
     }
-    if (flexibility.benchCost > flexibility.benchBudgetTarget + 1.5) {
+    if (flexibility.benchCost > flexibility.benchBudgetTarget + 0.5) {
         validation.valid = false;
         validation.errors.push(
             `Bench spend £${flexibility.benchCost.toFixed(1)}m is too high for ${mode}. Target: £${flexibility.benchBudgetTarget.toFixed(1)}m.`,

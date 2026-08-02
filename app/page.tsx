@@ -31,7 +31,7 @@ import { useEffect, useState } from 'react';
 
 type Any = any;
 
-const DASHBOARD_CACHE_KEY = 'fpl-ai-dashboard-cache-v4';
+const DASHBOARD_CACHE_KEY = 'fpl-ai-dashboard-cache-v6';
 const DASHBOARD_CACHE_MAX_AGE = 6 * 60 * 60 * 1000;
 const DECISION_CACHE_KEY = 'fpl-ai-decision-cache-v1';
 const DECISION_CACHE_MAX_AGE = 30 * 60 * 1000;

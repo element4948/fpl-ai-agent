@@ -13,6 +13,25 @@ type State = {
   score: number;
 };
 
+function isViableReserve(player: ModelPlayer) {
+  const verifiedHighWarning = player.externalNews?.some(
+    (signal) =>
+      signal.severity === 'high' &&
+      (signal.verification === 'confirmed' || signal.verification === 'corroborated'),
+  );
+  return (
+    player.status === 'a' &&
+    player.dataQuality !== 'unknown' &&
+    player.starterConfidence >= 58 &&
+    player.predictedMinutes >= 50 &&
+    player.appearanceProbability >= 0.58 &&
+    player.risk <= 45 &&
+    player.roleAssessment?.role !== 'backup' &&
+    player.roleAssessment?.role !== 'competition' &&
+    !verifiedHighWarning
+  );
+}
+
 const SLOTS: Position[] = [
   'GKP', 'GKP',
   'FWD', 'FWD', 'FWD',
@@ -129,9 +148,19 @@ function completedSquadScore(
         ((starters.find((player) => player.position === 'GKP')?.appearanceProbability ?? 0.9) >= 0.85 ? 2.4 : 1.1)
       : 0;
     const plannedRotationValue = fixtureRotationValue(starters, orderedOutfield);
+    const viableBaselineCost = bench.reduce(
+      (sum, player) => sum + viablePriceFloors[player.position],
+      0,
+    );
+    const benchCost = bench.reduce((sum, player) => sum + player.price, 0);
+    const allowedPremium = mode === 'Safe' ? 0.5 : mode === 'Alternative' ? 0.3 : 0.2;
+    const unjustifiedBenchSpend = Math.max(
+      0,
+      benchCost - viableBaselineCost - allowedPremium,
+    );
     const benchSpendPenalty = Math.max(
       0,
-      outfieldPremiumPenalty + goalkeeperPremium - plannedRotationValue,
+      outfieldPremiumPenalty + goalkeeperPremium + unjustifiedBenchSpend * 7 - plannedRotationValue,
     );
     const modePreference = mode === 'Safe'
       ? players.reduce((sum, player) => sum + player.appearanceProbability, 0) * 0.04
@@ -203,13 +232,7 @@ export function optimizeSquadGlobally(
 
   const viablePriceFloors = (Object.keys(pools) as Position[]).reduce(
     (result, position) => {
-      const viable = pools[position].filter(
-        (player) =>
-          isReliableStarter(player, 55) &&
-          player.appearanceProbability >= 0.65 &&
-          player.risk <= 45 &&
-          player.roleAssessment?.role !== 'backup',
-      );
+      const viable = pools[position].filter(isViableReserve);
       result[position] = Math.min(...(viable.length ? viable : pools[position]).map((player) => player.price));
       return result;
     },

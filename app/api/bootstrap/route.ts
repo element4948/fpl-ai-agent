@@ -26,13 +26,13 @@ export async function GET(request: Request) {
 
 const getFastDashboard = unstable_cache(
   () => buildDashboardPayload(true),
-  ['fpl-dashboard-fast-v5'],
+  ['fpl-dashboard-fast-v6'],
   { revalidate: 300 },
 );
 
 const getVerifiedDashboard = unstable_cache(
   () => buildDashboardPayload(false),
-  ['fpl-dashboard-verified-v5'],
+  ['fpl-dashboard-verified-v6'],
   { revalidate: 900 },
 );
 

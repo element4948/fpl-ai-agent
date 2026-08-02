@@ -17,11 +17,21 @@ export function targetBenchSpendForMode(mode: DraftMode) {
 }
 
 function isViableBenchPlayer(player: ModelPlayer) {
+  const verifiedHighWarning = player.externalNews?.some(
+    (signal) =>
+      signal.severity === 'high' &&
+      (signal.verification === 'confirmed' || signal.verification === 'corroborated'),
+  );
   return (
-    isReliableStarter(player, 55) &&
-    player.appearanceProbability >= 0.65 &&
+    player.status === 'a' &&
+    player.dataQuality !== 'unknown' &&
+    player.starterConfidence >= 58 &&
+    player.predictedMinutes >= 50 &&
+    player.appearanceProbability >= 0.58 &&
     player.risk <= 45 &&
-    player.roleAssessment?.role !== 'backup'
+    player.roleAssessment?.role !== 'backup' &&
+    player.roleAssessment?.role !== 'competition' &&
+    !verifiedHighWarning
   );
 }
 
@@ -71,7 +81,7 @@ export function dynamicBenchBudget(
     const floor = cheapestViablePrice(player.position, allPlayers);
     return sum + (floor || player.price);
   }, 0);
-  const firstSubAllowance = mode === 'Safe' ? 0.5 : mode === 'Alternative' ? 0.4 : 0.3;
+  const firstSubAllowance = mode === 'Safe' ? 0.5 : mode === 'Alternative' ? 0.3 : 0.2;
   const rotationAllowance = fixtureRotationAllowance(bench, squad, allPlayers);
   return Number((minimumViableCost + firstSubAllowance + rotationAllowance).toFixed(1));
 }
