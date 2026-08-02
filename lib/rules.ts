@@ -159,33 +159,82 @@ function rebalanceBench(
     search(0, [], new Set<number>(), new Map(clubCounts), 0);
     if (!bestBench) return squad;
 
-    // Reinvest money released from the bench into the XI. Only same-position,
-    // reliable upgrades are considered, so formation and reserve prices stay
-    // intact while the highest marginal points gain receives the budget.
+    // Reinvest money released from the bench into the XI. Test both a direct
+    // upgrade and a paired reallocation (for example, downgrade an overpriced
+    // MID and use the saving on a DEF). The paired move avoids getting trapped
+    // by the current £0.5m bank when two coordinated changes improve total XI.
     const leanBench: ModelPlayer[] = bestBench;
     let upgradedStarters = [...starters];
-    for (let iteration = 0; iteration < 11; iteration += 1) {
+    const candidatePools = Object.fromEntries(
+        ['GKP', 'DEF', 'MID', 'FWD'].map((position) => [
+            position,
+            allPlayers
+                .filter((player) => player.position === position && isReliableStarter(player))
+                .sort((a, b) => playerScore(b, mode) - playerScore(a, mode))
+                .slice(0, 18),
+        ]),
+    ) as Record<string, ModelPlayer[]>;
+    for (let iteration = 0; iteration < 8; iteration += 1) {
         const selected = [...upgradedStarters, ...leanBench];
         const selectedIds = new Set(selected.map((player) => player.id));
-        const currentCost = selected.reduce((sum, player) => sum + player.price, 0);
-        let bestSwap: { index: number; player: ModelPlayer; gain: number } | null = null;
+        let bestMove: { replacements: Array<{ index: number; player: ModelPlayer }>; gain: number } | null = null;
+        const moveIsLegal = (replacements: Array<{ index: number; player: ModelPlayer }>) => {
+            const replacementIds = new Set(replacements.map((item) => item.player.id));
+            if (replacementIds.size !== replacements.length) return false;
+            const removedIds = new Set(replacements.map((item) => upgradedStarters[item.index].id));
+            if (replacements.some((item) => selectedIds.has(item.player.id) && !removedIds.has(item.player.id))) return false;
+            const proposed = selected.map((player) => {
+                const replacement = replacements.find((item) => upgradedStarters[item.index].id === player.id);
+                return replacement?.player || player;
+            });
+            const total = proposed.reduce((sum, player) => sum + player.price, 0);
+            if (total > maximumDraftSpend(mode) + 0.001) return false;
+            const proposedIds = new Set(proposed.map((player) => player.id));
+            if (proposedIds.size !== proposed.length) return false;
+            const proposedClubs = new Map<number, number>();
+            for (const player of proposed) {
+                const count = (proposedClubs.get(player.teamId) || 0) + 1;
+                if (count > 3) return false;
+                proposedClubs.set(player.teamId, count);
+            }
+            return true;
+        };
         for (let index = 0; index < upgradedStarters.length; index += 1) {
             const current = upgradedStarters[index];
-            for (const candidate of allPlayers) {
-                if (selectedIds.has(candidate.id) || candidate.position !== current.position || !isReliableStarter(candidate)) continue;
-                if (currentCost - current.price + candidate.price > maximumDraftSpend(mode) + 0.001) continue;
-                const remainingClubCount = selected.filter(
-                    (player) => player.id !== current.id && player.teamId === candidate.teamId,
-                ).length;
-                if (remainingClubCount >= 3) continue;
+            for (const candidate of candidatePools[current.position]) {
+                const replacements = [{ index, player: candidate }];
+                if (!moveIsLegal(replacements)) continue;
                 const gain = playerScore(candidate, mode) - playerScore(current, mode);
-                if (gain > 0.001 && (!bestSwap || gain > bestSwap.gain)) {
-                    bestSwap = { index, player: candidate, gain };
+                if (gain > 0.001 && (!bestMove || gain > bestMove.gain)) {
+                    bestMove = { replacements, gain };
                 }
             }
         }
-        if (!bestSwap) break;
-        upgradedStarters[bestSwap.index] = bestSwap.player;
+        for (let first = 0; first < upgradedStarters.length; first += 1) {
+            const firstCurrent = upgradedStarters[first];
+            for (let second = first + 1; second < upgradedStarters.length; second += 1) {
+                const secondCurrent = upgradedStarters[second];
+                for (const firstCandidate of candidatePools[firstCurrent.position]) {
+                    for (const secondCandidate of candidatePools[secondCurrent.position]) {
+                        const replacements = [
+                            { index: first, player: firstCandidate },
+                            { index: second, player: secondCandidate },
+                        ];
+                        if (!moveIsLegal(replacements)) continue;
+                        const gain =
+                            playerScore(firstCandidate, mode) + playerScore(secondCandidate, mode) -
+                            playerScore(firstCurrent, mode) - playerScore(secondCurrent, mode);
+                        if (gain > 0.001 && (!bestMove || gain > bestMove.gain)) {
+                            bestMove = { replacements, gain };
+                        }
+                    }
+                }
+            }
+        }
+        if (!bestMove) break;
+        for (const replacement of bestMove.replacements) {
+            upgradedStarters[replacement.index] = replacement.player;
+        }
     }
     return [...upgradedStarters, ...leanBench];
 }
