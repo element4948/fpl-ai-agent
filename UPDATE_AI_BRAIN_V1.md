@@ -1,5 +1,7 @@
 # AI Brain v1 — шинэчлэл
 
+> HISTORICAL CHANGE NOTE — Do not copy or replace files from this old release note. See current code and `docs/`.
+
 ## Нэмэгдсэн
 - `lib/risk.ts` — Injury, availability, minutes, rotation, news risk тооцно.
 - `lib/confidence.ts` — Player confidence оноог risk profile-той уялдуулна.

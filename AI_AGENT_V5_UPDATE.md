@@ -1,5 +1,7 @@
 # AI Agent v5
 
+> HISTORICAL CHANGE NOTE — Not current setup or architecture documentation. See `README.md` and `docs/`.
+
 ## Added
 - Fixture Engine (тоглолтын хуваарийн хөдөлгүүр)
 - Official FPL `/fixtures/` API integration

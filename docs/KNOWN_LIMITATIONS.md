@@ -1,0 +1,38 @@
+# Known limitations
+
+## Model and evidence
+
+- Pre-season starter confidence is inherently uncertain; previous-season minutes are a prior, not proof of the new manager's XI.
+- Free public sources do not provide complete standardized friendly, national-team, press-conference, depth-chart, or dressing-room data.
+- API-Football availability depends on the key's plan and current-season coverage.
+- News matching/classification can miss aliases or ambiguous names.
+- FDR is a team-level difficulty signal and does not predict player minutes.
+- Expected Points is not calibrated against a multi-season automated backtest in this repository.
+- Beam search is bounded and can miss the mathematical global optimum.
+- FPL selling price can differ from current purchase price; transfer modeling is an approximation unless the exact entry selling price is available.
+
+## Product
+
+- Single owner only; no multi-user accounts or authorization model.
+- Mini-league analysis currently uses the returned standings page and does not fetch every rival squad/history.
+- The system cannot read private pre-deadline picks from Official FPL.
+- It does not execute FPL actions.
+- Chip logic is advisory and not a full-season stochastic optimizer.
+- Cloud profile stores settings, not a complete historical database of every weekly squad/decision.
+
+## Engineering
+
+- No automated unit/integration/e2e tests.
+- No CI workflow.
+- Much of the dashboard is concentrated in `app/page.tsx`; component extraction would improve maintainability.
+- Some response shapes use `any` in UI/API glue.
+- Historical update markdown files remain for provenance and must not be used as current instructions.
+
+## Required wording
+
+Do not describe a provisional draft as guaranteed, final, or error-free. Clearly distinguish:
+
+- legal squad;
+- model recommendation;
+- evidence-verified recommendation;
+- data unavailable/unknown.

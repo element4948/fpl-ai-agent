@@ -1,5 +1,7 @@
 # AI Agent Final v5 — Start Here
 
+> HISTORICAL ONLY — This file describes an old ZIP replacement release. Do not use it for the current repository. Start with `README.md` and `AGENTS.md`.
+
 Энэ багц нь хуучин project-ийг бүтнээр нь солиход зориулсан цэвэр source code юм.
 
 ## 1. Хуучин project-оо backup хийх

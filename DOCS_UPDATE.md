@@ -1,5 +1,7 @@
 # AI Agent Documentation Center v2
 
+> HISTORICAL CHANGE NOTE — The current developer handoff documentation is under `docs/`.
+
 Нэмэгдсэн:
 - `/docs` веб гарын авлагын хуудас
 - Navbar дээр `Гарын авлага` холбоос
