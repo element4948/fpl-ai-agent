@@ -1103,6 +1103,15 @@ function SeasonRoadmapCard({ roadmap }: { roadmap: Any }) {
     );
 }
 
+function formatCountdown(ms: number, lang: 'mn' | 'en'): string {
+    if (ms <= 0) return lang === 'mn' ? 'Deadline өнгөрсөн' : 'Deadline passed';
+    const totalMinutes = Math.floor(ms / 60000);
+    const days = Math.floor(totalMinutes / (60 * 24));
+    const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+    const minutes = totalMinutes % 60;
+    return days > 0 ? `${days}d ${hours}h ${minutes}m` : `${hours}h ${minutes}m`;
+}
+
 export default function Home() {
     const [settings, setSettings] = useState<UserSettings>(defaultSettings);
     const [saved, setSaved] = useState(false);
@@ -1115,6 +1124,8 @@ export default function Home() {
     const [loading, setLoading] = useState(false);
     const [cloud, setCloud] = useState({ configured: false, authenticated: false, loading: true, error: '' });
     const [loginPassword, setLoginPassword] = useState('');
+    const [now, setNow] = useState<number | null>(null);
+    const [copied, setCopied] = useState(false);
 
     const lang = settings.lang || 'mn';
     const t = dict[lang];
@@ -1227,9 +1238,40 @@ export default function Home() {
         }
     }, [boot]);
 
+    // Live deadline countdown (ticks every 30s; minute resolution is enough).
+    useEffect(() => {
+        setNow(Date.now());
+        const timer = setInterval(() => setNow(Date.now()), 30000);
+        return () => clearInterval(timer);
+    }, []);
+
     const isPreSeason = boot?.isPreSeason ?? true;
     const statusTitle = isPreSeason ? t.preSeason : t.live;
     const deadline = boot?.nextEvent?.deadline_time ? new Date(boot.nextEvent.deadline_time).toLocaleString() : t.notPublished;
+    const deadlineMs = boot?.nextEvent?.deadline_time ? new Date(boot.nextEvent.deadline_time).getTime() : null;
+    const countdown = deadlineMs != null && now != null ? formatCountdown(deadlineMs - now, lang) : null;
+    const deadlineUrgent = deadlineMs != null && now != null && deadlineMs - now > 0 && deadlineMs - now < 6 * 3600 * 1000;
+    const dataDegraded = Boolean(boot?.dataStatus?.degraded || boot?.degraded);
+    const transferPlans: Any[] = analysis?.transferPlans || decision?.transferPlans || [];
+    const recommendedPlan: Any = transferPlans.find((plan: Any) => plan?.recommended) || null;
+
+    async function copyPicks() {
+        const lines: string[] = [];
+        if (decision?.captain) lines.push(`Captain: ${decision.captain.name}`);
+        if (decision?.viceCaptain) lines.push(`Vice: ${decision.viceCaptain.name}`);
+        if (recommendedPlan?.moves?.length) {
+            for (const move of recommendedPlan.moves) lines.push(`Transfer: ${move.out} → ${move.in}`);
+        } else if (decision?.transfer) {
+            lines.push(`Transfer: ${decision.transfer.out} → ${decision.transfer.in}`);
+        }
+        try {
+            await navigator.clipboard.writeText(lines.length ? lines.join('\n') : 'No picks yet');
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            /* clipboard unavailable */
+        }
+    }
 
     async function runDecision(activeSettings: UserSettings = settings) {
         setLoading(true);
@@ -1415,7 +1457,7 @@ export default function Home() {
                             </div>
                         </div>
                         <div className="season-facts">
-                            <div><span>{t.nextDeadline}</span><b>{deadline}</b></div>
+                            <div><span>{t.nextDeadline}</span><b className={deadlineUrgent ? 'yellow' : ''} title={deadline}>{countdown ? `⏳ ${countdown}` : deadline}</b></div>
                             <div>
                                 <span>Fixture data</span>
                                 <b className={(fixtureStatus?.fixtureReady ?? boot?.fixtureReady) ? 'good' : 'yellow'}>
@@ -1432,6 +1474,19 @@ export default function Home() {
                         {boot?.error ? <p className="bad">{boot.error}</p> : null}
                     </Card>
                 </section>
+
+                {dataDegraded ? (
+                    <div
+                        className="bad"
+                        role="alert"
+                        style={{ padding: 12, borderRadius: 8, margin: '0 0 12px', border: '1px solid #b9553d' }}
+                    >
+                        ⚠{' '}
+                        {lang === 'mn'
+                            ? 'Зарим өгөгдөл дутуу байна (fixtures эсвэл мэдээ). Санал болголтыг баталгаатай гэж бүү үз — хэсэг хугацааны дараа дахин ачаална уу.'
+                            : 'Some data is currently unavailable (fixtures or news). Treat recommendations as provisional and refresh shortly.'}
+                    </div>
+                ) : null}
 
                 <Card id="decision" title={t.thisWeekDecision} subtitle={t.decisionSub} helpHref="/docs#decision">
                     <div className="decision-status-line">
@@ -1450,8 +1505,8 @@ export default function Home() {
                         <div className="decision-glance">
                             <span>⇄</span>
                             <small>Transfer (Солилцоо)</small>
-                            <strong>{decision?.transfer ? `${decision.transfer.out} → ${decision.transfer.in}` : decision ? decisionActionLabel(decision.action, lang) : '—'}</strong>
-                            <p>{decision?.transfer ? `+${decision.transfer.expectedGain} expected gain` : 'No-hit шийдвэр'}</p>
+                            <strong>{recommendedPlan?.moves?.length ? recommendedPlan.moves.map((m: Any) => `${m.out} → ${m.in}`).join(', ') : decision?.transfer ? `${decision.transfer.out} → ${decision.transfer.in}` : decision ? decisionActionLabel(decision.action, lang) : '—'}</strong>
+                            <p>{recommendedPlan ? `${recommendedPlan.label}${recommendedPlan.netGain > 0 ? ` · +${recommendedPlan.netGain} net` : ''}` : decision?.transfer ? `+${decision.transfer.expectedGain} expected gain` : 'No-hit шийдвэр'}</p>
                         </div>
                         <div className="decision-glance">
                             <span>◆</span>
@@ -1475,6 +1530,12 @@ export default function Home() {
                         <button className="btn" disabled={loading} onClick={() => runDecision()}>
                             {loading ? t.loading : t.runDecision}
                         </button>
+                        <button className="btn" type="button" onClick={copyPicks} disabled={!decision}>
+                            {copied ? (lang === 'mn' ? 'Хууллаа ✓' : 'Copied ✓') : lang === 'mn' ? 'Copy picks' : 'Copy picks'}
+                        </button>
+                        <a className="btn" href="https://fantasy.premierleague.com/my-team" target="_blank" rel="noreferrer">
+                            {lang === 'mn' ? 'FPL нээх' : 'Open FPL'}
+                        </a>
                         <details className="decision-details">
                             <summary>Дэлгэрэнгүй үндэслэл харах</summary>
                             {decision?.actionPlan ? <WeeklyActionPlan plan={decision.actionPlan} lang={lang} /> : null}
