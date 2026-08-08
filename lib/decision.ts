@@ -5,7 +5,7 @@ import { calculateConfidence } from './confidence';
 import { explainPlayer } from './explain';
 import { calculateRisk } from './risk';
 import { rankCaptainCandidates } from './scoring';
-import { suggestSafeTransfers } from './transfers';
+import { buildTransferPlans, suggestSafeTransfers } from './transfers';
 import { buildSeasonRoadmap } from './season-roadmap';
 import { buildDraft } from './rules';
 
@@ -75,6 +75,9 @@ export function buildDecision(input: DecisionInput) {
     ? suggestSafeTransfers(enrichedSquad, enrichedAll, input.bank || 0, input.freeTransfers ?? 1)
     : [];
   const transfer = transfers[0] || null;
+  const transferPlans = enrichedSquad?.length
+    ? buildTransferPlans(enrichedSquad, enrichedAll, input.bank || 0, input.freeTransfers ?? 1)
+    : [];
   const strategy = chooseStrategy(riskProfile, goal, input.leagueGap || 0, !!input.isPreSeason);
   const action = input.isPreSeason ? 'buildDraft' : transfer ? 'makeTransfer' : 'holdTransfer';
   const actionPlan = buildWeeklyActionPlan({
@@ -109,6 +112,7 @@ export function buildDecision(input: DecisionInput) {
     captainShortlist: captainShortlist.map(p => enrichedMap.get(p.id) || p),
     transfer,
     transferSuggestions: transfers,
+    transferPlans,
     chips,
     roadmap,
     topDecisionPlayers: candidates.slice(0, 12),

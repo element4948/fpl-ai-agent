@@ -3,8 +3,33 @@ import { normalizeTeamStrength } from '@/lib/fpl';
 import { headlineMentionsName } from '@/lib/external-news';
 import { validateSquad } from '@/lib/rules';
 import { captainScore } from '@/lib/scoring';
-import { suggestSafeTransfers } from '@/lib/transfers';
+import { suggestSafeTransfers, buildTransferPlans } from '@/lib/transfers';
 import { makePlayer, makeLegalSquad } from './helpers';
+
+function strongMid(id: number): ReturnType<typeof makePlayer> {
+  return makePlayer({
+    id,
+    position: 'MID',
+    positionId: 3,
+    team: 'ZZZ',
+    teamId: 60,
+    price: 6,
+    risk: 10,
+    expectedPoints: 8,
+    starterConfidence: 90,
+    predictedMinutes: 88,
+    projection: {
+      next1: 8,
+      next3: 24,
+      next5: 40,
+      next8: 64,
+      games: 8,
+      gameweeks: 8,
+      byEvent: [1, 2, 3, 4, 5].map((event) => ({ event, points: 8 })),
+    },
+    evidence: { coverageScore: 90, trustLevel: 'high', availableMetrics: [], missingMetrics: [], sources: [] },
+  });
+}
 
 describe('normalizeTeamStrength (scale-bug regression)', () => {
   it('maps the ~1000-1400 FPL scale into 1-5', () => {
@@ -93,5 +118,31 @@ describe('suggestSafeTransfers respects estimated selling price', () => {
     });
     const suggestions = suggestSafeTransfers(squad, [target], 0, 1);
     expect(suggestions.some((s) => s.inPlayer.id === 999)).toBe(false);
+  });
+});
+
+describe('buildTransferPlans (multi-transfer + hit)', () => {
+  function weakSquad() {
+    const squad = makeLegalSquad();
+    const weak = squad.find((p) => p.position === 'MID')!;
+    weak.expectedPoints = 1;
+    weak.projection = { ...weak.projection, next1: 1, next3: 3, next5: 5, next8: 8, byEvent: weak.projection.byEvent.map((e) => ({ ...e, points: 1 })) };
+    return squad;
+  }
+
+  it('always includes a hold option and recommends a clear single upgrade', () => {
+    const plans = buildTransferPlans(weakSquad(), [strongMid(900)], 2, 1);
+    expect(plans.some((p) => p.transfersUsed === 0)).toBe(true);
+    const single = plans.find((p) => p.transfersUsed === 1);
+    expect(single).toBeDefined();
+    expect(single!.moves[0].inId).toBe(900);
+    expect(plans.find((p) => p.recommended)!.transfersUsed).toBe(1);
+  });
+
+  it('charges a -4 hit when no free transfer is available', () => {
+    const plans = buildTransferPlans(weakSquad(), [strongMid(900)], 2, 0);
+    const single = plans.find((p) => p.transfersUsed === 1)!;
+    expect(single.hitCost).toBe(4);
+    expect(single.netGain).toBeCloseTo(single.grossGain - 4, 5);
   });
 });

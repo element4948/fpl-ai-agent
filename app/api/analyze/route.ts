@@ -6,7 +6,7 @@ import { chipPlanner } from '@/lib/chips';
 import { selectBestLineup } from '@/lib/lineup';
 import { validateSquad } from '@/lib/rules';
 import { rankCaptainCandidates } from '@/lib/scoring';
-import { suggestSafeTransfers } from '@/lib/transfers';
+import { buildTransferPlans, suggestSafeTransfers } from '@/lib/transfers';
 import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external-news';
 import { buildSeasonRoadmap } from '@/lib/season-roadmap';
 import { buildDraftTrust } from '@/lib/evidence';
@@ -166,6 +166,7 @@ export async function POST(req: Request) {
     const captains = rankCaptainCandidates(lineup.startingXI.length ? lineup.startingXI : squad, 6);
 
     const transfers = suggestSafeTransfers(squad, allPlayers, bank, freeTransfers);
+    const transferPlans = buildTransferPlans(squad, allPlayers, bank, freeTransfers);
     const roadmap = buildSeasonRoadmap(squad, allPlayers);
     const trust = buildDraftTrust(squad, lineup.startingXI);
 
@@ -216,6 +217,7 @@ export async function POST(req: Request) {
         captainShortlist: captains,
 
         transferSuggestions: transfers,
+        transferPlans,
 
         chips: chipPlanner({
             hasEntry: true,
