@@ -242,6 +242,7 @@ export type ModelReadiness = {
 export type RoadmapWeek = {
   eventId: number;
   projectedPoints: number;
+  benchProjectedPoints: number;
   formation: Formation;
   captain: { id: number; name: string; projectedPoints: number } | null;
   captainAlternatives: Array<{

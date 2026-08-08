@@ -1103,6 +1103,28 @@ function SeasonRoadmapCard({ roadmap }: { roadmap: Any }) {
     );
 }
 
+function pickTrust(player: Any, degraded: boolean, lang: 'mn' | 'en'): { text: string; cls: string } | null {
+    if (!player) return null;
+    if (degraded) return { text: lang === 'mn' ? 'Баталгаажаагүй' : 'Unverified', cls: 'yellow' };
+    const dq = player.dataQuality;
+    const newsChecked = Boolean(player.newsCheckedAt);
+    if (dq === 'good' && newsChecked) return { text: lang === 'mn' ? 'Баталгаатай' : 'Verified', cls: 'good' };
+    if (dq === 'unknown') return { text: lang === 'mn' ? 'Өгөгдөл дутуу' : 'Data limited', cls: 'yellow' };
+    return { text: lang === 'mn' ? 'Урьдчилсан' : 'Provisional', cls: 'yellow' };
+}
+
+function TrustChip({ trust }: { trust: { text: string; cls: string } | null }) {
+    if (!trust) return null;
+    return (
+        <span
+            className={trust.cls}
+            style={{ fontSize: 11, fontWeight: 600, opacity: 0.9, display: 'inline-block', marginTop: 4 }}
+        >
+            ● {trust.text}
+        </span>
+    );
+}
+
 function formatCountdown(ms: number, lang: 'mn' | 'en'): string {
     if (ms <= 0) return lang === 'mn' ? 'Deadline өнгөрсөн' : 'Deadline passed';
     const totalMinutes = Math.floor(ms / 60000);
@@ -1254,6 +1276,9 @@ export default function Home() {
     const dataDegraded = Boolean(boot?.dataStatus?.degraded || boot?.degraded);
     const transferPlans: Any[] = analysis?.transferPlans || decision?.transferPlans || [];
     const recommendedPlan: Any = transferPlans.find((plan: Any) => plan?.recommended) || null;
+    const captainTrust = pickTrust(decision?.captain, dataDegraded, lang);
+    const viceTrust = pickTrust(decision?.viceCaptain, dataDegraded, lang);
+    const transferInTrust = pickTrust(decision?.transfer?.inPlayer, dataDegraded, lang);
 
     async function copyPicks() {
         const lines: string[] = [];
@@ -1501,12 +1526,14 @@ export default function Home() {
                             <small>Captain (Ахлагч)</small>
                             <strong>{decision?.captain?.name || '—'}</strong>
                             <p>{decision?.captain ? `${decision.captain.expectedPoints.toFixed(1)} expected ↑ · ${decision.captain.starterConfidence}% starter` : 'Мэдээлэл хүлээж байна'}</p>
+                            <TrustChip trust={captainTrust} />
                         </div>
                         <div className="decision-glance">
                             <span>⇄</span>
                             <small>Transfer (Солилцоо)</small>
                             <strong>{recommendedPlan?.moves?.length ? recommendedPlan.moves.map((m: Any) => `${m.out} → ${m.in}`).join(', ') : decision?.transfer ? `${decision.transfer.out} → ${decision.transfer.in}` : decision ? decisionActionLabel(decision.action, lang) : '—'}</strong>
                             <p>{recommendedPlan ? `${recommendedPlan.label}${recommendedPlan.netGain > 0 ? ` · +${recommendedPlan.netGain} net` : ''}` : decision?.transfer ? `+${decision.transfer.expectedGain} expected gain` : 'No-hit шийдвэр'}</p>
+                            <TrustChip trust={transferInTrust} />
                         </div>
                         <div className="decision-glance">
                             <span>◆</span>
@@ -1519,6 +1546,7 @@ export default function Home() {
                             <small>Vice Captain (Дэд ахлагч)</small>
                             <strong>{decision?.viceCaptain?.name || '—'}</strong>
                             <p>Captain тоглохгүй үед орлоно</p>
+                            <TrustChip trust={viceTrust} />
                         </div>
                     </div>
 

@@ -57,6 +57,10 @@ export function buildSeasonRoadmap(
     const projectedPoints = Number(
       lineup.startingXI.reduce((sum, player) => sum + player.expectedPoints, 0).toFixed(1),
     );
+    // Bench points this event drive Bench Boost expected value.
+    const benchProjectedPoints = Number(
+      lineup.bench.reduce((sum, player) => sum + player.expectedPoints, 0).toFixed(1),
+    );
     const captainCandidates = [...lineup.startingXI]
       .filter((player) => player.position !== 'GKP')
       .sort((a, b) => captainRoadmapScore(b) - captainRoadmapScore(a));
@@ -105,6 +109,7 @@ export function buildSeasonRoadmap(
     return {
       eventId,
       projectedPoints,
+      benchProjectedPoints,
       formation: lineup.formation,
       captain: captainPlayer
         ? { id: captainPlayer.id, name: captainPlayer.name, projectedPoints: captainPlayer.expectedPoints }
