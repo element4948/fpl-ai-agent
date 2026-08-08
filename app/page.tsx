@@ -1,6 +1,7 @@
 'use client';
 
 import { Card } from '@/components/Card';
+import { DataQualityBadge, FixtureTrendBadge } from '@/components/PlayerBadges';
 import { Metric } from '@/components/Metric';
 import { Navbar } from '@/components/Navbar';
 import { TermTip } from '@/components/TermTip';
@@ -222,35 +223,6 @@ function PlayerDetailModal() {
             </section>
         </div>
     );
-}
-
-function DataQualityBadge({ quality }: { quality: ModelPlayer['dataQuality'] }) {
-    const label = quality === 'good' ? 'Good data' : quality === 'limited' ? 'Limited data' : 'Unknown data';
-    return (
-        <span
-            className={`data-quality data-quality-${quality}`}
-            title={
-                quality === 'good'
-                    ? 'Бодит минут, гарааны мэдээлэл хангалттай.'
-                    : quality === 'limited'
-                      ? 'Өгөгдөл хязгаарлагдмал тул нэмэлт мэдээ шалгана.'
-                      : 'Найдвартай минутын өгөгдөл байхгүй. Шууд сонгохоос болгоомжилно.'
-            }
-        >
-            {label}
-        </span>
-    );
-}
-
-function FixtureTrendBadge({ fixture }: { fixture?: ModelPlayer['fixture'] }) {
-    if (!fixture || fixture.trend === 'unknown') return null;
-    const label =
-        fixture.trend === 'improving'
-            ? '↗ Хуваарь хялбаршиж байна'
-            : fixture.trend === 'hardening'
-              ? '↘ Хуваарь хүндэрч байна'
-              : '→ Хуваарь тогтвортой';
-    return <span className={`fixture-trend fixture-trend-${fixture.trend}`}>{label}</span>;
 }
 
 function PlayerRow({ p, index, lang }: { p: ModelPlayer; index?: number; lang: 'mn' | 'en' }) {
