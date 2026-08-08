@@ -27,6 +27,13 @@ import {
 } from '@/lib/calibration';
 import type { CalibrationResult, ModelPlayer, ModelReadiness, UserSettings } from '@/types/fpl';
 import { positionMetricChecks, positionSelectionReasons } from '@/lib/position-model';
+import {
+    clearDecisionCache,
+    readDashboardCache,
+    readDecisionCache,
+    writeDashboardCache,
+    writeDecisionCache,
+} from '@/lib/dashboard-cache';
 import { useEffect, useState } from 'react';
 
 type Any = any;
@@ -56,64 +63,7 @@ function MoreSection({
     );
 }
 
-const DASHBOARD_CACHE_KEY = 'fpl-ai-dashboard-cache-v6';
-const DASHBOARD_CACHE_MAX_AGE = 6 * 60 * 60 * 1000;
-const DECISION_CACHE_KEY = 'fpl-ai-decision-cache-v1';
-const DECISION_CACHE_MAX_AGE = 30 * 60 * 1000;
-
-function readDashboardCache() {
-    if (typeof window === 'undefined') return null;
-    try {
-        const cached = JSON.parse(localStorage.getItem(DASHBOARD_CACHE_KEY) || 'null');
-        if (!cached?.savedAt || !cached?.data) return null;
-        return Date.now() - cached.savedAt <= DASHBOARD_CACHE_MAX_AGE ? cached.data : null;
-    } catch {
-        return null;
-    }
-}
-
-function writeDashboardCache(data: Any) {
-    if (typeof window === 'undefined' || !data?.drafts?.length || data.verificationPending) return;
-    try {
-        localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data }));
-    } catch {
-        // Storage may be unavailable or full. Network loading remains usable.
-    }
-}
-
-function decisionSettingsKey(settings: UserSettings) {
-    return JSON.stringify({
-        entryId: settings.entryId || '',
-        riskProfile: settings.riskProfile,
-        goal: settings.goal,
-        freeTransfers: settings.freeTransfers ?? 1,
-        plannedSquadIds: settings.plannedSquadIds || [],
-    });
-}
-
-function readDecisionCache(settings: UserSettings) {
-    if (typeof window === 'undefined') return null;
-    try {
-        const cached = JSON.parse(localStorage.getItem(DECISION_CACHE_KEY) || 'null');
-        if (!cached?.savedAt || cached?.settingsKey !== decisionSettingsKey(settings)) return null;
-        return Date.now() - cached.savedAt <= DECISION_CACHE_MAX_AGE ? cached.data : null;
-    } catch {
-        return null;
-    }
-}
-
-function writeDecisionCache(settings: UserSettings, data: Any) {
-    if (typeof window === 'undefined' || !data) return;
-    try {
-        localStorage.setItem(DECISION_CACHE_KEY, JSON.stringify({
-            savedAt: Date.now(),
-            settingsKey: decisionSettingsKey(settings),
-            data,
-        }));
-    } catch {
-        // A cache failure must not block live analysis.
-    }
-}
+// Dashboard/decision client caches moved to lib/dashboard-cache.ts.
 
 function openPlayerDetail(playerId: number) {
     window.dispatchEvent(new CustomEvent('open-player-detail', { detail: playerId }));
@@ -1403,7 +1353,7 @@ export default function Home() {
         if (!window.confirm('Cloud болон энэ browser дээрх хувийн тохиргоог бүрэн reset хийх үү?')) return;
         if (cloud.authenticated) await fetch('/api/profile', { method: 'DELETE' });
         localStorage.removeItem('fpl-ai-settings');
-        localStorage.removeItem(DECISION_CACHE_KEY);
+        clearDecisionCache();
         setSettings(defaultSettings);
         setDecision(null);
         setSaved(false);
