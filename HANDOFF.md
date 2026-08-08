@@ -17,7 +17,7 @@
 ## Current state
 
 - Branch: `main`
-- Last commit: `dec90e1` (stage 4: trust chips + EV chip planner).
+- Last commit: `36815a5` (refactor: cache logic to lib/dashboard-cache.ts).
 - Build/typecheck: `npm run build` and `npm run lint` (now full `strict`) pass.
 - Tests: `npm run test` (vitest) — 12 passing. NOTE: run `npm install` first to
   pull the newly added `vitest` devDependency.
@@ -48,8 +48,11 @@ Stages 3-4 NOT started (next work):
   DONE (`dec90e1`): per-pick trust chips; EV chip planner. Mobile: globals.css
   already has responsive rules (decision grid, target table, pitch, overflow-x) —
   no fix needed.
-  TODO (larger, optional): de-duplicate decision vs lower detail cards; split the
-  ~2000-line `app/page.tsx` into components.
+  IN PROGRESS: page.tsx split — cache/persistence extracted to lib/dashboard-cache.ts
+  (`36815a5`). NEXT: extract leaf UI components (MoreSection, TrustChip, PlayerRow,
+  DraftCard, PlayerDetailModal, RiskMonitor, SeasonRoadmapCard) into components/;
+  note many use the in-file `dict` — move shared labels together or import them.
+  Optional: de-duplicate decision vs lower detail cards.
 
 ## Next steps / open priorities
 
@@ -62,6 +65,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-08 — Refactor: extracted dashboard/decision caches to lib/dashboard-cache.ts (`36815a5`), first step of page.tsx split.
 - 2026-08-08 — Stage 4: per-pick trust chips + EV-based chip planner; verified mobile CSS is already responsive (`dec90e1`).
 - 2026-08-08 — Stage 4 (part 1): deadline countdown, copy picks, FPL link, degraded banner, transferPlans surfaced (`d2a3680`).
 - 2026-08-08 — Stage 3: offline backtest harness `scripts/backtest.mjs` (`9985933`).
