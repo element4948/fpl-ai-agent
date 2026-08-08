@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Added complete AI/developer handoff documentation.
+- Added multi-agent coordination protocol (HANDOFF.md + AGENTS.md section) for safe Codex/Claude handoffs.
 - Documented architecture, sources, optimizer invariants, operations, testing, and limitations.
 - Marked legacy ZIP/replace notes as historical.
 
