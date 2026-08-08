@@ -17,7 +17,7 @@
 ## Current state
 
 - Branch: `main`
-- Last commit: `dcea0da` (stage 2 reliability + deploy).
+- Last commit: `d43c0f0` (stage 3 part 1: multi-transfer + hit-aware plans).
 - Build/typecheck: `npm run build` and `npm run lint` (now full `strict`) pass.
 - Tests: `npm run test` (vitest) — 12 passing. NOTE: run `npm install` first to
   pull the newly added `vitest` devDependency.
@@ -35,7 +35,8 @@ Improvement plan has 4 stages (see GAP_ANALYSIS). Stages 1-2 DONE and committed:
 
 Stages 3-4 NOT started (next work):
 
-- Stage 3 (model quality): wire `lib/player-history.ts` into a real minutes
+- Stage 3 (model quality) — DONE: multi-transfer/hit plans (`d43c0f0`, exposed as `transferPlans`).
+  TODO: wire `lib/player-history.ts` into a real minutes
   model; opponent/venue-adjusted xGI + `expectedGoalsConceded` clean sheets;
   offline backtest + bias correction; multi-transfer/hit plans; rolling
   transfer roadmap; chip EV.
@@ -54,6 +55,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-08 — Stage 3 (part 1): multi-transfer + hit-aware transfer plans (`d43c0f0`).
 - 2026-08-08 — Stage 2: strict TS + tests + CI + deploy config + news matching (`dcea0da`).
 - 2026-08-08 — Stage 1: correctness fixes (`7689d3d`).
 - 2026-08-08 — Added multi-agent coordination protocol (`431aa5e`).
