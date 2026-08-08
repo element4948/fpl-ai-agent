@@ -17,7 +17,7 @@
 ## Current state
 
 - Branch: `main`
-- Last commit: `d2a3680` (stage 4 part 1: UX time-savers).
+- Last commit: `dec90e1` (stage 4: trust chips + EV chip planner).
 - Build/typecheck: `npm run build` and `npm run lint` (now full `strict`) pass.
 - Tests: `npm run test` (vitest) — 12 passing. NOTE: run `npm install` first to
   pull the newly added `vitest` devDependency.
@@ -45,8 +45,11 @@ Stages 3-4 NOT started (next work):
   transfer roadmap; chip EV.
 - Stage 4 (UX) — DONE (part 1, `d2a3680`): deadline countdown, copy-picks + FPL
   link, degraded-data banner, transferPlans surfaced in the decision card.
-  TODO: de-duplicate decision vs detail cards + per-pick trust chips; verify/repair
-  mobile; split the ~2000-line `app/page.tsx` into components.
+  DONE (`dec90e1`): per-pick trust chips; EV chip planner. Mobile: globals.css
+  already has responsive rules (decision grid, target table, pitch, overflow-x) —
+  no fix needed.
+  TODO (larger, optional): de-duplicate decision vs lower detail cards; split the
+  ~2000-line `app/page.tsx` into components.
 
 ## Next steps / open priorities
 
@@ -59,6 +62,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-08 — Stage 4: per-pick trust chips + EV-based chip planner; verified mobile CSS is already responsive (`dec90e1`).
 - 2026-08-08 — Stage 4 (part 1): deadline countdown, copy picks, FPL link, degraded banner, transferPlans surfaced (`d2a3680`).
 - 2026-08-08 — Stage 3: offline backtest harness `scripts/backtest.mjs` (`9985933`).
 - 2026-08-08 — Stage 3 (part 1): multi-transfer + hit-aware transfer plans (`d43c0f0`).
