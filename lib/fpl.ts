@@ -132,7 +132,7 @@ function clamp(value: number, minimum: number, maximum: number): number {
  * term explode (and pinned the clamped mid/forward terms at their maximum).
  * Normalise both scales into a 1-5 range before use.
  */
-function normalizeTeamStrength(value: number, fallback: number): number {
+export function normalizeTeamStrength(value: number, fallback: number): number {
     if (!Number.isFinite(value) || value <= 0) return fallback;
     // Large scale (e.g. 1000-1400) -> map ~1000..1400 onto 1..5.
     if (value > 50) return clamp(1 + (value - 1000) / 100, 1, 5);

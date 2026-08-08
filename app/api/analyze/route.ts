@@ -12,6 +12,9 @@ import { buildSeasonRoadmap } from '@/lib/season-roadmap';
 import { buildDraftTrust } from '@/lib/evidence';
 import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-football';
 
+// External enrichment (API-Football + news) can exceed the default 10s timeout.
+export const maxDuration = 60;
+
 export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
 

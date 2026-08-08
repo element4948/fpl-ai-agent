@@ -1792,7 +1792,7 @@ export default function Home() {
                                 </div>
                                 {captainPick.fixture?.fixtures?.length ? (
                                     <div className="position-fixture-run captain-fixture-run">
-                                        {captainPick.fixture.fixtures.slice(0, 5).map((fixture, index) => (
+                                        {captainPick.fixture.fixtures.slice(0, 5).map((fixture: any, index: number) => (
                                             <span className={`fdr fdr-${Math.round(fixture.difficulty)}`} key={`${fixture.event}-${fixture.opponent}-${index}`}>
                                                 {fixture.opponentName} {fixture.isHome ? 'H' : 'A'} · {fixture.difficulty}
                                             </span>

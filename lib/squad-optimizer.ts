@@ -156,7 +156,8 @@ function completedSquadScore(
     const backupGoalkeeper = autoSubPlan.bench.find((player) => player.position === 'GKP');
     const premiumWeights = mode === 'Safe' ? [2.8, 5.5, 8] : [3.5, 7, 10];
     const outfieldPremiumPenalty = orderedOutfield.reduce((penalty, player, index) => {
-      const floor = index === 0 ? viablePriceFloors[player.position] : budgetPriceFloors[player.position];
+      const floorPosition = player.position as Position;
+      const floor = index === 0 ? viablePriceFloors[floorPosition] : budgetPriceFloors[floorPosition];
       const premium = Math.max(0, player.price - floor);
       return penalty + premium * (premiumWeights[index] ?? 2.15);
     }, 0);
@@ -165,7 +166,7 @@ function completedSquadScore(
         ((starters.find((player) => player.position === 'GKP')?.appearanceProbability ?? 0.9) >= 0.85 ? 10 : 4)
       : 0;
     const viableBaselineCost = orderedOutfield.reduce(
-      (sum, player) => sum + budgetPriceFloors[player.position],
+      (sum, player) => sum + budgetPriceFloors[player.position as Position],
       backupGoalkeeper ? budgetPriceFloors.GKP : 0,
     );
     const benchCost = bench.reduce((sum, player) => sum + player.price, 0);

@@ -11,6 +11,9 @@ import { buildSeasonRoadmap } from '@/lib/season-roadmap';
 import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-football';
 
 export const revalidate = 900;
+// The verified dashboard fans out to API-Football + news feeds; the default
+// serverless timeout (10s) can cut a cold request off. Allow up to 60s.
+export const maxDuration = 60;
 
 export async function GET(request: Request) {
   const fast = new URL(request.url).searchParams.get('fast') === '1';

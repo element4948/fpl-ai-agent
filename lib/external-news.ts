@@ -76,6 +76,26 @@ function sourceTier(source: string, sourceUrl: string): ExternalNewsSignal['tier
   return 'secondary';
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Whole-name match instead of raw substring. `"son".includes` matched
+ * "Johnson"/"reason" and slashed the wrong player's projection; requiring the
+ * name to sit on word boundaries (unicode-aware) removes those false positives
+ * while still matching "Bernardo Silva ruled out".
+ */
+export function headlineMentionsName(headline: string, name: string): boolean {
+  if (!headline || !name || name.trim().length < 3) return false;
+  try {
+    const re = new RegExp(`(^|[^\\p{L}])${escapeRegExp(name.trim())}([^\\p{L}]|$)`, 'iu');
+    return re.test(headline);
+  } catch {
+    return headline.toLowerCase().includes(name.trim().toLowerCase());
+  }
+}
+
 function classify(headline: string): Pick<ExternalNewsSignal, 'category' | 'severity'> {
   const text = headline.toLowerCase();
   if (/injur|ruled out|sidelined|misses|doubt/.test(text)) {
@@ -205,14 +225,13 @@ export async function getExternalNewsSignals(
   for (const { player, feed } of feedByPlayer) {
     if (feed.ok) okFeeds += 1;
     const articles = feed.articles;
-    const name = player.name.toLowerCase();
-    if (name.length < 4) continue;
+    if (player.name.trim().length < 3) continue;
     const matching = articles
       .filter((article) => {
         const published = Date.parse(article.publishedAt);
         const classification = classify(article.headline);
         return (
-          article.headline.toLowerCase().includes(name) &&
+          headlineMentionsName(article.headline, player.name) &&
           Number.isFinite(published) &&
           now - published <= maximumAge(classification.category)
         );
