@@ -17,7 +17,7 @@
 ## Current state
 
 - Branch: `main`
-- Last commit: `9985933` (stage 3: offline backtest harness).
+- Last commit: `d2a3680` (stage 4 part 1: UX time-savers).
 - Build/typecheck: `npm run build` and `npm run lint` (now full `strict`) pass.
 - Tests: `npm run test` (vitest) — 12 passing. NOTE: run `npm install` first to
   pull the newly added `vitest` devDependency.
@@ -43,9 +43,10 @@ Stages 3-4 NOT started (next work):
   model; opponent/venue-adjusted xGI + `expectedGoalsConceded` clean sheets;
   offline backtest + bias correction; multi-transfer/hit plans; rolling
   transfer roadmap; chip EV.
-- Stage 4 (UX): copy-picks / FPL deep-link; live deadline countdown;
-  de-duplicate the decision cards + per-pick trust chips; verify/repair mobile;
-  split the ~2000-line `app/page.tsx` into components.
+- Stage 4 (UX) — DONE (part 1, `d2a3680`): deadline countdown, copy-picks + FPL
+  link, degraded-data banner, transferPlans surfaced in the decision card.
+  TODO: de-duplicate decision vs detail cards + per-pick trust chips; verify/repair
+  mobile; split the ~2000-line `app/page.tsx` into components.
 
 ## Next steps / open priorities
 
@@ -58,6 +59,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-08 — Stage 4 (part 1): deadline countdown, copy picks, FPL link, degraded banner, transferPlans surfaced (`d2a3680`).
 - 2026-08-08 — Stage 3: offline backtest harness `scripts/backtest.mjs` (`9985933`).
 - 2026-08-08 — Stage 3 (part 1): multi-transfer + hit-aware transfer plans (`d43c0f0`).
 - 2026-08-08 — Stage 2: strict TS + tests + CI + deploy config + news matching (`dcea0da`).
