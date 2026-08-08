@@ -128,6 +128,11 @@ export async function POST(req: Request) {
 
     const playerMap = new Map(allPlayers.map((player) => [player.id, player]));
 
+    // Estimate per-player selling price from total team value (see decision route).
+    const marketSum = picks.picks.reduce((sum, pick) => sum + (playerMap.get(pick.element)?.price || 0), 0);
+    const teamValue = Number((picks.entry_history?.value || 0) / 10);
+    const sellRatio = marketSum > 0 && teamValue > 0 ? Math.min(1, teamValue / marketSum) : 1;
+
     const squad = picks.picks
         .map((pick) => {
             const player = playerMap.get(pick.element);
@@ -138,6 +143,7 @@ export async function POST(req: Request) {
 
             return {
                 ...player,
+                sellingPrice: Number((player.price * sellRatio).toFixed(1)),
                 pick,
             };
         })

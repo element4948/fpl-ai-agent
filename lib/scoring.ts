@@ -53,7 +53,8 @@ function targetScore(player: ModelPlayer) {
   return (
     player.expectedPoints * 1.15 +
     horizon * 1.2 +
-    player.valueScore * 0.55 +
+    player.valueScore * 0.55 -
+    // Risk must be penalised, not rewarded (matches captainScore/transferGain).
     player.risk * 0.018
   );
 }

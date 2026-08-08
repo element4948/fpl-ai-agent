@@ -9,11 +9,14 @@ export function suggestSafeTransfers(squad: ModelPlayer[], all: ModelPlayer[], b
   const currentSquadCost = squad.reduce((sum, player) => sum + player.price, 0);
   const suggestions: any[] = [];
   for (const out of squad) {
+    // Use the estimated selling price (<= market price when the player rose),
+    // not the market price, so we never suggest an unaffordable transfer.
+    const sellOut = out.sellingPrice ?? out.price;
     const urgentExit = out.risk >= 55 || !isReliableStarter(out, 50);
     const candidates = all
       .filter(p => !squadIds.has(p.id))
       .filter(p => p.positionId === out.positionId)
-      .filter(p => p.price <= out.price + bank)
+      .filter(p => p.price <= sellOut + bank)
       .filter(p => p.risk <= 40 && isReliableStarter(p))
       .filter(p => (p.evidence?.coverageScore || 0) >= 52)
       .filter(p => {
@@ -24,7 +27,9 @@ export function suggestSafeTransfers(squad: ModelPlayer[], all: ModelPlayer[], b
       .slice(0, 8);
     for (const inn of candidates) {
       const nextSquad = squad.map(p => p.id === out.id ? inn : p);
-      const validation = validateSquad(nextSquad, currentSquadCost + bank);
+      // Budget after the swap: current market value, minus the outgoing player's
+      // market price, plus what we actually get for selling him, plus the bank.
+      const validation = validateSquad(nextSquad, currentSquadCost - out.price + sellOut + bank);
       const gain = transferGain(inn, out);
       const minimumGain = urgentExit ? 0.4 : usableFreeTransfers >= 5 ? 0.8 : 1.5;
       if (validation.valid && gain > minimumGain) {
@@ -34,7 +39,7 @@ export function suggestSafeTransfers(squad: ModelPlayer[], all: ModelPlayer[], b
           outPlayer: out,
           inPlayer: inn,
           expectedGain: Number(gain.toFixed(2)),
-          costChange: Number((inn.price - out.price).toFixed(1)),
+          costChange: Number((inn.price - sellOut).toFixed(1)),
           hitCost: 0,
           freeTransfersUsed: 1,
           freeTransfersRemaining: usableFreeTransfers - 1,
@@ -96,6 +101,6 @@ function buildReasons(out: ModelPlayer, inn: ModelPlayer) {
   if (inn.projection.next5 > out.projection.next5) r.push('Stronger five-Gameweek transfer path');
   const durability = transferDurability(inn, out);
   if (durability.favourableWeeks >= 2) r.push('Upgrade holds across multiple Gameweeks');
-  r.push('Confirm the FPL selling price before finalising');
+  r.push('Selling price estimated from team value; confirm the exact figure in FPL');
   return r.length ? r : ['Model prefers incoming player'];
 }

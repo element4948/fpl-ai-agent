@@ -7,6 +7,17 @@ export type ExternalNewsScan = {
   signals: Map<number, ExternalNewsSignal[]>;
   checkedIds: Set<number>;
   checkedAt: string;
+  // False when the news feed itself failed (timeouts / rate limiting), so a
+  // failed scan is not mistaken for "scanned, everyone is fit".
+  ok: boolean;
+};
+
+type FeedArticle = {
+  headline: string;
+  url: string;
+  publishedAt: string;
+  source: string;
+  sourceUrl: string;
 };
 
 function decodeXml(value: string) {
@@ -131,7 +142,7 @@ function verifySignals(
   });
 }
 
-async function fetchFeed(query: string) {
+async function fetchFeed(query: string): Promise<{ ok: boolean; articles: FeedArticle[] }> {
   try {
     const response = await fetch(
       `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-GB&gl=GB&ceid=GB:en`,
@@ -140,9 +151,9 @@ async function fetchFeed(query: string) {
         signal: AbortSignal.timeout(3500),
       },
     );
-    if (!response.ok) return [];
+    if (!response.ok) return { ok: false, articles: [] };
     const xml = await response.text();
-    return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].map((match) => {
+    const articles = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].map((match) => {
       const item = match[1];
       const source = sourceValue(item);
       return {
@@ -153,8 +164,9 @@ async function fetchFeed(query: string) {
         sourceUrl: source.url,
       };
     });
+    return { ok: true, articles };
   } catch {
-    return [];
+    return { ok: false, articles: [] };
   }
 }
 
@@ -178,18 +190,21 @@ export async function getExternalNewsSignals(
   const candidates = [...players.filter((player) => preferred.has(player.id)), ...baseline]
     .filter((player, index, list) => list.findIndex((item) => item.id === player.id) === index)
     .slice(0, MAX_VERIFICATION_CANDIDATES);
-  const articlesByPlayer = await Promise.all(
+  const feedByPlayer = await Promise.all(
     candidates.map(async (player) => ({
       player,
-      articles: await fetchFeed(
+      feed: await fetchFeed(
         `"${player.name}" "${player.team}" (injury OR transfer OR "team news" OR rotation OR "set to leave" OR friendly OR preseason OR "international duty" OR fatigue)`,
       ),
     })),
   );
   const now = Date.now();
   const result = new Map<number, ExternalNewsSignal[]>();
+  let okFeeds = 0;
 
-  for (const { player, articles } of articlesByPlayer) {
+  for (const { player, feed } of feedByPlayer) {
+    if (feed.ok) okFeeds += 1;
+    const articles = feed.articles;
     const name = player.name.toLowerCase();
     if (name.length < 4) continue;
     const matching = articles
@@ -220,10 +235,13 @@ export async function getExternalNewsSignals(
     if (verified.length) result.set(player.id, verified);
   }
 
+  const ok = candidates.length === 0 ? true : okFeeds / candidates.length >= 0.5;
   return {
     signals: result,
-    checkedIds: new Set(candidates.map((player) => player.id)),
+    // A failed scan must not be counted as "news verified" downstream.
+    checkedIds: ok ? new Set(candidates.map((player) => player.id)) : new Set<number>(),
     checkedAt: new Date().toISOString(),
+    ok,
   };
 }
 

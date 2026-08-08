@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { currentEvent, getBootstrap, getEntry, getEntryPicks, getFixtures, nextEvent, toModelPlayers } from '@/lib/fpl';
 import { buildDecision } from '@/lib/decision';
-import type { Goal, RiskProfile } from '@/types/fpl';
+import type { Goal, ModelPlayer, RiskProfile } from '@/types/fpl';
 import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external-news';
 import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-football';
 
@@ -69,7 +69,19 @@ export async function POST(req: Request) {
   }
 
   const map = new Map(allPlayers.map(p => [p.id, p]));
-  const squad = picks.picks.map((pick: any) => map.get(pick.element)).filter(Boolean);
+  // Estimate per-player selling price from the team's total selling value
+  // (entry_history.value). The public API does not expose per-player selling
+  // price; scaling market price by value/marketSum corrects the systematic
+  // over-statement of funds when players have risen in price.
+  const marketSum = picks.picks.reduce((sum: number, pick: any) => sum + (map.get(pick.element)?.price || 0), 0);
+  const teamValue = Number((picks.entry_history?.value || 0) / 10);
+  const sellRatio = marketSum > 0 && teamValue > 0 ? Math.min(1, teamValue / marketSum) : 1;
+  const squad = picks.picks
+    .map((pick: any) => {
+      const player = map.get(pick.element);
+      return player ? { ...player, sellingPrice: Number((player.price * sellRatio).toFixed(1)) } : undefined;
+    })
+    .filter(Boolean) as ModelPlayer[];
   const bank = Number((picks.entry_history?.bank || 0) / 10);
 
   return NextResponse.json({

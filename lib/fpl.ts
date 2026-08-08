@@ -11,6 +11,14 @@ const FPL_BASE = 'https://fantasy.premierleague.com/api';
 async function safeFetch<T>(url: string): Promise<T | null> {
     try {
         const response = await fetch(url, {
+            headers: {
+                // FPL's API returns 403 for datacenter IPs / requests without a
+                // browser-like User-Agent (common on serverless hosts). Send one
+                // so production deployments can reach the API.
+                'User-Agent':
+                    'Mozilla/5.0 (compatible; fpl-ai-agent/1.0; +https://github.com/element4948/fpl-ai-agent)',
+                Accept: 'application/json',
+            },
             next: {
                 revalidate: 900,
             },
@@ -115,6 +123,22 @@ export function currentEvent(events?: FplEvent[]) {
 
 function clamp(value: number, minimum: number, maximum: number): number {
     return Math.max(minimum, Math.min(maximum, value));
+}
+
+/**
+ * Official FPL `strength_overall_*` / `strength_defence_*` fields are on a
+ * ~1000-1400 scale, while `team.strength` is 1-5. The projection formulas were
+ * written for a 1-5 input, so a raw 1000-scale value made every defender/keeper
+ * term explode (and pinned the clamped mid/forward terms at their maximum).
+ * Normalise both scales into a 1-5 range before use.
+ */
+function normalizeTeamStrength(value: number, fallback: number): number {
+    if (!Number.isFinite(value) || value <= 0) return fallback;
+    // Large scale (e.g. 1000-1400) -> map ~1000..1400 onto 1..5.
+    if (value > 50) return clamp(1 + (value - 1000) / 100, 1, 5);
+    // Already on the 1-5 scale.
+    if (value >= 1 && value <= 5) return value;
+    return fallback;
 }
 
 function getFixtureProjection(fixtureScore: number, nextDifficulty: number, averageDifficulty: number, isHome: boolean | null): number {
@@ -225,12 +249,12 @@ export function toModelPlayers(
 
         const teamStrength = Number(team?.strength || 3);
         const teamDefensiveStrength =
-            (Number(team?.strength_defence_home || teamStrength) +
-                Number(team?.strength_defence_away || teamStrength)) /
+            (normalizeTeamStrength(Number(team?.strength_defence_home), teamStrength) +
+                normalizeTeamStrength(Number(team?.strength_defence_away), teamStrength)) /
             2;
         const teamOverallStrength =
-            (Number(team?.strength_overall_home || teamStrength) +
-                Number(team?.strength_overall_away || teamStrength)) /
+            (normalizeTeamStrength(Number(team?.strength_overall_home), teamStrength) +
+                normalizeTeamStrength(Number(team?.strength_overall_away), teamStrength)) /
             2;
 
         const hasSeasonData = minutes > 0 || player.total_points > 0 || form > 0;

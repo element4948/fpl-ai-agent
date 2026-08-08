@@ -54,7 +54,11 @@ export function buildDecision(input: DecisionInput) {
   const goal = input.goal || 'both';
   const enrichedAll = input.allPlayers.map(p => enrichPlayer(p, riskProfile));
   const enrichedMap = new Map(enrichedAll.map(p => [p.id, p]));
-  const enrichedSquad = input.squad?.map(p => enrichedMap.get(p.id) || enrichPlayer(p, riskProfile));
+  const enrichedSquad = input.squad?.map(p => {
+    const base = enrichedMap.get(p.id) || enrichPlayer(p, riskProfile);
+    // Preserve the per-squad selling price (the all-players copy does not have it).
+    return p.sellingPrice != null ? { ...base, sellingPrice: p.sellingPrice } : base;
+  });
   const pool = enrichedSquad?.length ? enrichedSquad : enrichedAll;
 
   const candidates = [...pool]

@@ -321,6 +321,10 @@ export type ModelPlayer = {
   position: string;
   positionId: number;
   price: number;
+  // Estimated FPL selling price for owned players (purchase price + half of any
+  // rise). The public API does not expose per-player selling price, so this is
+  // approximated from entry_history.value; falls back to `price` when unknown.
+  sellingPrice?: number;
   totalPoints: number;
   form: number;
   minutes: number;

@@ -14,14 +14,24 @@ export const revalidate = 900;
 
 export async function GET(request: Request) {
   const fast = new URL(request.url).searchParams.get('fast') === '1';
-  const payload = fast ? await getFastDashboard() : await getVerifiedDashboard();
-  return NextResponse.json(payload, {
-    headers: {
-      'Cache-Control': fast
-        ? 'public, s-maxage=300, stale-while-revalidate=1800'
-        : 'public, s-maxage=900, stale-while-revalidate=3600',
-    },
-  });
+  try {
+    const payload = fast ? await getFastDashboard() : await getVerifiedDashboard();
+    return NextResponse.json(payload, {
+      headers: {
+        'Cache-Control': fast
+          ? 'public, s-maxage=300, stale-while-revalidate=1800'
+          : 'public, s-maxage=900, stale-while-revalidate=3600',
+      },
+    });
+  } catch {
+    // Never cache an FPL outage. Returning the error object *inside* the cached
+    // function froze a blank dashboard for the full TTL; throw there and return
+    // an explicit, uncached error here so it recovers as soon as FPL is healthy.
+    return NextResponse.json(
+      { error: 'FPL API unavailable', isPreSeason: true, degraded: true, drafts: [], topPlayers: [] },
+      { status: 200, headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
 }
 
 const getFastDashboard = unstable_cache(
@@ -38,7 +48,8 @@ const getVerifiedDashboard = unstable_cache(
 
 async function buildDashboardPayload(fast: boolean) {
   const [boot, fixtures] = await Promise.all([getBootstrap(), getFixtures()]);
-  if (!boot) return { error: 'FPL API unavailable', isPreSeason: true, drafts: [], topPlayers: [] };
+  // Throw (do not return) so unstable_cache never stores an outage response.
+  if (!boot) throw new Error('FPL_API_UNAVAILABLE');
   const next = nextEvent(boot.events);
   const completedGameweeks = boot.events.filter((event) => event.finished).length;
   const basePlayers = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], next?.id, completedGameweeks);
@@ -89,6 +100,14 @@ async function buildDashboardPayload(fast: boolean) {
       error: apiFootballScan.error,
     },
     verificationPending: fast,
+    dataStatus: {
+      fixtures: !!fixtures?.length,
+      news: fast ? 'skipped' : newsScan?.ok ? 'ok' : 'unavailable',
+      apiFootball: apiFootballScan.error ? 'unavailable' : apiFootballScan.enabled ? 'ok' : 'skipped',
+      // Degraded = fixtures missing, or the verified news scan failed. The UI
+      // should warn and avoid presenting these recommendations as verified.
+      degraded: !fixtures?.length || (!fast && !newsScan?.ok),
+    },
     topPlayers,
     topTargets: topTargetsByPosition(players),
     captainShortlist: rankCaptainCandidates(players, 10),
