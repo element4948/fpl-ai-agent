@@ -17,7 +17,7 @@
 ## Current state
 
 - Branch: `main`
-- Last commit: `36815a5` (refactor: cache logic to lib/dashboard-cache.ts).
+- Last commit: `7c51172` (refactor: badges to components/PlayerBadges.tsx).
 - Build/typecheck: `npm run build` and `npm run lint` (now full `strict`) pass.
 - Tests: `npm run test` (vitest) — 12 passing. NOTE: run `npm install` first to
   pull the newly added `vitest` devDependency.
@@ -49,9 +49,11 @@ Stages 3-4 NOT started (next work):
   already has responsive rules (decision grid, target table, pitch, overflow-x) —
   no fix needed.
   IN PROGRESS: page.tsx split — cache/persistence extracted to lib/dashboard-cache.ts
-  (`36815a5`). NEXT: extract leaf UI components (MoreSection, TrustChip, PlayerRow,
-  DraftCard, PlayerDetailModal, RiskMonitor, SeasonRoadmapCard) into components/;
-  note many use the in-file `dict` — move shared labels together or import them.
+  (`36815a5`) and badges to components/PlayerBadges.tsx (`7c51172`). NEXT: extract
+  PlayerRow, DraftCard, RiskMonitor, SeasonRoadmapCard, PlayerDetailModal into
+  components/. `dict` is imported from @/lib/i18n so components can import it too.
+  CAUTION: openPlayerDetail/PlayerDetailButton/PlayerDetailModal share a window
+  event mechanism — extract them together.
   Optional: de-duplicate decision vs lower detail cards.
 
 ## Next steps / open priorities
@@ -65,6 +67,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-08 — Refactor: extracted DataQualityBadge/FixtureTrendBadge to components/PlayerBadges.tsx (`7c51172`).
 - 2026-08-08 — Refactor: extracted dashboard/decision caches to lib/dashboard-cache.ts (`36815a5`), first step of page.tsx split.
 - 2026-08-08 — Stage 4: per-pick trust chips + EV-based chip planner; verified mobile CSS is already responsive (`dec90e1`).
 - 2026-08-08 — Stage 4 (part 1): deadline countdown, copy picks, FPL link, degraded banner, transferPlans surfaced (`d2a3680`).
