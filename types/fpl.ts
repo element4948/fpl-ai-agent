@@ -19,6 +19,7 @@ export type FplPlayer = {
   team: number;
   element_type: number;
   now_cost: number;
+  cost_change_event?: number;
   total_points: number;
   event_points?: number;
   selected_by_percent: string;

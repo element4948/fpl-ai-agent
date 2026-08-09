@@ -78,6 +78,37 @@ export function buildSquadAlerts(squad: ModelPlayer[]): SquadAlert[] {
         .sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
 }
 
+/**
+ * Reliable-reporter news that is not yet officially confirmed (single source,
+ * reliable tier — e.g. BBC, Sky, established transfer reporters). This is the
+ * feasible proxy for "analyst / social" signal without paid feeds or scraping;
+ * surfaced separately and clearly labelled as unconfirmed.
+ */
+export function buildSquadReports(squad: ModelPlayer[]): SquadAlert[] {
+    const reports: SquadAlert[] = [];
+    for (const player of squad) {
+        for (const signal of player.externalNews || []) {
+            if (signal.verification === 'single-source' && signal.tier === 'reliable') {
+                reports.push({
+                    playerId: player.id,
+                    name: player.name,
+                    team: player.team,
+                    kind: signal.category === 'transfer' ? 'transfer' : signal.category === 'injury' ? 'injury' : 'news',
+                    severity: 'low',
+                    message: `${signal.headline}${signal.source ? ` (${signal.source})` : ''}`,
+                });
+            }
+        }
+    }
+    const seen = new Set<string>();
+    return reports.filter((report) => {
+        const key = `${report.playerId}:${report.message}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
 export function formatAlertsMessage(alerts: SquadAlert[], eventName?: string): string {
     const header = `⚽ FPL багийн мэдэгдэл${eventName ? ` — ${eventName}` : ''}`;
     if (!alerts.length) return `${header}\n\nОдоогоор багт чинь чухал шинэ мэдээ алга. ✅`;

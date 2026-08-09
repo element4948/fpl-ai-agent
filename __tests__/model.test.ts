@@ -4,7 +4,8 @@ import { headlineMentionsName } from '@/lib/external-news';
 import { validateSquad } from '@/lib/rules';
 import { captainScore } from '@/lib/scoring';
 import { suggestSafeTransfers, buildTransferPlans } from '@/lib/transfers';
-import { buildSquadAlerts } from '@/lib/squad-alerts';
+import { buildSquadAlerts, buildSquadReports } from '@/lib/squad-alerts';
+import { formatDeadlineLine, buildDigestMessage } from '@/lib/digest';
 import { makePlayer, makeLegalSquad } from './helpers';
 
 function strongMid(id: number): ReturnType<typeof makePlayer> {
@@ -183,5 +184,56 @@ describe('buildSquadAlerts (Telegram digest)', () => {
     expect(alerts.some((a) => a.playerId === 2 && a.kind === 'rotation')).toBe(true);
     expect(alerts.some((a) => a.playerId === 3)).toBe(false);
     expect(alerts[0].severity).toBe('high');
+  });
+  it('buildSquadReports surfaces reliable single-source news', () => {
+    const p = makePlayer({
+      id: 5,
+      name: 'Rumour',
+      externalNews: [
+        {
+          headline: 'Linked with a move',
+          url: 'https://x',
+          publishedAt: '',
+          source: 'BBC',
+          tier: 'reliable',
+          category: 'transfer',
+          severity: 'medium',
+          verification: 'single-source',
+          corroboratingSourceCount: 1,
+        },
+      ],
+    });
+    expect(buildSquadReports([p]).some((r) => r.playerId === 5)).toBe(true);
+  });
+});
+
+describe('digest formatting', () => {
+  it('formatDeadlineLine shows remaining time and handles past/absent deadlines', () => {
+    const now = 1_000_000_000_000;
+    const future = new Date(now + (26 * 60 + 5) * 60000).toISOString(); // 1d 2h 5m
+    const line = formatDeadlineLine(future, now)!;
+    expect(line).toContain('Deadline хүртэл');
+    expect(line).toContain('1ө');
+    expect(formatDeadlineLine(new Date(now - 1000).toISOString(), now)).toContain('өнгөрсөн');
+    expect(formatDeadlineLine(undefined, now)).toBeNull();
+  });
+  it('buildDigestMessage includes populated sections and omits empty ones', () => {
+    const msg = buildDigestMessage({
+      eventName: 'Gameweek 3',
+      deadlineIso: new Date(2_000_000_000_000).toISOString(),
+      nowMs: 1_999_990_000_000,
+      alerts: [{ playerId: 1, name: 'A', team: 'ARS', kind: 'injury', severity: 'high', message: 'out' }],
+      captain: { name: 'Salah', team: 'LIV', points: 6.8 },
+      vice: { name: 'Palmer', team: 'CHE', points: 5.1 },
+      transfer: { label: '1 transfer', moves: ['X → Y'], netGain: 2.1 },
+      priceChanges: [{ name: 'A', delta: 0.1 }],
+      league: { name: 'Friends', rank: 3, entries: 12, gapToLeader: 14, gapAbove: 3 },
+      reports: [],
+    });
+    expect(msg).toContain('Gameweek 3');
+    expect(msg).toContain('Captain: Salah');
+    expect(msg).toContain('X → Y');
+    expect(msg).toContain('Friends');
+    expect(msg).not.toContain('баталгаажаагүй');
   });
 });
