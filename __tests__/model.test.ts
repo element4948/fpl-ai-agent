@@ -6,6 +6,7 @@ import { captainScore } from '@/lib/scoring';
 import { suggestSafeTransfers, buildTransferPlans } from '@/lib/transfers';
 import { buildSquadAlerts, buildSquadReports } from '@/lib/squad-alerts';
 import { formatDeadlineLine, buildDigestMessage } from '@/lib/digest';
+import { alertKey } from '@/lib/alert-store';
 import { makePlayer, makeLegalSquad } from './helpers';
 
 function strongMid(id: number): ReturnType<typeof makePlayer> {
@@ -235,5 +236,14 @@ describe('digest formatting', () => {
     expect(msg).toContain('X → Y');
     expect(msg).toContain('Friends');
     expect(msg).not.toContain('баталгаажаагүй');
+  });
+});
+
+describe('alertKey (urgent dedup)', () => {
+  it('is stable and distinct per player/message', () => {
+    expect(alertKey(1, 'out')).toBe(alertKey(1, 'out'));
+    expect(alertKey(1, 'out')).not.toBe(alertKey(2, 'out'));
+    expect(alertKey(1, 'out')).not.toBe(alertKey(1, 'injured'));
+    expect(alertKey(1, 'out')).toMatch(/^fplalert:1:/);
   });
 });
