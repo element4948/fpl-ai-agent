@@ -10,3 +10,6 @@ node_modules
 
 .DS_Store
 **/.DS_Store
+
+# Next.js auto-generated types (regenerated on build)
+next-env.d.ts
