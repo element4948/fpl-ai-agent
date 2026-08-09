@@ -32,6 +32,7 @@ const ICON: Record<SquadAlert['severity'], string> = { high: '🔴', medium: '�
 
 export function buildDigestMessage(input: {
     eventName?: string;
+    note?: string;
     deadlineIso?: string;
     nowMs: number;
     alerts: SquadAlert[];
@@ -44,6 +45,7 @@ export function buildDigestMessage(input: {
 }): string {
     const blocks: string[] = [];
     blocks.push(`⚽ FPL дайджест${input.eventName ? ` — ${input.eventName}` : ''}`);
+    if (input.note) blocks.push(input.note);
 
     const deadline = formatDeadlineLine(input.deadlineIso, input.nowMs);
     if (deadline) blocks.push(deadline);

@@ -33,28 +33,33 @@ export async function GET(request: Request) {
     const entryId = process.env.FPL_ENTRY_ID;
     const event = currentEvent(boot.events);
     const picks = entryId && event?.id ? await getEntryPicks(entryId, event.id) : null;
-    const squadIds = picks?.picks?.map((pick) => pick.element) || [];
-    if (!squadIds.length) {
-        return NextResponse.json({ ok: false, skipped: 'no-squad', hint: 'Set FPL_ENTRY_ID (public picks required).' });
-    }
+    const pickIds = picks?.picks?.map((pick) => pick.element) || [];
+    const hasSquad = pickIds.length >= 11;
 
-    // Estimate selling price from team value so transfer plans are affordable.
-    const marketSum = squadIds.reduce((sum, id) => sum + (players.find((p) => p.id === id)?.price || 0), 0);
+    // In-season we analyse the owner's real squad. Before the season (or before
+    // the current GW's picks are public) we fall back to a "watchlist" of the
+    // most relevant players so the digest still delivers transfer / injury /
+    // team news, price changes, the deadline and captain ideas year-round.
+    const relevance = (p: ModelPlayer) => p.expectedPoints + p.valueScore * 0.4 + p.ownership * 0.03;
+    const focusIds = hasSquad
+        ? pickIds
+        : [...players].sort((a, b) => relevance(b) - relevance(a)).slice(0, 24).map((p) => p.id);
+
     const teamValue = Number((picks?.entry_history?.value || 0) / 10);
-    const sellRatio = marketSum > 0 && teamValue > 0 ? Math.min(1, teamValue / marketSum) : 1;
+    const marketSum = focusIds.reduce((sum, id) => sum + (players.find((p) => p.id === id)?.price || 0), 0);
+    const sellRatio = hasSquad && marketSum > 0 && teamValue > 0 ? Math.min(1, teamValue / marketSum) : 1;
     const bank = Number((picks?.entry_history?.bank || 0) / 10);
 
-    const squad: ModelPlayer[] = players
-        .filter((player) => squadIds.includes(player.id))
+    const focus: ModelPlayer[] = players
+        .filter((player) => focusIds.includes(player.id))
         .map((player) => ({ ...player, sellingPrice: Number((player.price * sellRatio).toFixed(1)) }));
 
-    // Enrich only the squad with news (accurate but cheap).
-    const enriched = applyExternalNewsSignals(squad, await getExternalNewsSignals(squad, squadIds));
+    const enriched = applyExternalNewsSignals(focus, await getExternalNewsSignals(focus, focusIds));
 
     const alerts = buildSquadAlerts(enriched);
     const reports = buildSquadReports(enriched);
 
-    // Captain / vice from the squad (fall back to top expected points).
+    // Captain / vice (fall back to top expected points).
     const captainRanked = rankCaptainCandidates(enriched, 3);
     const captainFallback = [...enriched]
         .filter((p) => p.position !== 'GKP')
@@ -63,30 +68,33 @@ export async function GET(request: Request) {
     const captain = capList[0] ? { name: capList[0].name, team: capList[0].team, points: capList[0].expectedPoints } : null;
     const vice = capList[1] ? { name: capList[1].name, team: capList[1].team, points: capList[1].expectedPoints } : null;
 
-    // Recommended transfer plan (hold / 1 / 2 / hit).
-    const plans = buildTransferPlans(enriched, players, bank, 1);
-    const recommended = plans.find((plan) => plan.recommended) || plans[0] || null;
-    const transfer = recommended
-        ? {
-              label: recommended.label,
-              moves: (recommended.moves || []).map((move: { out: string; in: string }) => `${move.out} → ${move.in}`),
-              netGain: recommended.netGain,
-          }
-        : null;
+    // Recommended transfer plan only makes sense for a real squad.
+    let transfer: { label: string; moves: string[]; netGain: number } | null = null;
+    if (hasSquad) {
+        const plans = buildTransferPlans(enriched, players, bank, 1);
+        const recommended = plans.find((plan) => plan.recommended) || plans[0] || null;
+        transfer = recommended
+            ? {
+                  label: recommended.label,
+                  moves: (recommended.moves || []).map((move: { out: string; in: string }) => `${move.out} → ${move.in}`),
+                  netGain: recommended.netGain,
+              }
+            : null;
+    }
 
-    // Price changes this event for squad players.
+    // Price changes this event across the focus set.
     const priceChanges: PriceChange[] = boot.elements
-        .filter((element) => squadIds.includes(element.id) && Number(element.cost_change_event || 0) !== 0)
+        .filter((element) => focusIds.includes(element.id) && Number(element.cost_change_event || 0) !== 0)
         .map((element) => ({ name: element.web_name, delta: Number(element.cost_change_event || 0) / 10 }));
 
-    // Mini-league standings/gap.
+    // Mini-league standings/gap (skip before anyone has points).
     let league: LeagueLine | null = null;
     const leagueId = process.env.FPL_LEAGUE_ID;
     if (leagueId && entryId) {
         const standings = await getLeague(leagueId);
         const results = standings?.standings?.results || [];
         const meIndex = results.findIndex((row) => row.entry === Number(entryId));
-        if (meIndex >= 0) {
+        if (meIndex >= 0 && (results[0]?.total || 0) > 0) {
             const me = results[meIndex];
             league = {
                 name: standings?.league?.name || 'League',
@@ -98,8 +106,13 @@ export async function GET(request: Request) {
         }
     }
 
+    const note = hasSquad
+        ? undefined
+        : 'ℹ️ Таны багийн picks нээгдээгүй (pre-season) тул хамгийн чухал тоглогчид дээр мэдээ/шинжилгээ (watchlist).';
+
     const message = buildDigestMessage({
         eventName: next?.name,
+        note,
         deadlineIso: next?.deadline_time,
         nowMs: Date.now(),
         alerts,
@@ -114,6 +127,7 @@ export async function GET(request: Request) {
     const result = await sendTelegramMessage(message);
     return NextResponse.json({
         ok: result.ok,
+        mode: hasSquad ? 'squad' : 'watchlist',
         sections: { alerts: alerts.length, reports: reports.length, priceChanges: priceChanges.length, league: Boolean(league), transfer: Boolean(transfer) },
         ...(result.error ? { error: result.error } : {}),
     });
