@@ -5,7 +5,7 @@ import { buildSquadAlerts, buildSquadReports } from '@/lib/squad-alerts';
 import { buildDigestMessage, type LeagueLine, type PriceChange } from '@/lib/digest';
 import { rankCaptainCandidates } from '@/lib/scoring';
 import { buildTransferPlans } from '@/lib/transfers';
-import { sendTelegramMessage, telegramConfigured } from '@/lib/telegram';
+import { sendTelegramMessage, telegramConfigured, telegramStatus } from '@/lib/telegram';
 import type { ModelPlayer } from '@/types/fpl';
 
 // Daily digest for the configured squad, delivered to Telegram (Vercel cron).
@@ -19,7 +19,8 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
     if (!telegramConfigured()) {
-        return NextResponse.json({ ok: false, skipped: 'telegram-not-configured' });
+        // `have` shows which half is missing (token vs chat) without leaking values.
+        return NextResponse.json({ ok: false, skipped: 'telegram-not-configured', have: telegramStatus() });
     }
 
     const [boot, fixtures] = await Promise.all([getBootstrap(), getFixtures()]);
