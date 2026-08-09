@@ -4,6 +4,7 @@ import { headlineMentionsName } from '@/lib/external-news';
 import { validateSquad } from '@/lib/rules';
 import { captainScore } from '@/lib/scoring';
 import { suggestSafeTransfers, buildTransferPlans } from '@/lib/transfers';
+import { buildSquadAlerts } from '@/lib/squad-alerts';
 import { makePlayer, makeLegalSquad } from './helpers';
 
 function strongMid(id: number): ReturnType<typeof makePlayer> {
@@ -167,5 +168,20 @@ describe('cleanSheetProbabilityFrom (xGC-based clean sheet)', () => {
   });
   it('never exceeds 0.9', () => {
     expect(cleanSheetProbabilityFrom(0.01, 1, 0.9)).toBeLessThanOrEqual(0.9);
+  });
+});
+
+describe('buildSquadAlerts (Telegram digest)', () => {
+  it('flags injuries and rotation risk but ignores healthy nailed players', () => {
+    const squad = [
+      makePlayer({ id: 1, name: 'Injured', status: 'i', news: 'Knee injury - 50% chance' }),
+      makePlayer({ id: 2, name: 'Rotation', status: 'a', starterConfidence: 30, predictedMinutes: 30 }),
+      makePlayer({ id: 3, name: 'Nailed', status: 'a', starterConfidence: 90 }),
+    ];
+    const alerts = buildSquadAlerts(squad);
+    expect(alerts.some((a) => a.playerId === 1 && a.severity === 'high')).toBe(true);
+    expect(alerts.some((a) => a.playerId === 2 && a.kind === 'rotation')).toBe(true);
+    expect(alerts.some((a) => a.playerId === 3)).toBe(false);
+    expect(alerts[0].severity).toBe('high');
   });
 });
