@@ -1056,6 +1056,11 @@ export default function Home() {
                 if (!readDecisionCache(activeSettings)) {
                     await runDecision(activeSettings);
                 }
+                // Auto-analyze the configured team so the recommended XI, squad
+                // and transfer suggestions appear without a manual button click.
+                if (activeSettings.entryId) {
+                    await runAnalyze(activeSettings);
+                }
             } catch (error) {
                 if (!cancelled) {
                     setBoot({ error: error instanceof Error ? error.message : 'Dashboard load failed' });
@@ -1157,13 +1162,14 @@ export default function Home() {
         setLoading(false);
     }
 
-    async function runAnalyze() {
+    async function runAnalyze(activeSettings: UserSettings = settings) {
+        if (!activeSettings.entryId) return;
         setLoading(true);
         setAnalysis(null);
         const res = await fetch('/api/analyze', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ entryId: settings.entryId, freeTransfers: settings.freeTransfers ?? 1 }),
+            body: JSON.stringify({ entryId: activeSettings.entryId, freeTransfers: activeSettings.freeTransfers ?? 1 }),
         });
         setAnalysis(await res.json());
         setLoading(false);
@@ -1206,6 +1212,9 @@ export default function Home() {
             setCloud((current) => ({ ...current, error: error instanceof Error ? error.message : 'Cloud хадгалалт амжилтгүй.' }));
         }
         void runDecision(settings);
+        // Re-analyze the configured team whenever settings are saved (e.g. after
+        // entering or changing the Entry ID).
+        void runAnalyze(settings);
         setTimeout(() => setSaved(false), 1600);
     }
 
@@ -1606,7 +1615,7 @@ export default function Home() {
 
                 <section id="team" className="grid grid-2">
                     <Card title={t.navTeam} subtitle={t.liveTeamSub} helpHref="/docs#team">
-                        <button className="btn" disabled={loading} onClick={runAnalyze}>
+                        <button className="btn" disabled={loading} onClick={() => runAnalyze()}>
                             {loading ? t.loading : t.runTeamAnalysis}
                         </button>
 
