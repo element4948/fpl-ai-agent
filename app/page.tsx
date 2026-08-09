@@ -2,6 +2,7 @@
 
 import { Card } from '@/components/Card';
 import { DataQualityBadge, FixtureTrendBadge } from '@/components/PlayerBadges';
+import { DraftCompareTable } from '@/components/DraftCompareTable';
 import { MoreSection } from '@/components/MoreSection';
 import { SeasonRoadmapCard } from '@/components/SeasonRoadmapCard';
 import { Metric } from '@/components/Metric';
@@ -1893,14 +1894,17 @@ export default function Home() {
                 </section>
                 </MoreSection>
 
-                <Card id="drafts" title={t.draftTeams} subtitle="Best Draft шууд харагдана · бусад хувилбарыг нэр дээр нь дарж нээнэ" helpHref="/docs#drafts">
+                <Card id="drafts" title={t.draftTeams} subtitle="Хувилбаруудыг зэрэгцүүлэн харьцуулж, доор дэлгэрэнгүйг нь нээнэ" helpHref="/docs#drafts">
                     {boot?.verificationPending ? (
                         <div className="notice" style={{ marginBottom: 14 }}>
                             Best draft түрүүлж гарлаа. Бусад хувилбар болон news/API-Football баталгаажуулалт ард шинэчлэгдэж байна.
                         </div>
                     ) : null}
                     {boot?.drafts?.length ? (
-                        boot.drafts.map((d: Any) => <DraftCard draft={d} key={d.mode} lang={lang} onUse={usePlannedDraft} />)
+                        <>
+                            <DraftCompareTable drafts={boot.drafts} lang={lang} />
+                            {boot.drafts.map((d: Any) => <DraftCard draft={d} key={d.mode} lang={lang} onUse={usePlannedDraft} />)}
+                        </>
                     ) : (
                         <div className="skeleton" />
                     )}
