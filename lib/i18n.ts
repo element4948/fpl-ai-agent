@@ -155,8 +155,9 @@ export function decisionStrategyLabel(strategy: string, lang: Lang) {
   return map[strategy] || strategy;
 }
 
-export function decisionSummaryLabel(summary: string, lang: Lang) {
+export function decisionSummaryLabel(summary: string | undefined, lang: Lang) {
   const t = dict[lang];
+  if (!summary) return '';
   if (summary.startsWith('Pre-season')) return t.decisionSummaryPre;
   if (summary.startsWith('This week: one no-hit')) return t.decisionSummaryTransfer;
   if (summary.startsWith('This week: no safe')) return t.decisionSummaryHold;
