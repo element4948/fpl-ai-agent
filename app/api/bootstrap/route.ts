@@ -39,13 +39,13 @@ export async function GET(request: Request) {
 
 const getFastDashboard = unstable_cache(
   () => buildDashboardPayload(true),
-  ['fpl-dashboard-fast-v11-chip-ev'],
+  ['fpl-dashboard-fast-v12-opp-adj'],
   { revalidate: 300 },
 );
 
 const getVerifiedDashboard = unstable_cache(
   () => buildDashboardPayload(false),
-  ['fpl-dashboard-verified-v11-chip-ev'],
+  ['fpl-dashboard-verified-v12-opp-adj'],
   { revalidate: 900 },
 );
 

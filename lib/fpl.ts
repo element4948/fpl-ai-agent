@@ -141,6 +141,28 @@ export function normalizeTeamStrength(value: number, fallback: number): number {
     return fallback;
 }
 
+/**
+ * Opponent- and venue-adjusted multiplier for a player's attacking output.
+ * FPL FDR is 1 (easiest) to 5 (hardest); an easier next fixture and a home game
+ * raise expected attacking returns. Bounded so one fixture never dominates.
+ */
+export function fixtureAttackMultiplier(nextDifficulty: number, nextIsHome: boolean | null): number {
+    const venue = nextIsHome === true ? 0.04 : nextIsHome === false ? -0.04 : 0;
+    return clamp(1 + (3 - nextDifficulty) * 0.1 + venue, 0.75, 1.3);
+}
+
+/**
+ * Clean-sheet probability from expected goals conceded per 90 (Poisson P(0)),
+ * scaled by the next opponent's difficulty. Falls back to the historical
+ * clean-sheet rate when xGC is unavailable. Previously xGC was captured but
+ * never used, and clean sheets were not fixture-adjusted at all.
+ */
+export function cleanSheetProbabilityFrom(xgcPer90: number, nextDifficulty: number, fallbackRate: number): number {
+    const fixtureAdj = clamp(1 + (3 - nextDifficulty) * 0.12, 0.6, 1.4);
+    const base = xgcPer90 > 0 ? Math.exp(-xgcPer90) : fallbackRate;
+    return clamp(base * fixtureAdj, 0, 0.9);
+}
+
 function getFixtureProjection(fixtureScore: number, nextDifficulty: number, averageDifficulty: number, isHome: boolean | null): number {
     const nextFixtureScore = 6 - nextDifficulty;
     const fixtureRunScore = 6 - averageDifficulty;
@@ -258,11 +280,17 @@ export function toModelPlayers(
             2;
 
         const hasSeasonData = minutes > 0 || player.total_points > 0 || form > 0;
+        // Scale attacking output by the next opponent's difficulty and venue.
+        const attackMultiplier = fixtureAttackMultiplier(nextDifficulty, fixture?.nextIsHome ?? null);
         const xgiPer90 = minutes >= 90 ? (expectedGoalInvolvements / minutes) * 90 : 0;
+        const xgiAdj = xgiPer90 * attackMultiplier;
         const underlyingContribution =
-            Math.min(2.2, xgiPer90 * 1.8) +
+            Math.min(2.2, xgiAdj * 1.8) +
             Math.min(0.8, ictIndex > 0 && minutes > 0 ? (ictIndex / minutes) * 5 : 0);
         const cleanSheetRate = starts > 0 ? cleanSheets / starts : 0;
+        // Fixture-adjusted clean-sheet probability from expected goals conceded.
+        const xgcPer90 = minutes >= 90 ? (expectedGoalsConceded / minutes) * 90 : 0;
+        const cleanSheetProbability = cleanSheetProbabilityFrom(xgcPer90, nextDifficulty, cleanSheetRate);
         const setPieceUpside =
             (player.corners_and_indirect_freekicks_order === 1 ? 0.35 : 0) +
             (player.direct_freekicks_order === 1 ? 0.35 : 0) +
@@ -279,22 +307,26 @@ export function toModelPlayers(
         const bonusPotential = Number(
             Math.min(1.5, historicalBonusPerStart * 0.65).toFixed(2),
         );
+        // Position-specific upside. Each position rewards a different route to
+        // points: GKP/DEF lean on fixture-adjusted clean sheets, MID/FWD on
+        // fixture-adjusted attacking output, with set-piece roles as a bonus.
         const positionUpside =
             player.element_type === 1
-                ? Math.min(1, cleanSheetRate * 1.8) +
+                ? Math.min(1.5, cleanSheetProbability * 3) +
                   Math.min(0.7, minutes >= 90 ? (saves / minutes) * 90 * 0.14 : 0) +
                   Math.min(0.5, penaltiesSaved * 0.2)
                 : player.element_type === 2
-                  ? Math.min(1.4, xgiPer90 * 2.2) +
-                    Math.min(0.8, cleanSheetRate * 1.6) +
+                  ? Math.min(1.4, xgiAdj * 2.2) +
+                    Math.min(1.2, cleanSheetProbability * 2.4) +
                     Math.max(0, (teamDefensiveStrength - 3) * 0.12) +
                     setPieceUpside
                   : player.element_type === 3
-                    ? Math.min(2, xgiPer90 * 2.4) +
+                    ? Math.min(2, xgiAdj * 2.4) +
+                      Math.min(0.35, cleanSheetProbability * 0.7) +
                       Math.min(0.7, minutes >= 90 ? (creativity / minutes) * 90 * 0.01 : 0) +
                       Math.min(0.7, minutes >= 90 ? (threat / minutes) * 90 * 0.009 : 0) +
                       setPieceUpside
-                    : Math.min(2.3, xgiPer90 * 2.7) +
+                    : Math.min(2.3, xgiAdj * 2.7) +
                       Math.min(0.9, minutes >= 90 ? (threat / minutes) * 90 * 0.011 : 0) +
                       setPieceUpside;
 

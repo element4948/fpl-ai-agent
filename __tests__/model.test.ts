@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeTeamStrength } from '@/lib/fpl';
+import { normalizeTeamStrength, fixtureAttackMultiplier, cleanSheetProbabilityFrom } from '@/lib/fpl';
 import { headlineMentionsName } from '@/lib/external-news';
 import { validateSquad } from '@/lib/rules';
 import { captainScore } from '@/lib/scoring';
@@ -144,5 +144,28 @@ describe('buildTransferPlans (multi-transfer + hit)', () => {
     const single = plans.find((p) => p.transfersUsed === 1)!;
     expect(single.hitCost).toBe(4);
     expect(single.netGain).toBeCloseTo(single.grossGain - 4, 5);
+  });
+});
+
+describe('fixtureAttackMultiplier (opponent/venue adjustment)', () => {
+  it('rewards easier fixtures and home games over hard/away', () => {
+    expect(fixtureAttackMultiplier(1, true)).toBeGreaterThan(fixtureAttackMultiplier(5, false));
+    expect(fixtureAttackMultiplier(3, null)).toBeCloseTo(1, 5);
+  });
+  it('stays within bounds', () => {
+    expect(fixtureAttackMultiplier(1, true)).toBeLessThanOrEqual(1.3);
+    expect(fixtureAttackMultiplier(5, false)).toBeGreaterThanOrEqual(0.75);
+  });
+});
+
+describe('cleanSheetProbabilityFrom (xGC-based clean sheet)', () => {
+  it('is higher for lower xGC and easier fixtures', () => {
+    expect(cleanSheetProbabilityFrom(0.5, 2, 0.3)).toBeGreaterThan(cleanSheetProbabilityFrom(1.8, 4, 0.3));
+  });
+  it('falls back to the historical rate when xGC is unknown', () => {
+    expect(cleanSheetProbabilityFrom(0, 3, 0.25)).toBeCloseTo(0.25, 5);
+  });
+  it('never exceeds 0.9', () => {
+    expect(cleanSheetProbabilityFrom(0.01, 1, 0.9)).toBeLessThanOrEqual(0.9);
   });
 });
