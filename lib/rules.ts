@@ -134,6 +134,15 @@ function rebalanceBench(
         if (index === slots.length) {
             const total = roundMoney(starters.reduce((sum, player) => sum + player.price, 0) + cost);
             if (total > maximumDraftSpend(mode) + 0.001) return;
+            // Require at least one reliably-starting outfield substitute so the
+            // most-likely auto-sub (and any Bench Boost) actually plays, rather
+            // than the absolute-cheapest rotation-risk cover. The remaining bench
+            // spots stay lean. Falls back to the original squad if no cheap
+            // nailed option is constructible.
+            const hasNailedOutfieldSub = selected.some(
+                (player) => player.position !== 'GKP' && player.appearanceProbability >= 0.6,
+            );
+            if (!hasNailedOutfieldSub) return;
             const tieBreak = selected.reduce((sum, player) => sum + playerScore(player, mode), 0);
             if (cost < bestCost - 0.001 || (Math.abs(cost - bestCost) < 0.001 && tieBreak > bestTieBreak)) {
                 bestBench = [...selected];
