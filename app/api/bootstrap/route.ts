@@ -39,13 +39,13 @@ export async function GET(request: Request) {
 
 const getFastDashboard = unstable_cache(
   () => buildDashboardPayload(true),
-  ['fpl-dashboard-fast-v13-nailed-bench'],
+  ['fpl-dashboard-fast-v14-beam'],
   { revalidate: 300 },
 );
 
 const getVerifiedDashboard = unstable_cache(
   () => buildDashboardPayload(false),
-  ['fpl-dashboard-verified-v13-nailed-bench'],
+  ['fpl-dashboard-verified-v14-beam'],
   { revalidate: 900 },
 );
 

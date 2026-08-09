@@ -514,7 +514,10 @@ export function buildDraft(
         maximumDraftSpend(mode),
         (player) => playerScore(player, mode),
         mode,
-        quality === 'fast' ? 900 : 4800,
+        // Only the primary "Best" draft needs the full-width beam. The secondary
+        // modes (Alternative/Differential/Safe) use a narrower beam so building
+        // all four variants is markedly faster with negligible quality loss.
+        quality === 'fast' ? 900 : mode === 'Best' ? 4800 : 1800,
     );
     const baseSquad = globallyOptimized.length === 15
         ? globallyOptimized
