@@ -205,7 +205,7 @@
 .season-note{margin-top:12px;color:var(--muted);font-size:10px;line-height:1.5}
 .decision-status-line{display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.03);margin-bottom:12px}
 .decision-status-line>span:last-child{margin-left:auto;color:var(--muted);font-size:11px}
-.decision-dot{width:9px;height:9px;border-radius:50%;background:var(--yellow);box-shadow:0 0 0 4px rgba(255,209,102,.1)}.decision-dot.ready{background:var(--green);box-shadow:0 0 0 4px rgba(55,214,122,.1)}
+.decision-dot{width:9px;height:9px;border-radius:50%;background:var(--yellow);box-shadow:0 0 0 4px rgba(255,209,102,.1)}.decision-dot.ready{background:var(--green);box-shadow:0 0 0 4px rgba(55,214,122,.1)}.decision-dot.error{background:#e0603f;box-shadow:0 0 0 4px rgba(224,96,63,.12)}
 .decision-glance-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .decision-glance{position:relative;min-height:132px;padding:14px;border:1px solid var(--line);border-radius:17px;background:rgba(255,255,255,.035);overflow:hidden}
 .decision-glance.primary{border-color:rgba(55,214,122,.28);background:linear-gradient(145deg,rgba(55,214,122,.1),rgba(255,255,255,.025))}
@@ -214,6 +214,7 @@
 .decision-glance strong{display:block;font-size:16px;line-height:1.25;overflow-wrap:anywhere}
 .decision-glance p{margin:8px 0 0;color:var(--muted);font-size:9px;line-height:1.4}
 .decision-summary{margin:12px 0 0;padding:11px 13px;border-left:3px solid var(--blue);border-radius:0 10px 10px 0;background:rgba(110,168,254,.055);color:#c8d8ec;font-size:11px;line-height:1.55}
+.decision-summary-error{border-left-color:#e0603f;background:rgba(224,96,63,.07);color:#f0c3b6}
 .decision-footer{display:flex;align-items:flex-start;gap:10px;margin-top:14px}
 .decision-details{flex:1;margin:0;padding:11px 13px}.decision-details summary{font-size:12px}.decision-details[open]{width:100%}
 .engine-status{display:grid;grid-template-columns:28px 1fr;gap:2px 9px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.03)}

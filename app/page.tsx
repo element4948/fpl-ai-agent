@@ -825,6 +825,7 @@ export default function Home() {
     const [analysis, setAnalysis] = useState<Any>(null);
     const [league, setLeague] = useState<Any>(null);
     const [decision, setDecision] = useState<Any>(null);
+    const [decisionError, setDecisionError] = useState<string | null>(null);
     const [fixtureStatus, setFixtureStatus] = useState<Any>(null);
     const [calibrationResults, setCalibrationResults] = useState<CalibrationResult[]>([]);
     const [loading, setLoading] = useState(false);
@@ -840,7 +841,7 @@ export default function Home() {
         const loaded = loadSettings();
         setSettings(loaded);
         const cachedDecision = readDecisionCache(loaded);
-        if (cachedDecision) setDecision(cachedDecision);
+        if (cachedDecision?.actionPlan) setDecision(cachedDecision);
     }, []);
     useEffect(() => {
         let cancelled = false;
@@ -866,7 +867,7 @@ export default function Home() {
                 setSettings(synced);
                 saveSettings(synced);
                 const cachedDecision = readDecisionCache(synced);
-                if (cachedDecision) setDecision(cachedDecision);
+                if (cachedDecision?.actionPlan) setDecision(cachedDecision);
             } catch {
                 if (!cancelled) setCloud((current) => ({ ...current, loading: false, error: 'Cloud sync шалгаж чадсангүй.' }));
             }
@@ -897,7 +898,7 @@ export default function Home() {
                 // first render. Decision analysis starts after the verified
                 // dashboard response has warmed the server-side fetch cache.
                 const activeSettings = loadSettings();
-                if (!readDecisionCache(activeSettings)) {
+                if (!readDecisionCache(activeSettings)?.actionPlan) {
                     await runDecision(activeSettings);
                 }
                 // Auto-analyze the configured team so the recommended XI, squad
@@ -992,21 +993,36 @@ export default function Home() {
 
     async function runDecision(activeSettings: UserSettings = settings) {
         setLoading(true);
-        const res = await fetch('/api/decision', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-                entryId: activeSettings.entryId,
-                riskProfile: activeSettings.riskProfile,
-                goal: activeSettings.goal,
-                freeTransfers: activeSettings.freeTransfers ?? 1,
-                plannedSquadIds: activeSettings.plannedSquadIds || [],
-            }),
-        });
-        const data = await res.json();
-        setDecision(data);
-        writeDecisionCache(activeSettings, data);
-        setLoading(false);
+        setDecisionError(null);
+        try {
+            const res = await fetch('/api/decision', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    entryId: activeSettings.entryId,
+                    riskProfile: activeSettings.riskProfile,
+                    goal: activeSettings.goal,
+                    freeTransfers: activeSettings.freeTransfers ?? 1,
+                    plannedSquadIds: activeSettings.plannedSquadIds || [],
+                }),
+            });
+            const data = await res.json();
+            // A `{ error }` payload (FPL outage / timeout) is truthy — if we stored
+            // it as the decision the whole panel breaks: "—" cards, an empty summary
+            // bar, and a permanent "loading" status. Treat it as an explicit error
+            // state instead and keep any previously good decision on screen.
+            if (!data || data.error || !data.actionPlan) {
+                setDecisionError(data?.error || 'no-decision');
+            } else {
+                setDecision(data);
+                setDecisionError(null);
+                writeDecisionCache(activeSettings, data);
+            }
+        } catch {
+            setDecisionError('network');
+        } finally {
+            setLoading(false);
+        }
     }
 
     async function runAnalyze(activeSettings: UserSettings = settings) {
@@ -1213,9 +1229,17 @@ export default function Home() {
 
                 <Card id="decision" title={t.thisWeekDecision} subtitle={t.decisionSub} helpHref="/docs#decision">
                     <div className="decision-status-line">
-                        <span className={`decision-dot ${decision?.actionPlan?.decisionStatus === 'ready' ? 'ready' : ''}`} />
-                        <strong>{decision?.actionPlan ? decisionStatusLabel(decision.actionPlan.decisionStatus, lang) : t.loading}</strong>
-                        <span>{decision ? decisionStrategyLabel(decision.strategy, lang) : '—'}</span>
+                        <span className={`decision-dot ${loading ? '' : decision?.actionPlan?.decisionStatus === 'ready' ? 'ready' : decisionError ? 'error' : ''}`} />
+                        <strong>
+                            {loading
+                                ? t.loading
+                                : decision?.actionPlan
+                                  ? decisionStatusLabel(decision.actionPlan.decisionStatus, lang)
+                                  : decisionError
+                                    ? lang === 'mn' ? 'Дата түр боломжгүй' : 'Data temporarily unavailable'
+                                    : lang === 'mn' ? 'Шийдвэр хүлээгдэж байна' : 'Awaiting decision'}
+                        </strong>
+                        <span>{decision?.actionPlan ? decisionStrategyLabel(decision.strategy, lang) : '—'}</span>
                     </div>
 
                     <div className="decision-glance-grid">
@@ -1248,9 +1272,17 @@ export default function Home() {
                         </div>
                     </div>
 
-                    <p className="decision-summary">
-                        {decision ? decisionSummaryLabel(decision.summary, lang) : t.loading}
-                    </p>
+                    {loading ? (
+                        <p className="decision-summary">{t.loading}</p>
+                    ) : decision?.summary ? (
+                        <p className="decision-summary">{decisionSummaryLabel(decision.summary, lang)}</p>
+                    ) : decisionError ? (
+                        <p className="decision-summary decision-summary-error">
+                            {lang === 'mn'
+                                ? 'FPL өгөгдөл түр татагдсангүй. Дахин оролдоно уу — доорх “Decision гаргах” товчийг дарна уу.'
+                                : 'Could not load FPL data just now. Press “Run decision” below to retry.'}
+                        </p>
+                    ) : null}
 
                     <div className="decision-footer">
                         <button className="btn" disabled={loading} onClick={() => runDecision()}>
