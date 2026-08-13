@@ -75,19 +75,25 @@ export function projectStarter(
   if (hasLiveMinutes && completedGameweeks === 0) {
     const historicalStartRate = Math.min(1, starts / 38);
     const historicalMinutesRate = Math.min(1, minutes / (38 * 90));
+    // Keep ownership/price a small nudge only — otherwise every popular or
+    // expensive player saturates the cap and all first-choice starters collapse
+    // to an identical confidence, which makes the draft modes near-identical.
     const marketSignal =
-      Math.min(12, ownership * 0.45) +
-      Math.min(8, Math.max(0, player.now_cost / 10 - 4) * 1.5);
+      Math.min(4, ownership * 0.2) +
+      Math.min(4, Math.max(0, player.now_cost / 10 - 5) * 1.2);
     /*
      * Before GW1 the public API mostly contains the previous season totals.
      * Use them as a prior, but keep the result explicitly provisional. Unlike
      * the old 72/60 cap this preserves the difference between a 35-start
      * first-choice player and a 12-start rotation player.
      */
+    // Minutes-led so a 34-start first choice (~90) clearly outranks a 24-start
+    // rotation player (~68). This spread is what lets Best/Safe/Differential
+    // actually diverge instead of returning the same XI.
     const confidence = clamp(
-      12 + historicalStartRate * 58 + historicalMinutesRate * 24 + marketSignal,
-      12,
-      88,
+      20 + historicalStartRate * 50 + historicalMinutesRate * 20 + marketSignal,
+      15,
+      92,
     );
     const predictedMinutes = clamp(
       8 + historicalStartRate * 58 + historicalMinutesRate * 22,

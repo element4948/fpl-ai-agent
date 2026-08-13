@@ -100,6 +100,16 @@ export function DraftCompareTable({ drafts, lang }: { drafts: Any[]; lang: 'mn' 
                     ))}
                 </tbody>
             </table>
+            {drafts
+                .filter((d) => d.mode !== 'Best')
+                .map((d) => {
+                    const added = (d.players || []).filter((p: Any) => !bestIds.has(p.id)).map((p: Any) => p.name);
+                    return added.length ? (
+                        <p key={d.mode} style={{ margin: '6px 2px 0', fontSize: 12 }}>
+                            <b>{MODE_LABEL[d.mode] || d.mode}:</b> Best-ээс ялгаатай нь → {added.join(', ')}
+                        </p>
+                    ) : null;
+                })}
             <p style={{ margin: '8px 2px 0', fontSize: 12, opacity: 0.65 }}>
                 {lang === 'mn'
                     ? '⭐ = хамгийн өндөр таамаг XI оноотой хувилбар. Дэлгэрэнгүйг доор нээж үзнэ.'
