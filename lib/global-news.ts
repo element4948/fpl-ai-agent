@@ -1,4 +1,5 @@
 import type { FplPlayer, ModelPlayer } from '@/types/fpl';
+import { mnFplNews, mnStatus, withSource } from './mn';
 
 // FPL-wide important news — NOT limited to the owner's squad. Built almost
 // entirely from FPL's own fields (status / news / ownership / price / transfer
@@ -19,15 +20,6 @@ export type GlobalNews = {
     templateIn: GlobalTransfer[];
 };
 
-// Keep source text concise and untranslated: drop a trailing " - Publisher" and
-// cap the length. Never translate — a short accurate English snippet beats a
-// wrong machine translation.
-function concise(text: string, max = 96): string {
-    const noSource = text.replace(/\s+[-–|]\s+[^-–|]+$/, '').trim();
-    const out = noSource || text.trim();
-    return out.length > max ? `${out.slice(0, max - 1).trimEnd()}…` : out;
-}
-
 export function buildGlobalNews(input: {
     players: ModelPlayer[];
     elements: FplPlayer[];
@@ -45,13 +37,21 @@ export function buildGlobalNews(input: {
         .filter((p) => (p.news && p.news.trim().length > 0) || p.status === 's' || p.status === 'i' || p.status === 'o')
         .sort((a, b) => b.ownership - a.ownership)
         .slice(0, 8)
-        .map((p) => ({
-            id: p.id,
-            name: p.name,
-            team: p.team,
-            ownership: p.ownership,
-            text: concise(p.news && p.news.trim() ? p.news : statusText(p.status)),
-        }));
+        .map((p) => {
+            // Body in Mongolian; the FPL `news` field (no publisher suffix, so it
+            // is NOT run through the RSS `concise` publisher-stripper) is attached
+            // untranslated as the English source, just length-capped.
+            const raw = (p.news || '').trim();
+            const english = raw.length > 96 ? `${raw.slice(0, 95).trimEnd()}…` : raw;
+            const mn = english ? mnFplNews(english) || mnStatus(p.status) : mnStatus(p.status);
+            return {
+                id: p.id,
+                name: p.name,
+                team: p.team,
+                ownership: p.ownership,
+                text: withSource(mn, english),
+            };
+        });
 
     // 2) Biggest predicted price moves game-wide (estimate, not a guarantee).
     const risers: GlobalMover[] = priceMoves.risers
@@ -87,23 +87,6 @@ export function buildGlobalNews(input: {
         .map((e) => ({ name: e.web_name, team: teamById.get(e.id) || '', inCount: Number(e.transfers_in_event || 0) }));
 
     return { injuries, risers, fallers, bestFixtures, templateIn };
-}
-
-function statusText(status?: string): string {
-    switch (status) {
-        case 'i':
-            return 'Injured';
-        case 's':
-            return 'Suspended';
-        case 'o':
-            return 'Unavailable';
-        case 'd':
-            return 'Doubtful';
-        case 'u':
-            return 'Not in squad';
-        default:
-            return 'Availability changed';
-    }
 }
 
 export function hasGlobalNews(news: GlobalNews): boolean {

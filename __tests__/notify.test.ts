@@ -1,8 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { buildGlobalNews, hasGlobalNews } from '@/lib/global-news';
 import { buildDigestMessage } from '@/lib/digest';
+import { mnFplNews, withSource } from '@/lib/mn';
 import type { FplPlayer } from '@/types/fpl';
 import { makePlayer } from './helpers';
+
+describe('Mongolian translation of FPL news', () => {
+    it('translates common FPL injury/availability phrases to Mongolian', () => {
+        expect(mnFplNews('Knee injury - 75% chance of playing')).toBe('Өвдөгний гэмтэл — 75% тоглох магадлал');
+        expect(mnFplNews('Ankle injury - Expected back 25 Dec')).toMatch(/Шагайны гэмтэл/);
+        expect(mnFplNews('Ankle injury - Expected back 25 Dec')).toMatch(/≈25 Dec сэргэнэ/);
+        expect(mnFplNews('Suspended - Unknown return date')).toBe('Тэмцээнээс хол (шийтгэл) — Сэргэх хугацаа тодорхойгүй');
+        expect(mnFplNews('')).toBe('');
+    });
+
+    it('withSource attaches the untranslated English source concisely', () => {
+        expect(withSource('Өвдөгний гэмтэл', 'Knee injury', 'Sky')).toBe('Өвдөгний гэмтэл · эх: Knee injury (Sky)');
+        expect(withSource('Мэдээ', '')).toBe('Мэдээ');
+    });
+});
 
 function elem(id: number, web_name: string, extra: Record<string, number> = {}): FplPlayer {
     return { id, web_name, transfers_in_event: 0, transfers_out_event: 0, cost_change_event: 0, ...extra } as unknown as FplPlayer;
@@ -11,7 +27,7 @@ function elem(id: number, web_name: string, extra: Record<string, number> = {}):
 describe('buildGlobalNews', () => {
     it('surfaces injured high-owned players with concise untranslated source text', () => {
         const players = [
-            makePlayer({ id: 10, name: 'Star', team: 'ARS', ownership: 40, status: 'i', news: 'Hamstring injury - expected back in October - Sky Sports' }),
+            makePlayer({ id: 10, name: 'Star', team: 'ARS', ownership: 40, status: 'i', news: 'Hamstring injury - 75% chance of playing' }),
             makePlayer({ id: 11, name: 'Nobody', team: 'BUR', ownership: 0.2, price: 4.0, status: 'i', news: 'Knock' }),
             makePlayer({ id: 12, name: 'Fit', team: 'MCI', ownership: 30, status: 'a', news: '' }),
         ];
@@ -23,10 +39,11 @@ describe('buildGlobalNews', () => {
         expect(news.injuries.map((i) => i.name)).not.toContain('Nobody');
         // Available player is not an injury.
         expect(news.injuries.map((i) => i.name)).not.toContain('Fit');
-        // Source text stays English and the trailing " - Publisher" is trimmed.
+        // Body is Mongolian; the English FPL source is attached untranslated.
         const star = news.injuries.find((i) => i.name === 'Star')!;
-        expect(star.text).toBe('Hamstring injury - expected back in October');
-        expect(star.text).not.toMatch(/Sky Sports/);
+        expect(star.text).toMatch(/Гуяны шөрмөсний гэмтэл/); // MN translation of "Hamstring injury"
+        expect(star.text).toMatch(/75% тоглох магадлал/); // MN translation of the chance
+        expect(star.text).toMatch(/· эх: Hamstring injury - 75% chance of playing/); // English source kept
     });
 
     it('ranks best fixtures by expected points among easy opponents', () => {

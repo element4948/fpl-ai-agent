@@ -1,8 +1,11 @@
 import type { ModelPlayer } from '@/types/fpl';
+import { mnCategory, mnFplNews, mnStatus, withSource } from './mn';
 
 // Build a concise, prioritised list of noteworthy items for the owner's squad:
 // injuries / availability, confirmed transfer / rotation / injury news,
 // rotation risk, and tough upcoming fixtures. Designed for a Telegram digest.
+// The message BODY is in Mongolian; the concise ORIGINAL source snippet
+// (English) is attached untranslated via `withSource`.
 
 export type SquadAlert = {
     playerId: number;
@@ -30,13 +33,15 @@ export function buildSquadAlerts(squad: ModelPlayer[]): SquadAlert[] {
     for (const player of squad) {
         const base = { playerId: player.id, name: player.name, team: player.team };
 
-        // Official FPL availability (status other than 'a' = available).
+        // Official FPL availability (status other than 'a' = available). Body in
+        // Mongolian (translated from FPL's own text); concise English source kept.
         if (player.status && player.status !== 'a') {
             const severity: SquadAlert['severity'] =
                 player.status === 'i' || player.status === 'o' || player.status === 's' ? 'high' : 'medium';
-            alerts.push({ ...base, kind: 'availability', severity, message: player.news || `Availability status: ${player.status}` });
+            const mn = player.news ? mnFplNews(player.news) : mnStatus(player.status);
+            alerts.push({ ...base, kind: 'availability', severity, message: withSource(mn || mnStatus(player.status), player.news) });
         } else if (player.news) {
-            alerts.push({ ...base, kind: 'news', severity: 'low', message: player.news });
+            alerts.push({ ...base, kind: 'news', severity: 'low', message: withSource(mnFplNews(player.news) || 'Мэдээ', player.news) });
         }
 
         // Verified external news (transfer / injury / rotation).
@@ -50,13 +55,13 @@ export function buildSquadAlerts(squad: ModelPlayer[]): SquadAlert[] {
                           : signal.category === 'rotation'
                             ? 'rotation'
                             : 'news';
-                // Keep the source text in its original language (English) and
-                // name the source so the reader can find / translate the original.
+                // Mongolian category label as the body; concise English headline
+                // + source name attached untranslated so the original is visible.
                 alerts.push({
                     ...base,
                     kind,
                     severity: signal.severity,
-                    message: `${concise(signal.headline)}${signal.source ? ` (${signal.source})` : ''}`,
+                    message: withSource(mnCategory(signal.category), concise(signal.headline), signal.source),
                 });
             }
         }
@@ -111,7 +116,7 @@ export function buildSquadReports(squad: ModelPlayer[]): SquadAlert[] {
                     team: player.team,
                     kind: signal.category === 'transfer' ? 'transfer' : signal.category === 'injury' ? 'injury' : 'news',
                     severity: 'low',
-                    message: `${concise(signal.headline)}${signal.source ? ` (${signal.source})` : ''}`,
+                    message: withSource(mnCategory(signal.category), concise(signal.headline), signal.source),
                 });
             }
         }

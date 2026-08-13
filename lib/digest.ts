@@ -114,7 +114,7 @@ export function buildDigestMessage(input: {
 // in their original language (English), untranslated, so the reader can
 // translate them if they wish.
 function formatGlobalNews(news: GlobalNews): string {
-    const sections: string[] = ['🌍 FPL-ийн чухал мэдээ (бүх тоглогч · эх сурвалж англиар)'];
+    const sections: string[] = ['🌍 FPL-ийн чухал мэдээ (бүх тоглогч · монголоор, эх сурвалж англиар)'];
 
     if (news.injuries.length) {
         const lines = news.injuries.map(
