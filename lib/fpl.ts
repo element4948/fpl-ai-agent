@@ -41,6 +41,7 @@ export async function getBootstrap() {
         teams: FplTeam[];
         element_types: FplPosition[];
         events: FplEvent[];
+        total_players?: number;
     }>(`${FPL_BASE}/bootstrap-static/`);
 }
 

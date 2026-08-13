@@ -40,6 +40,7 @@ export function buildDigestMessage(input: {
     vice: CaptainPick;
     transfer: TransferPick;
     priceChanges: PriceChange[];
+    priceWatch?: { falling: Array<{ name: string; net: number }>; rising: Array<{ name: string; net: number }> };
     league: LeagueLine | null;
     reports: SquadAlert[];
 }): string {
@@ -75,6 +76,13 @@ export function buildDigestMessage(input: {
             .slice(0, 10)
             .map((p) => `${p.delta > 0 ? '📈' : '📉'} ${p.name} ${p.delta > 0 ? '+' : ''}${p.delta.toFixed(1)}`);
         blocks.push(`💰 Үнийн өөрчлөлт:\n${lines.join('\n')}`);
+    }
+
+    if (input.priceWatch && (input.priceWatch.falling.length || input.priceWatch.rising.length)) {
+        const lines: string[] = [];
+        for (const move of input.priceWatch.falling.slice(0, 6)) lines.push(`📉 ${move.name} — унах магадлалтай (сель бол өнөөдөр)`);
+        for (const move of input.priceWatch.rising.slice(0, 6)) lines.push(`📈 ${move.name} — өсөх магадлалтай (авах бол одоо)`);
+        blocks.push(`💹 Үнийн таамаг (магадлал, баталгаа биш):\n${lines.join('\n')}`);
     }
 
     if (input.league) {

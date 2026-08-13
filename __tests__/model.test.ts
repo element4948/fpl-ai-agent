@@ -7,6 +7,8 @@ import { suggestSafeTransfers, buildTransferPlans } from '@/lib/transfers';
 import { buildSquadAlerts, buildSquadReports } from '@/lib/squad-alerts';
 import { formatDeadlineLine, buildDigestMessage } from '@/lib/digest';
 import { alertKey } from '@/lib/alert-store';
+import { predictPriceMoves, isLikelyMove } from '@/lib/price-predictor';
+import type { FplPlayer } from '@/types/fpl';
 import { makePlayer, makeLegalSquad } from './helpers';
 
 function strongMid(id: number): ReturnType<typeof makePlayer> {
@@ -245,5 +247,25 @@ describe('alertKey (urgent dedup)', () => {
     expect(alertKey(1, 'out')).not.toBe(alertKey(2, 'out'));
     expect(alertKey(1, 'out')).not.toBe(alertKey(1, 'injured'));
     expect(alertKey(1, 'out')).toMatch(/^fplalert:1:/);
+  });
+});
+
+describe('predictPriceMoves', () => {
+  const els = [
+    { id: 1, web_name: 'Riser', cost_change_event: 0, transfers_in_event: 90000, transfers_out_event: 10000 },
+    { id: 2, web_name: 'Faller', cost_change_event: 0, transfers_in_event: 5000, transfers_out_event: 80000 },
+    { id: 3, web_name: 'AlreadyMoved', cost_change_event: 1, transfers_in_event: 100000, transfers_out_event: 0 },
+    { id: 4, web_name: 'Flat', cost_change_event: 0, transfers_in_event: 100, transfers_out_event: 100 },
+  ] as unknown as FplPlayer[];
+  it('separates risers/fallers and excludes already-moved and flat players', () => {
+    const { risers, fallers } = predictPriceMoves(els, 1_000_000);
+    expect(risers.map((r) => r.id)).toContain(1);
+    expect(risers.map((r) => r.id)).not.toContain(3);
+    expect(risers.map((r) => r.id)).not.toContain(4);
+    expect(fallers.map((f) => f.id)).toContain(2);
+  });
+  it('isLikelyMove thresholds on momentum', () => {
+    expect(isLikelyMove(0.05)).toBe(true);
+    expect(isLikelyMove(0.01)).toBe(false);
   });
 });

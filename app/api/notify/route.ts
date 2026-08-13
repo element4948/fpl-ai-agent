@@ -5,6 +5,7 @@ import { buildSquadAlerts, buildSquadReports } from '@/lib/squad-alerts';
 import { buildDigestMessage, type LeagueLine, type PriceChange } from '@/lib/digest';
 import { rankCaptainCandidates } from '@/lib/scoring';
 import { buildTransferPlans } from '@/lib/transfers';
+import { predictPriceMoves, isLikelyMove } from '@/lib/price-predictor';
 import { sendTelegramMessage, telegramConfigured, telegramStatus } from '@/lib/telegram';
 import type { ModelPlayer } from '@/types/fpl';
 
@@ -87,6 +88,15 @@ export async function GET(request: Request) {
         .filter((element) => focusIds.includes(element.id) && Number(element.cost_change_event || 0) !== 0)
         .map((element) => ({ name: element.web_name, delta: Number(element.cost_change_event || 0) / 10 }));
 
+    // Predicted price rises/falls from transfer momentum (estimate). Warn about
+    // owned players likely to fall (sell first) and flag rising players to buy.
+    const { risers, fallers } = predictPriceMoves(boot.elements, boot.total_players || 0);
+    const focusSet = new Set(focusIds);
+    const priceWatch = {
+        falling: fallers.filter((m) => focusSet.has(m.id) && isLikelyMove(m.momentum)).map((m) => ({ name: m.name, net: m.net })),
+        rising: risers.filter((m) => !focusSet.has(m.id) && isLikelyMove(m.momentum)).slice(0, 5).map((m) => ({ name: m.name, net: m.net })),
+    };
+
     // Mini-league standings/gap (skip before anyone has points).
     let league: LeagueLine | null = null;
     const leagueId = process.env.FPL_LEAGUE_ID;
@@ -120,6 +130,7 @@ export async function GET(request: Request) {
         vice,
         transfer,
         priceChanges,
+        priceWatch,
         league,
         reports,
     });
