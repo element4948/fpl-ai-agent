@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Normalized dashboard spacing across desktop, tablet, and mobile sections.
+- Scheduled the daily Telegram digest for 17:00 Ulaanbaatar, added safe long-message chunking, and protected manual production sends with the owner session.
+- Corrected draft formation validation wording and removed false final-gate `#1` ranks for ineligible players.
 - Added complete AI/developer handoff documentation.
 - Added multi-agent coordination protocol (HANDOFF.md + AGENTS.md section) for safe Codex/Claude handoffs.
 - Documented architecture, sources, optimizer invariants, operations, testing, and limitations.

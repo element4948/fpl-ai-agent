@@ -1,11 +1,12 @@
 # Testing contract
 
-There is currently no automated test suite or CI. Until one is added, every model change requires the following manual checks. Adding Vitest/unit fixtures and a GitHub Actions build is a priority.
+The repository has a Vitest unit suite and GitHub Actions CI. Automated tests cover core model regressions, but every model change still requires the manual API checks below because external provider availability and live FPL data cannot be fully represented by fixtures.
 
 ## Required build
 
 ```bash
 npm run build
+npm run test
 ```
 
 ## Draft API checks

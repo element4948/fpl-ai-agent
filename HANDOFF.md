@@ -17,11 +17,10 @@
 ## Current state
 
 - Branch: `main`
-- Last commit: components/ split ongoing (badges, MoreSection, SeasonRoadmapCard, caches extracted).
-- Build/typecheck: `npm run build` and `npm run lint` (now full `strict`) pass.
-- Tests: `npm run test` (vitest) — 12 passing. NOTE: run `npm install` first to
-  pull the newly added `vitest` devDependency.
-- Working tree at handoff: clean. Local commits are NOT yet pushed to origin.
+- Last committed baseline: `0f1cb4c` (Telegram digest text update).
+- Current change set: unified UI spacing, 17:00 Ulaanbaatar Telegram schedule and delivery hardening, plus draft audit/validation correctness fixes.
+- Verification in this workspace: Next production compilation succeeds. Full typecheck/test is currently blocked because this local `node_modules` is missing the committed `vitest` dependency and network access cannot download it; run `npm install && npm run build && npm run test` in a networked environment before deployment.
+- Working tree should be clean after the current scoped commit. Local commits are not pushed unless the owner asks.
 
 ## In progress / not finished
 
@@ -69,6 +68,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-14 — Normalized dashboard spacing; moved Telegram digest to 17:00 Ulaanbaatar, added long-message chunking and owner-only manual sends; corrected draft gate-rank and legal-formation validation labels.
 - 2026-08-09 — Refactor: extracted MoreSection + SeasonRoadmapCard to components/; gitignored auto-generated next-env.d.ts.
 - 2026-08-08 — Refactor: extracted DataQualityBadge/FixtureTrendBadge to components/PlayerBadges.tsx (`7c51172`).
 - 2026-08-08 — Refactor: extracted dashboard/decision caches to lib/dashboard-cache.ts (`36815a5`), first step of page.tsx split.
@@ -92,4 +92,5 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
   every CI/sandbox environment.
 - `_to_delete/` (if present) is scratch that could not be auto-removed; safe for
   the owner to delete, must not be committed.
+- In the 2026-08-14 local workspace, `node_modules` did not contain Vitest even though it is declared in the lockfile. Do not weaken TypeScript configuration to hide this; install dependencies with modern Node/npm when network is available.
 - `GAP_ANALYSIS.md` (delivered to the owner) is the full audit behind these stages.
