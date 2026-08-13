@@ -905,6 +905,9 @@ export default function Home() {
                 if (activeSettings.entryId) {
                     await runAnalyze(activeSettings);
                 }
+                if (activeSettings.entryId && activeSettings.leagueId) {
+                    await runLeague(activeSettings);
+                }
             } catch (error) {
                 if (!cancelled) {
                     setBoot({ error: error instanceof Error ? error.message : 'Dashboard load failed' });
@@ -1019,13 +1022,14 @@ export default function Home() {
         setLoading(false);
     }
 
-    async function runLeague() {
+    async function runLeague(activeSettings: UserSettings = settings) {
+        if (!activeSettings.entryId || !activeSettings.leagueId) return;
         setLoading(true);
         setLeague(null);
         const res = await fetch('/api/league', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ entryId: settings.entryId, leagueId: settings.leagueId }),
+            body: JSON.stringify({ entryId: activeSettings.entryId, leagueId: activeSettings.leagueId }),
         });
         setLeague(await res.json());
         setLoading(false);
@@ -1059,6 +1063,7 @@ export default function Home() {
         // Re-analyze the configured team whenever settings are saved (e.g. after
         // entering or changing the Entry ID).
         void runAnalyze(settings);
+        void runLeague(settings);
         setTimeout(() => setSaved(false), 1600);
     }
 
@@ -1652,7 +1657,7 @@ export default function Home() {
 
                 <MoreSection id="league" title={t.leagueIntelligence} summary="Rank gap, өрсөлдөгчид болон mini-league strategy">
                 <Card title={t.leagueIntelligence} subtitle={t.leagueSub} helpHref="/docs#league">
-                    <button className="btn secondary" disabled={loading} onClick={runLeague}>
+                    <button className="btn secondary" disabled={loading} onClick={() => runLeague()}>
                         {loading ? t.loading : t.runLeagueAnalysis}
                     </button>
                     {league?.message && <p className="muted">{t.noIdLeague}</p>}

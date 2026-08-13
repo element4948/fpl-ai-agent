@@ -15,6 +15,15 @@ export type SquadAlert = {
 
 const SEVERITY_RANK: Record<SquadAlert['severity'], number> = { high: 0, medium: 1, low: 2 };
 
+// Keep the original-language source text but concise: drop the trailing
+// " - Publisher" that Google News appends and cap the length. We deliberately
+// do NOT translate — a short accurate source snippet beats a wrong translation.
+function concise(headline: string): string {
+    const noSource = headline.replace(/\s+[-–|]\s+[^-–|]+$/, '').trim();
+    const text = noSource || headline.trim();
+    return text.length > 90 ? `${text.slice(0, 88).trimEnd()}…` : text;
+}
+
 export function buildSquadAlerts(squad: ModelPlayer[]): SquadAlert[] {
     const alerts: SquadAlert[] = [];
 
@@ -41,7 +50,7 @@ export function buildSquadAlerts(squad: ModelPlayer[]): SquadAlert[] {
                           : signal.category === 'rotation'
                             ? 'rotation'
                             : 'news';
-                alerts.push({ ...base, kind, severity: signal.severity, message: signal.headline });
+                alerts.push({ ...base, kind, severity: signal.severity, message: concise(signal.headline) });
             }
         }
 
@@ -95,7 +104,7 @@ export function buildSquadReports(squad: ModelPlayer[]): SquadAlert[] {
                     team: player.team,
                     kind: signal.category === 'transfer' ? 'transfer' : signal.category === 'injury' ? 'injury' : 'news',
                     severity: 'low',
-                    message: `${signal.headline}${signal.source ? ` (${signal.source})` : ''}`,
+                    message: `${concise(signal.headline)}${signal.source ? ` (${signal.source})` : ''}`,
                 });
             }
         }
