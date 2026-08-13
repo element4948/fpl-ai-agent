@@ -490,3 +490,70 @@ main>*,.card,.grid>*,.hero>*,.draft-layout>*,.target-sections>*,.more-section-bo
   .docs-main{width:calc(100% - 16px);padding:10px 0 40px}.docs-hero{padding:15px;border-radius:16px}.docs-hero h1{font-size:30px}
   .docs-main .doc-section:target{padding:13px}.docs-grid.two,.docs-grid.three{grid-template-columns:1fr}
 }
+
+/* Unified dashboard spacing
+ *
+ * The dashboard accumulated legacy card margins plus newer grid/accordion
+ * gaps. That doubled vertical space in some sections and removed it in
+ * others. The shell now owns section rhythm; components only own their
+ * internal spacing. Keep these overrides last so older breakpoint rules do
+ * not reintroduce the mismatch. */
+:root{
+  --space-page:24px;
+  --space-section:18px;
+  --space-card:16px;
+  --space-compact:10px;
+}
+.dashboard-shell{
+  display:grid;
+  gap:var(--space-section);
+  width:min(1180px,calc(100% - 32px));
+  padding:var(--space-page) 0 64px;
+}
+.dashboard-shell>*{min-width:0;margin-block:0}
+.dashboard-shell>.hero{margin:0;gap:var(--space-section)}
+.dashboard-shell .hero-panel{padding:24px}
+.dashboard-shell .hero-panel h1{margin:16px 0 10px}
+.dashboard-shell .card,
+.dashboard-shell .grid>.card,
+.dashboard-shell .target-sections>.card,
+.dashboard-shell .more-section-body>.card{margin-bottom:0}
+.dashboard-shell .grid,
+.dashboard-shell .target-sections{gap:var(--space-section)}
+.dashboard-shell .card{padding:var(--space-card)}
+.dashboard-shell .card-head{margin-bottom:14px}
+.dashboard-shell .more-section{margin:0}
+.dashboard-shell .more-section-body{gap:var(--space-section);padding:var(--space-card)}
+.dashboard-shell .more-section-body>.grid{margin:0}
+.dashboard-shell .draft-team-card{margin:0}
+.dashboard-shell .draft-team-card+.draft-team-card{margin-top:12px}
+.dashboard-shell .draft-team-body{padding:var(--space-card)}
+.dashboard-shell .draft-meta-disclosure{margin:0 0 12px}
+.dashboard-shell .draft-toolbar,
+.dashboard-shell .draft-trust-panel,
+.dashboard-shell .draft-flex-panel{margin-bottom:12px}
+.dashboard-shell .draft-layout{gap:var(--space-section)}
+.dashboard-shell .decision-footer{margin-top:12px}
+.dashboard-shell .notice:last-child,
+.dashboard-shell .card>:last-child{margin-bottom:0}
+
+@media(max-width:960px){
+  :root{--space-page:14px;--space-section:14px;--space-card:14px}
+  .dashboard-shell{width:calc(100% - 24px);padding:var(--space-page) 0 48px}
+  .dashboard-shell>.hero{margin:0}
+  .dashboard-shell .hero-panel{padding:18px}
+}
+
+@media(max-width:700px){
+  :root{--space-page:8px;--space-section:10px;--space-card:11px}
+  .dashboard-shell{width:calc(100% - 16px);padding:var(--space-page) 0 36px}
+  .dashboard-shell>.hero{gap:var(--space-section)}
+  .dashboard-shell .hero-panel{padding:14px}
+  .dashboard-shell .hero-panel h1{margin:10px 0 7px}
+  .dashboard-shell .grid,
+  .dashboard-shell .target-sections,
+  .dashboard-shell .more-section-body{gap:var(--space-section)}
+  .dashboard-shell .more-section-body{padding:8px}
+  .dashboard-shell .draft-team-body{padding:8px}
+  .dashboard-shell .draft-team-card+.draft-team-card{margin-top:8px}
+}

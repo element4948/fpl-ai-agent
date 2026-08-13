@@ -1031,7 +1031,9 @@ export default function Home() {
         try {
             const res = await fetch('/api/notify/refresh', { method: 'POST' });
             const data = await res.json();
-            if (data.skipped === 'telegram-not-configured') {
+            if (res.status === 401) {
+                setNotify({ loading: false, ok: false, message: 'Telegram мэдэгдэл илгээхийн тулд эхлээд эзэмшигчээр нэвтэрнэ үү.' });
+            } else if (data.skipped === 'telegram-not-configured') {
                 setNotify({ loading: false, ok: false, message: 'Telegram тохируулагдаагүй байна (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID-г Vercel env дээр нэмнэ үү).' });
             } else if (data.skipped === 'cooldown') {
                 setNotify({ loading: false, ok: false, message: 'Түр хүлээгээд дахин оролдоно уу (30 секунд).' });
@@ -1198,7 +1200,7 @@ export default function Home() {
         <>
             <Navbar lang={lang} onLang={() => updateSettings({ lang: lang === 'mn' ? 'en' : 'mn' })} />
             <PlayerDetailModal />
-            <main id="top">
+            <main id="top" className="dashboard-shell">
                 <section className="hero">
                     <div className="hero-panel">
                         <div className="hero-product-line">
