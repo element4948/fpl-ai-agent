@@ -8,6 +8,7 @@ import { buildSquadAlerts, buildSquadReports } from '@/lib/squad-alerts';
 import { formatDeadlineLine, buildDigestMessage } from '@/lib/digest';
 import { alertKey } from '@/lib/alert-store';
 import { predictPriceMoves, isLikelyMove } from '@/lib/price-predictor';
+import { splitTelegramMessage } from '@/lib/telegram';
 import type { FplPlayer } from '@/types/fpl';
 import { makePlayer, makeLegalSquad } from './helpers';
 
@@ -238,6 +239,20 @@ describe('digest formatting', () => {
     expect(msg).toContain('X → Y');
     expect(msg).toContain('Friends');
     expect(msg).not.toContain('баталгаажаагүй');
+  });
+});
+
+describe('Telegram delivery limits', () => {
+  it('keeps short messages intact and splits long digests below the safe limit', () => {
+    expect(splitTelegramMessage('short digest')).toEqual(['short digest']);
+    const paragraphs = Array.from(
+      { length: 30 },
+      (_, index) => `Section ${index}\n${'x'.repeat(180)}`,
+    ).join('\n\n');
+    const chunks = splitTelegramMessage(paragraphs, 500);
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.every((chunk) => chunk.length <= 500)).toBe(true);
+    expect(chunks.join('\n\n')).toContain('Section 29');
   });
 });
 

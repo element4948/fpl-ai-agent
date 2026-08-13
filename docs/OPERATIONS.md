@@ -28,6 +28,14 @@ The only reliable completion signal is a successful TypeScript/build result. A d
 5. Configure environment variables from `.env.example` for Production and Preview as needed.
 6. Push to `main` only when the owner requests deployment.
 
+## Telegram notifications
+
+- The scheduled digest runs every day at `17:00 Asia/Ulaanbaatar` (`09:00 UTC`) through `vercel.json`.
+- Configure `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and `CRON_SECRET` in Vercel Production environment variables. Never commit their values.
+- Long reports are split into Telegram-safe chunks and numbered before delivery, so the 4096-character platform limit does not silently drop a digest.
+- The dashboard's manual send button requires a valid owner session in production. The cron route remains protected by `CRON_SECRET`.
+- Urgent alerts are available through the urgent route but are not scheduled by default; adding a frequent schedule should be a deliberate owner decision because it consumes provider quotas.
+
 ## Profile sync
 
 For cross-browser persistence configure either the KV names or Upstash aliases plus both owner secrets. If configuration is incomplete, `/api/profile` returns 503 and the app should continue with local browser storage.

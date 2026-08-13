@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { buildDigestMessage } from '@/lib/digest';
 import { sendTelegramMessage, telegramConfigured, telegramStatus } from '@/lib/telegram';
 import { gatherDigest } from '@/lib/notify-core';
 import { getLastDigest, markAlertSent, setLastDigest, wasAlertSent } from '@/lib/alert-store';
+import { sessionIsValid } from '@/lib/cloud-profile-server';
 
 // On-demand "get the latest news" button target. It does two things the user
 // asked for, in one click:
@@ -13,6 +15,15 @@ import { getLastDigest, markAlertSent, setLastDigest, wasAlertSent } from '@/lib
 export const maxDuration = 60;
 
 async function handle() {
+    // Sending a Telegram message is an external side effect. In production it
+    // must only be triggered by the signed-in owner; development remains easy
+    // to test without cloud-profile configuration.
+    if (process.env.NODE_ENV === 'production') {
+        const store = await cookies();
+        if (!sessionIsValid(store.get('fpl-ai-session')?.value)) {
+            return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
+        }
+    }
     if (!telegramConfigured()) {
         return NextResponse.json({ ok: false, skipped: 'telegram-not-configured', have: telegramStatus() });
     }
@@ -79,10 +90,5 @@ async function handle() {
 }
 
 export async function POST() {
-    return handle();
-}
-
-// GET allowed too (e.g. quick manual test in a browser).
-export async function GET() {
     return handle();
 }
