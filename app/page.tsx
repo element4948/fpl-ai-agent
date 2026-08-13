@@ -826,6 +826,7 @@ export default function Home() {
     const [league, setLeague] = useState<Any>(null);
     const [decision, setDecision] = useState<Any>(null);
     const [decisionError, setDecisionError] = useState<string | null>(null);
+    const [notify, setNotify] = useState<{ loading: boolean; message: string; ok: boolean | null }>({ loading: false, message: '', ok: null });
     const [fixtureStatus, setFixtureStatus] = useState<Any>(null);
     const [calibrationResults, setCalibrationResults] = useState<CalibrationResult[]>([]);
     const [loading, setLoading] = useState(false);
@@ -1022,6 +1023,27 @@ export default function Home() {
             setDecisionError('network');
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function sendLatestNews() {
+        setNotify({ loading: true, message: '', ok: null });
+        try {
+            const res = await fetch('/api/notify/refresh', { method: 'POST' });
+            const data = await res.json();
+            if (data.skipped === 'telegram-not-configured') {
+                setNotify({ loading: false, ok: false, message: 'Telegram тохируулагдаагүй байна (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID-г Vercel env дээр нэмнэ үү).' });
+            } else if (data.skipped === 'cooldown') {
+                setNotify({ loading: false, ok: false, message: 'Түр хүлээгээд дахин оролдоно уу (30 секунд).' });
+            } else if (data.ok) {
+                const newBit = data.newSinceLast > 0 ? `${data.newSinceLast} шинэ зүйл` : 'шинэ зүйл алга';
+                const resent = data.resentPrevious ? ' · өмнөх мэдэгдэл давтан илгээв' : '';
+                setNotify({ loading: false, ok: true, message: `✅ Telegram руу илгээлээ (${newBit}${resent}).` });
+            } else {
+                setNotify({ loading: false, ok: false, message: `Илгээж чадсангүй${data.error ? `: ${data.error}` : ''}. Дараа дахин оролдоно уу.` });
+            }
+        } catch {
+            setNotify({ loading: false, ok: false, message: 'Сүлжээний алдаа. Дараа дахин оролдоно уу.' });
         }
     }
 
@@ -1496,9 +1518,23 @@ export default function Home() {
 
                 <section id="team" className="grid grid-2">
                     <Card title={t.navTeam} subtitle={t.liveTeamSub} helpHref="/docs#team">
-                        <button className="btn" disabled={loading} onClick={() => runAnalyze()}>
-                            {loading ? t.loading : t.runTeamAnalysis}
-                        </button>
+                        <div className="team-actions">
+                            <button className="btn" disabled={loading} onClick={() => runAnalyze()}>
+                                {loading ? t.loading : t.runTeamAnalysis}
+                            </button>
+                            <button
+                                className="btn btn-telegram"
+                                type="button"
+                                disabled={notify.loading}
+                                onClick={sendLatestNews}
+                                title="Хамгийн сүүлийн мэдээг Telegram руу илгээх (өмнөхийг давтаж, шинийг нэмж шалгана)"
+                            >
+                                {notify.loading ? 'Илгээж байна…' : '📲 Сүүлийн мэдээ авах'}
+                            </button>
+                        </div>
+                        {notify.message ? (
+                            <p className={`notify-status ${notify.ok === false ? 'bad' : notify.ok ? 'good' : ''}`}>{notify.message}</p>
+                        ) : null}
 
                         {analysis?.summary ? (
                             <div className="grid grid-4" style={{ marginTop: 16 }}>

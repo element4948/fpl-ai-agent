@@ -50,7 +50,14 @@ export function buildSquadAlerts(squad: ModelPlayer[]): SquadAlert[] {
                           : signal.category === 'rotation'
                             ? 'rotation'
                             : 'news';
-                alerts.push({ ...base, kind, severity: signal.severity, message: concise(signal.headline) });
+                // Keep the source text in its original language (English) and
+                // name the source so the reader can find / translate the original.
+                alerts.push({
+                    ...base,
+                    kind,
+                    severity: signal.severity,
+                    message: `${concise(signal.headline)}${signal.source ? ` (${signal.source})` : ''}`,
+                });
             }
         }
 

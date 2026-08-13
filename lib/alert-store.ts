@@ -49,3 +49,38 @@ export async function markAlertSent(key: string, ttlSeconds = 172800): Promise<v
         // Best-effort; a failed write just risks a duplicate next run.
     }
 }
+
+const LAST_DIGEST_KEY = 'fpl:last-digest';
+
+/** The verbatim text of the most recently sent digest (for the re-send button). */
+export async function getLastDigest(): Promise<string | null> {
+    const cfg = kvConfig();
+    if (!cfg) return null;
+    try {
+        const response = await fetch(`${cfg.url}/get/${encodeURIComponent(LAST_DIGEST_KEY)}`, {
+            headers: { Authorization: `Bearer ${cfg.token}` },
+            signal: AbortSignal.timeout(5000),
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        return typeof data?.result === 'string' ? data.result : null;
+    } catch {
+        return null;
+    }
+}
+
+export async function setLastDigest(text: string, ttlSeconds = 1_209_600): Promise<void> {
+    const cfg = kvConfig();
+    if (!cfg) return;
+    try {
+        // Store via POST body so newlines / long text are not lost in the URL path.
+        await fetch(`${cfg.url}/set/${encodeURIComponent(LAST_DIGEST_KEY)}?EX=${ttlSeconds}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${cfg.token}`, 'content-type': 'text/plain' },
+            body: text,
+            signal: AbortSignal.timeout(5000),
+        });
+    } catch {
+        // Best-effort.
+    }
+}

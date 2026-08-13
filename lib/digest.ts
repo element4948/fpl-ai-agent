@@ -1,4 +1,6 @@
 import type { SquadAlert } from './squad-alerts';
+import type { GlobalNews } from './global-news';
+import { hasGlobalNews } from './global-news';
 
 // Assembles the full Telegram digest from already-gathered sections. Kept pure
 // (no fetching / no Date.now) so it is easy to test; the route passes `nowMs`.
@@ -43,9 +45,12 @@ export function buildDigestMessage(input: {
     priceWatch?: { falling: Array<{ name: string; net: number }>; rising: Array<{ name: string; net: number }> };
     league: LeagueLine | null;
     reports: SquadAlert[];
+    globalNews?: GlobalNews;
+    freshHeadline?: string;
 }): string {
     const blocks: string[] = [];
     blocks.push(`⚽ FPL дайджест${input.eventName ? ` — ${input.eventName}` : ''}`);
+    if (input.freshHeadline) blocks.push(input.freshHeadline);
     if (input.note) blocks.push(input.note);
 
     const deadline = formatDeadlineLine(input.deadlineIso, input.nowMs);
@@ -98,5 +103,50 @@ export function buildDigestMessage(input: {
         blocks.push(`📰 Мэдээ (баталгаажаагүй — шалгах):\n${lines.join('\n')}`);
     }
 
+    if (input.globalNews && hasGlobalNews(input.globalNews)) {
+        blocks.push(formatGlobalNews(input.globalNews));
+    }
+
     return blocks.join('\n\n');
+}
+
+// FPL-wide important news (not just the owner's squad). Source snippets are kept
+// in their original language (English), untranslated, so the reader can
+// translate them if they wish.
+function formatGlobalNews(news: GlobalNews): string {
+    const sections: string[] = ['🌍 FPL-ийн чухал мэдээ (бүх тоглогч · эх сурвалж англиар)'];
+
+    if (news.injuries.length) {
+        const lines = news.injuries.map(
+            (i) => `🔴 ${i.name} (${i.team}, ${i.ownership.toFixed(0)}%): ${i.text}`,
+        );
+        sections.push(`Гэмтэл / бэлэн бус:\n${lines.join('\n')}`);
+    }
+
+    if (news.risers.length || news.fallers.length) {
+        const lines: string[] = [];
+        for (const m of news.risers) lines.push(`📈 ${m.name}${m.team ? ` (${m.team})` : ''} — өсөх магадлалтай`);
+        for (const m of news.fallers) lines.push(`📉 ${m.name}${m.team ? ` (${m.team})` : ''} — унах магадлалтай`);
+        sections.push(`Үнийн таамаг (магадлал, баталгаа биш):\n${lines.join('\n')}`);
+    }
+
+    if (news.bestFixtures.length) {
+        const lines = news.bestFixtures.map(
+            (f) => `🔥 ${f.name} (${f.team}) → ${f.opponent} (FDR ${f.difficulty}, ${f.xp.toFixed(1)} xP)`,
+        );
+        sections.push(`Хамгийн хялбар тоглолт (сайн боломж):\n${lines.join('\n')}`);
+    }
+
+    if (news.templateIn.length) {
+        const lines = news.templateIn.map((t) => `🔁 ${t.name}${t.team ? ` (${t.team})` : ''} — +${formatCount(t.inCount)}`);
+        sections.push(`Талбар хамгийн их авч буй (template):\n${lines.join('\n')}`);
+    }
+
+    return sections.join('\n\n');
+}
+
+function formatCount(n: number): string {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}сая`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(0)}мянга`;
+    return String(n);
 }
