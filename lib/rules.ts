@@ -262,14 +262,15 @@ function buildSelectionAudit(
             .filter((candidate) => candidate.position === player.position)
             .sort((a, b) => playerScore(b, mode) - playerScore(a, mode));
         const rank = Math.max(1, pool.findIndex((candidate) => candidate.id === player.id) + 1);
-        const eligibleRank = Math.max(1, eligiblePool.findIndex((candidate) => candidate.id === player.id) + 1);
+        const eligibleIndex = eligiblePool.findIndex((candidate) => candidate.id === player.id);
+        const eligibleRank = eligibleIndex >= 0 ? eligibleIndex + 1 : null;
         const checks = positionMetricChecks(player);
         return [player.id, {
             rank,
             totalCandidates: pool.length,
             eligibleRank,
             eligibleCandidates: eligiblePool.length,
-            higherRankedRejected: Math.max(0, rank - eligibleRank),
+            higherRankedRejected: eligibleRank == null ? 0 : Math.max(0, rank - eligibleRank),
             passedMetrics: checks.filter(Boolean).length,
             totalMetrics: checks.length,
         }];
@@ -602,12 +603,16 @@ export function buildDraft(
     }
     if (playableMidfielders < 2) {
         validation.valid = false;
-        validation.errors.push(`Only ${playableMidfielders} midfielders are reliable starters. All 5 are required.`);
+        validation.errors.push(
+            `Only ${playableMidfielders} midfielders are reliable starters. A legal Starting XI requires at least 2.`,
+        );
     }
 
     if (playableForwards < 1) {
         validation.valid = false;
-        validation.errors.push(`Only ${playableForwards} forwards are reliable starters. All 3 are required.`);
+        validation.errors.push(
+            `Only ${playableForwards} forwards are reliable starters. A legal Starting XI requires at least 1.`,
+        );
     }
 
     if (lineup.startingXI.length !== 11) {

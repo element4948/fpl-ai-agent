@@ -440,7 +440,7 @@ export type DraftTeam = {
   selectionAudit: Record<number, {
     rank: number;
     totalCandidates: number;
-    eligibleRank: number;
+    eligibleRank: number | null;
     eligibleCandidates: number;
     higherRankedRejected: number;
     passedMetrics: number;

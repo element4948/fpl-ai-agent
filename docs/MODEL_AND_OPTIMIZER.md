@@ -79,6 +79,7 @@ Modes may share players when the evidence strongly favors them. They must not be
 - `validateSquad`: legal FPL construction and optimizer safety checks.
 - `buildDraftTrust`: whether evidence is sufficient for a final recommendation.
 - A legal but insufficient-evidence squad is provisional, not final-ready.
+- Selection audit ranks are honest about the active gate: a player not present in the eligible pool has no final-gate rank (`—`) and must never be presented as `#1` by a missing-index fallback.
 
 ## Captain and vice
 
