@@ -211,6 +211,9 @@ export async function POST(req: Request) {
             enabled: apiFootballScan.enabled,
             matchedPlayers: apiFootballScan.matchedPlayers,
             fixturesChecked: apiFootballScan.fixturesChecked,
+            identityMatched: apiFootballScan.identityMatched,
+            identityAmbiguous: apiFootballScan.identityAmbiguous,
+            identityUnmatched: apiFootballScan.identityUnmatched,
             error: apiFootballScan.error,
         },
 

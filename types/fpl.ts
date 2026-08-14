@@ -326,7 +326,9 @@ export type StarterLabel = 'nailed' | 'likely' | 'rotation' | 'bench' | 'unavail
 export type ModelPlayer = {
   id: number;
   name: string;
+  fullName?: string;
   team: string;
+  teamName?: string;
   teamId: number;
   position: string;
   positionId: number;
@@ -412,6 +414,10 @@ export type ModelPlayer = {
     competitiveMatches: number;
     competitiveStarts: number;
     competitiveMinutes: number;
+    apiPlayerId?: number;
+    identityConfidence?: number;
+    identityVerified?: boolean;
+    identityMethod?: 'exact-full-name' | 'exact-display-name' | 'team-name-score';
     oddsWinProbability?: number;
   };
   news?: string;

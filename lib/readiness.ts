@@ -14,7 +14,9 @@ export function buildModelReadiness(
     player.externalNews?.some((signal) => signal.tier !== 'secondary'),
   ).length;
   const newsChecked = players.filter((player) => Boolean(player.newsCheckedAt)).length;
-  const apiLineups = players.filter((player) => (player.apiFootball?.matches || 0) > 0).length;
+  const apiLineups = players.filter((player) =>
+    Boolean(player.apiFootball?.identityVerified) && (player.apiFootball?.matches || 0) > 0,
+  ).length;
   const clubFriendlies = players.filter((player) => (player.apiFootball?.friendlyMatches || 0) > 0).length;
   const marketOdds = players.filter((player) => player.apiFootball?.oddsWinProbability != null).length;
   const pressConference = players.filter((player) =>

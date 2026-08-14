@@ -1,4 +1,5 @@
 import type { ModelPlayer } from '@/types/fpl';
+import { matchPlayerIdentity, type IdentityMatch } from '@/lib/player-identity';
 
 const API_BASE = 'https://v3.football.api-sports.io';
 const PREMIER_LEAGUE_ID = 39;
@@ -35,6 +36,10 @@ export type ApiFootballPlayerEvidence = {
   competitiveMatches: number;
   competitiveStarts: number;
   competitiveMinutes: number;
+  apiPlayerId?: number;
+  identityConfidence?: number;
+  identityVerified?: boolean;
+  identityMethod?: 'exact-full-name' | 'exact-display-name' | 'team-name-score';
   oddsWinProbability?: number;
 };
 
@@ -45,6 +50,9 @@ export type ApiFootballScan = {
   friendlyFixturesChecked: number;
   oddsFixturesChecked: number;
   oddsTeamsMatched: number;
+  identityMatched: number;
+  identityAmbiguous: number;
+  identityUnmatched: number;
   evidence: Map<number, ApiFootballPlayerEvidence>;
   error?: string;
 };
@@ -58,14 +66,15 @@ function normalize(value: string) {
     .trim();
 }
 
-function surname(value: string) {
-  return normalize(value).split(' ').at(-1) || '';
-}
-
-function teamCode(value: string) {
+function teamCode(value: string, players: ModelPlayer[] = []) {
   const normalized = normalize(value);
-  return Object.entries(TEAM_ALIASES).find(([, aliases]) =>
-    aliases.some((alias) => normalized.includes(normalize(alias))))?.[0] || null;
+  const staticCode = Object.entries(TEAM_ALIASES).find(([, aliases]) =>
+    aliases.some((alias) => normalized.includes(normalize(alias))))?.[0];
+  if (staticCode) return staticCode;
+  return players.find((player) => {
+    const teamName = normalize(player.teamName || '');
+    return teamName && (normalized === teamName || normalized.includes(teamName) || teamName.includes(normalized));
+  })?.team || null;
 }
 
 function seasonFor(date = new Date()) {
@@ -110,7 +119,7 @@ type PlayersResponse = {
   response?: Array<{
     team?: { name?: string };
     players?: Array<{
-      player?: { name?: string };
+      player?: { id?: number; name?: string };
       statistics?: Array<{
         games?: { minutes?: number | null; rating?: string | null; substitute?: boolean };
         shots?: { total?: number | null };
@@ -127,6 +136,7 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
     return {
       enabled: false, matchedPlayers: 0, fixturesChecked: 0,
       friendlyFixturesChecked: 0, oddsFixturesChecked: 0, oddsTeamsMatched: 0,
+      identityMatched: 0, identityAmbiguous: 0, identityUnmatched: 0,
       evidence: new Map(),
     };
   }
@@ -143,6 +153,7 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
     return {
       enabled: true, matchedPlayers: 0, fixturesChecked: 0,
       friendlyFixturesChecked: 0, oddsFixturesChecked: 0, oddsTeamsMatched: 0,
+      identityMatched: 0, identityAmbiguous: 0, identityUnmatched: 0,
       evidence: new Map(), error: 'API-Football unavailable or plan does not include this season.',
     };
   }
@@ -172,17 +183,16 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
     `/fixtures?league=${CLUB_FRIENDLIES_ID}&season=${currentSeason}&from=${from}&to=${to}`,
   );
   const friendlyIds = (friendlyResponse?.response || [])
-    .filter((item) => teamCode(item.teams?.home?.name || '') || teamCode(item.teams?.away?.name || ''))
+    .filter((item) => teamCode(item.teams?.home?.name || '', players) || teamCode(item.teams?.away?.name || '', players))
     .map((item) => item.fixture?.id)
     .filter((id): id is number => Number.isFinite(id))
     .slice(-MAX_FRIENDLY_FIXTURES);
   const friendlyIdSet = new Set(friendlyIds);
   fixtureIds = [...new Set([...fixtureIds, ...friendlyIds])].slice(-MAX_PLAYER_FIXTURES);
-  const uniqueSurname = new Map<string, ModelPlayer[]>();
+  const playersByTeam = new Map<string, ModelPlayer[]>();
+  const playerById = new Map(players.map((player) => [player.id, player]));
   for (const player of players) {
-    const key = surname(player.name);
-    if (!key) continue;
-    uniqueSurname.set(key, [...(uniqueSurname.get(key) || []), player]);
+    playersByTeam.set(player.team, [...(playersByTeam.get(player.team) || []), player]);
   }
 
   const raw = await Promise.all(fixtureIds.map(async (id) => ({
@@ -190,16 +200,40 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
     response: await apiFetch<PlayersResponse>(`/fixtures/players?fixture=${id}`),
   })));
   const aggregates = new Map<number, ApiFootballPlayerEvidence>();
+  const identityByApiId = new Map<number, Extract<IdentityMatch, { status: 'matched' }>>();
+  const apiIdByFplId = new Map<number, number>();
+  const ambiguousApiIds = new Set<number>();
+  const unmatchedApiIds = new Set<number>();
   const checkedAt = new Date().toISOString();
 
   for (const fixture of raw) {
     for (const team of fixture.response?.response || []) {
       for (const item of team.players || []) {
-        const candidates = uniqueSurname.get(surname(item.player?.name || '')) || [];
-        const apiTeam = normalize(team.team?.name || '');
-        const matched = candidates.find((candidate) =>
-          (TEAM_ALIASES[candidate.team] || [candidate.team]).some((alias) => apiTeam.includes(normalize(alias))),
-        );
+        const apiPlayerId = item.player?.id;
+        const apiPlayerName = item.player?.name || '';
+        const matchedTeam = teamCode(team.team?.name || '', players);
+        if (!Number.isFinite(apiPlayerId) || !apiPlayerName || !matchedTeam) continue;
+
+        let identity = identityByApiId.get(apiPlayerId as number);
+        if (!identity) {
+          const result = matchPlayerIdentity(apiPlayerName, playersByTeam.get(matchedTeam) || []);
+          if (result.status !== 'matched') {
+            if (result.status === 'ambiguous') ambiguousApiIds.add(apiPlayerId as number);
+            else unmatchedApiIds.add(apiPlayerId as number);
+            continue;
+          }
+          const existingApiId = apiIdByFplId.get(result.candidate.id);
+          if (existingApiId != null && existingApiId !== apiPlayerId) {
+            ambiguousApiIds.add(apiPlayerId as number);
+            continue;
+          }
+          identity = result;
+          identityByApiId.set(apiPlayerId as number, result);
+          apiIdByFplId.set(result.candidate.id, apiPlayerId as number);
+          ambiguousApiIds.delete(apiPlayerId as number);
+          unmatchedApiIds.delete(apiPlayerId as number);
+        }
+        const matched = playerById.get(identity.candidate.id);
         if (!matched) continue;
         const stat = item.statistics?.[0];
         if (!stat) continue;
@@ -215,6 +249,10 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
           competitiveMatches: 0,
           competitiveStarts: 0,
           competitiveMinutes: 0,
+          apiPlayerId: apiPlayerId as number,
+          identityConfidence: identity.confidence,
+          identityVerified: true,
+          identityMethod: identity.method,
         };
         const rating = Number(stat.games?.rating || 0);
         const minutes = Number(stat.games?.minutes || 0);
@@ -279,8 +317,8 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
     const awayOdd = Number(market.values.find((value) => /away/i.test(value.value || ''))?.odd || 0);
     if (![homeOdd, drawOdd, awayOdd].every((odd) => odd > 1)) continue;
     const total = 1 / homeOdd + 1 / drawOdd + 1 / awayOdd;
-    const home = teamCode(item.teams?.home?.name || '');
-    const away = teamCode(item.teams?.away?.name || '');
+    const home = teamCode(item.teams?.home?.name || '', players);
+    const away = teamCode(item.teams?.away?.name || '', players);
     if (home) teamOdds.set(home, Number(((1 / homeOdd) / total).toFixed(3)));
     if (away) teamOdds.set(away, Number(((1 / awayOdd) / total).toFixed(3)));
     oddsFixturesChecked += 1;
@@ -306,6 +344,9 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
     friendlyFixturesChecked: friendlyIds.length,
     oddsFixturesChecked,
     oddsTeamsMatched: teamOdds.size,
+    identityMatched: identityByApiId.size,
+    identityAmbiguous: ambiguousApiIds.size,
+    identityUnmatched: unmatchedApiIds.size,
     evidence: aggregates,
     error: fixtureIds.length ? undefined : 'No completed Premier League fixtures were available for verification.',
   };
@@ -315,8 +356,8 @@ export function applyApiFootballEvidence(players: ModelPlayer[], scan: ApiFootba
   return players.map((player) => {
     const api = scan.evidence.get(player.id);
     if (!api) return player;
-    const canConfirmCurrentRole = api.currentSeason && api.currentTeamMatched && api.competitiveMatches >= 2;
-    const canSupportPreseasonRole = api.currentTeamMatched && api.friendlyMatches >= 2;
+    const canConfirmCurrentRole = Boolean(api.identityVerified) && api.currentSeason && api.currentTeamMatched && api.competitiveMatches >= 2;
+    const canSupportPreseasonRole = Boolean(api.identityVerified) && api.currentTeamMatched && api.friendlyMatches >= 2;
     const evidenceWeight = canConfirmCurrentRole ? 0.65 : canSupportPreseasonRole ? 0.3 : 0;
     const startRate = canConfirmCurrentRole
       ? api.competitiveStarts / Math.max(1, api.competitiveMatches)
@@ -375,7 +416,8 @@ export function applyApiFootballEvidence(players: ModelPlayer[], scan: ApiFootba
         trustLevel: player.evidence.coverageScore + (canConfirmCurrentRole ? 12 : canSupportPreseasonRole ? 7 : 0) >= 78 ? 'high' as const : player.evidence.trustLevel,
         availableMetrics: [...new Set([
           ...player.evidence.availableMetrics,
-          ...(api.matches ? [canConfirmCurrentRole ? 'API-Football current-team lineup' : 'API-Football lineup/statistics'] : []),
+          ...(api.matches && api.identityVerified ? [canConfirmCurrentRole ? 'API-Football current-team lineup' : 'API-Football lineup/statistics'] : []),
+          ...(api.identityVerified ? [`API player identity ${api.identityConfidence || 0}%`] : []),
           ...(api.friendlyMatches ? ['structured club-friendly minutes'] : []),
           ...(api.oddsWinProbability != null ? ['normalized market win probability'] : []),
         ])],

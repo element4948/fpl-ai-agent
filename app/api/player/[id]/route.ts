@@ -55,13 +55,16 @@ export async function GET(
     history: summary.history.slice(-10),
     upcomingFixtures: summary.fixtures.slice(0, 5),
     updatedAt: new Date().toISOString(),
-    source: apiFootballScan.matchedPlayers
+    source: apiFootballScan.identityMatched
       ? 'Official FPL API + API-Football + verified news scan'
       : 'Official FPL API + verified news scan',
     apiFootball: {
       enabled: apiFootballScan.enabled,
       matchedPlayers: apiFootballScan.matchedPlayers,
       fixturesChecked: apiFootballScan.fixturesChecked,
+      identityMatched: apiFootballScan.identityMatched,
+      identityAmbiguous: apiFootballScan.identityAmbiguous,
+      identityUnmatched: apiFootballScan.identityUnmatched,
       error: apiFootballScan.error,
     },
   });

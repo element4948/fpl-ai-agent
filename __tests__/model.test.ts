@@ -9,6 +9,7 @@ import { formatDeadlineLine, buildDigestMessage } from '@/lib/digest';
 import { alertKey } from '@/lib/alert-store';
 import { predictPriceMoves, isLikelyMove } from '@/lib/price-predictor';
 import { splitTelegramMessage } from '@/lib/telegram';
+import { matchPlayerIdentity } from '@/lib/player-identity';
 import type { FplPlayer } from '@/types/fpl';
 import { makePlayer, makeLegalSquad } from './helpers';
 
@@ -68,6 +69,43 @@ describe('headlineMentionsName (news false-positive regression)', () => {
   });
   it('ignores names that are too short', () => {
     expect(headlineMentionsName('Any headline', 'Xu')).toBe(false);
+  });
+});
+
+describe('matchPlayerIdentity', () => {
+  it('prefers an exact full-name match within the already matched team', () => {
+    const result = matchPlayerIdentity('Pedro Porro', [
+      { id: 1, name: 'Porro', fullName: 'Pedro Porro' },
+      { id: 2, name: 'Pedro', fullName: 'Pedro Lima' },
+    ]);
+    expect(result.status).toBe('matched');
+    if (result.status === 'matched') {
+      expect(result.candidate.id).toBe(1);
+      expect(result.confidence).toBe(100);
+    }
+  });
+
+  it('accepts a unique surname token but rejects a same-team ambiguity', () => {
+    expect(matchPlayerIdentity('Porro', [
+      { id: 1, name: 'Porro', fullName: 'Pedro Porro' },
+    ]).status).toBe('matched');
+    expect(matchPlayerIdentity('Smith', [
+      { id: 1, name: 'Smith', fullName: 'John Smith' },
+      { id: 2, name: 'Smith', fullName: 'Adam Smith' },
+    ]).status).toBe('ambiguous');
+  });
+
+  it('supports a provider first initial only when the team candidate is unique', () => {
+    const result = matchPlayerIdentity('B. Fernandes', [
+      { id: 1, name: 'B.Fernandes', fullName: 'Bruno Miguel Borges Fernandes' },
+    ]);
+    expect(result.status).toBe('matched');
+  });
+
+  it('does not match short substrings inside another name', () => {
+    expect(matchPlayerIdentity('Johnson', [
+      { id: 1, name: 'Son', fullName: 'Heung-min Son' },
+    ]).status).toBe('unmatched');
   });
 });
 

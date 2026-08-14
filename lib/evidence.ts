@@ -99,7 +99,8 @@ export function buildDraftTrust(
     Boolean(
       (player.apiFootball?.currentSeason &&
         player.apiFootball.currentTeamMatched &&
-        player.apiFootball.matches >= 2) ||
+        player.apiFootball.identityVerified &&
+        player.apiFootball.competitiveMatches >= 2) ||
       (player.roleAssessment?.role === 'first-choice' &&
         player.roleAssessment.confidence >= 75),
     ),

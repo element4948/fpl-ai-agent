@@ -434,7 +434,9 @@ export function toModelPlayers(
         const modelPlayer: ModelPlayer = {
             id: player.id,
             name: player.web_name,
+            fullName: [player.first_name, player.second_name].filter(Boolean).join(' ') || player.web_name,
             team: team?.short_name || String(player.team),
+            teamName: team?.name || team?.short_name || String(player.team),
             teamId: player.team,
             position: positionMap.get(player.element_type)?.singular_name_short || String(player.element_type),
             positionId: player.element_type,
