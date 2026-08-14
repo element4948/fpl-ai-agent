@@ -69,6 +69,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 ## Recent activity (newest first)
 
 - 2026-08-14 — Added same-position counterfactual explanations without player-name rules, explicit available/partial/missing source readiness, and Telegram entry/rank, differential, chip and coverage sections.
+- 2026-08-14 — Expanded the existing API-Football key usage to separately weighted 45-day club-friendly lineup/minutes and upcoming PL odds; fixed previous-season PL fallback suppressing current friendly evidence; added press-conference report signals and explicit international-minutes gap reporting.
 - 2026-08-14 — Normalized dashboard spacing; moved Telegram digest to 17:00 Ulaanbaatar, added long-message chunking and owner-only manual sends; corrected draft gate-rank and legal-formation validation labels.
 - 2026-08-09 — Refactor: extracted MoreSection + SeasonRoadmapCard to components/; gitignored auto-generated next-env.d.ts.
 - 2026-08-08 — Refactor: extracted DataQualityBadge/FixtureTrendBadge to components/PlayerBadges.tsx (`7c51172`).

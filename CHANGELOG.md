@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Expanded the existing API-Football connector with separately weighted 45-day club-friendly lineup/minutes and upcoming match-winner odds checks, plus published press-conference news detection; no new credential is required.
 - Added name-independent draft counterfactuals that compare every selected player with the strongest omitted same-position alternative and explain budget, club-limit, projection, fixture and whole-squad trade-offs.
 - Added explicit source-readiness coverage and critical-gap reporting; missing external evidence no longer looks complete.
 - Expanded Telegram decisions with entry/rank, differential, chip and data-coverage sections.

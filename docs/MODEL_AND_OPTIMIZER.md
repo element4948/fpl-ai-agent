@@ -18,6 +18,8 @@ Fixture inputs include:
 
 Fixture is important but cannot rescue a player with poor appearance probability.
 
+API-Football market odds are stored as corroborating evidence only. They are not yet added to Expected Points because doing so before calibration would double-count team strength already represented by FDR and projections.
+
 ## Starter and risk gates
 
 `lib/starter.ts` estimates starter confidence, predicted minutes, appearance probability, and starter label. `isReliableStarter` is the strict XI gate. Risk is never zero merely because evidence is missing.
@@ -28,6 +30,8 @@ Starting XI expectations:
 - no confirmed high-severity warning;
 - current role not backup;
 - sufficient starter confidence, predicted minutes, appearance probability, and evidence quality.
+
+Current-season competitive lineups may strongly update minutes confidence. Club-friendly starts/minutes are tracked separately over a bounded 45-day window and provide a smaller pre-season update; they are never averaged into or treated as equivalent to competitive starts.
 
 ## Position model
 

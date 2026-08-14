@@ -44,6 +44,9 @@ Request `/api/bootstrap` and repeat for Best, Alternative, Differential, and Saf
 10. Mobile widths: no horizontal page overflow and all 11 pitch cards remain accessible.
 11. Better omitted player: selection audit explains projection/price/fixture deltas and whether budget, club limit, or global squad balance blocked the direct swap.
 12. Telegram digest: renders entry/rank, captain/vice, transfer or hold, differential, chip advice, risks/news, league context, and data coverage when those inputs are available.
+13. API-Football limited plan: unavailable friendly/odds endpoints leave explicit zero coverage and never remove Official-FPL drafts.
+14. Friendly evidence: affects starter confidence less than two or more current-season competitive starts.
+15. Pre-season fallback: previous-season PL evidence does not suppress current-season friendly starts/minutes, and the two samples are never averaged into one role rate.
 
 ## Transfer checks
 

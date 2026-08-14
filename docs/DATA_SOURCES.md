@@ -9,8 +9,8 @@
 | Official FPL `element-summary/:id` | recent history and upcoming player fixtures | Primary | Player detail returns unavailable. |
 | Official FPL entry/picks | public squad, bank, value, rank | Primary but deadline-limited | Before picks are public, use saved planned draft and explain limitation. |
 | Official FPL league standings | rank/gap | Primary | Return a clear ID/not-found error. |
-| API-Football | current-team lineup/minutes/stat corroboration | Optional secondary | Continue with Official FPL and mark enrichment unavailable. |
-| Recent news scan | injury, role, transfer, suspension context | Supporting evidence | Missing news never equals confirmation or zero risk. |
+| API-Football | current-team lineup/minutes/stat corroboration, bounded PL club-friendly lineups, normalized upcoming match-winner odds | Optional secondary | Continue with Official FPL and mark each enrichment unavailable. |
+| Recent news scan | injury, role, transfer, suspension and published press-conference context | Supporting evidence | Missing news never equals confirmation or zero risk. |
 
 ## Freshness
 
@@ -36,10 +36,10 @@
 
 - Paid Opta event feed.
 - Complete FBref/Understat ingestion.
-- Betting odds.
+- Dedicated multi-bookmaker/player-prop odds beyond the bounded API-Football match-winner check.
 - SofaScore/OneFootball private/unofficial scraping.
-- Full press-conference transcripts.
-- Complete friendly and national-team minutes feeds.
+- Full press-conference transcripts when no official/reliable public report is published.
+- Structured national-team minutes and complete friendly coverage outside API-Football's plan/competition coverage.
 - Reddit/X consensus.
 
 Do not write documentation or UI suggesting these sources are active until code, licensing, freshness checks, and failure handling exist.
