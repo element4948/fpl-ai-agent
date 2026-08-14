@@ -17,8 +17,8 @@
 ## Current state
 
 - Branch: `main`
-- Last committed baseline: `0f1cb4c` (Telegram digest text update).
-- Current change set: unified UI spacing, 17:00 Ulaanbaatar Telegram schedule and delivery hardening, plus draft audit/validation correctness fixes.
+- Last committed baseline before this session: `db00520` (documentation for dashboard notification and draft fixes).
+- Current change set: name-independent draft alternative audit, honest source-readiness coverage, and a fuller Telegram decision digest.
 - Verification in this workspace: Next production compilation succeeds. Full typecheck/test is currently blocked because this local `node_modules` is missing the committed `vitest` dependency and network access cannot download it; run `npm install && npm run build && npm run test` in a networked environment before deployment.
 - Working tree should be clean after the current scoped commit. Local commits are not pushed unless the owner asks.
 
@@ -68,6 +68,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-14 — Added same-position counterfactual explanations without player-name rules, explicit available/partial/missing source readiness, and Telegram entry/rank, differential, chip and coverage sections.
 - 2026-08-14 — Normalized dashboard spacing; moved Telegram digest to 17:00 Ulaanbaatar, added long-message chunking and owner-only manual sends; corrected draft gate-rank and legal-formation validation labels.
 - 2026-08-09 — Refactor: extracted MoreSection + SeasonRoadmapCard to components/; gitignored auto-generated next-env.d.ts.
 - 2026-08-08 — Refactor: extracted DataQualityBadge/FixtureTrendBadge to components/PlayerBadges.tsx (`7c51172`).

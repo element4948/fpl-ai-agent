@@ -22,8 +22,8 @@
 
 ## Engineering
 
-- No automated unit/integration/e2e tests.
-- No CI workflow.
+- Vitest unit tests and a GitHub Actions CI workflow exist, but live-provider end-to-end coverage remains limited by API availability, quotas, and secrets.
+- The current local workspace may require `npm install` before Vitest/build can run because its `node_modules` is incomplete.
 - Much of the dashboard is concentrated in `app/page.tsx`; component extraction would improve maintainability.
 - Some response shapes use `any` in UI/API glue.
 - Historical update markdown files remain for provenance and must not be used as current instructions.

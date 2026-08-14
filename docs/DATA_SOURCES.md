@@ -26,6 +26,7 @@
 - Source count is displayed as coverage, not added repeatedly to the player score.
 - API-Football previous-season statistics may provide a prior but cannot alone prove a current starting role.
 - Current-team mismatch, transfer uncertainty, or season-plan failure must remain visible in evidence/trust output.
+- Model Readiness reports each configured source as available, partial, or missing and exposes critical gaps. A configured adapter is not counted as successful unless the current response contains usable evidence.
 
 ## API-Football season selection
 
@@ -42,6 +43,8 @@
 - Reddit/X consensus.
 
 Do not write documentation or UI suggesting these sources are active until code, licensing, freshness checks, and failure handling exist.
+
+The product cannot honestly promise “all football data”. Paid/private feeds, unavailable plan endpoints, and sources that prohibit scraping remain missing. The dashboard and Telegram digest must report those gaps instead of converting missing evidence into zero risk or full confidence.
 
 ## Adding a source
 

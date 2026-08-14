@@ -33,6 +33,7 @@ The only reliable completion signal is a successful TypeScript/build result. A d
 - The scheduled digest runs every day at `17:00 Asia/Ulaanbaatar` (`09:00 UTC`) through `vercel.json`.
 - Configure `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and `CRON_SECRET` in Vercel Production environment variables. Never commit their values.
 - Long reports are split into Telegram-safe chunks and numbered before delivery, so the 4096-character platform limit does not silently drop a digest.
+- The decision digest includes the owner's team/rank when public, captain and vice, transfer/hold advice, a differential candidate, chip advice, risk/news and price signals, league context, and a concise data-coverage line. Missing sections are reported as unavailable rather than fabricated.
 - The dashboard's manual send button requires a valid owner session in production. The cron route remains protected by `CRON_SECRET`.
 - Urgent alerts are available through the urgent route but are not scheduled by default; adding a frequent schedule should be a deliberate owner decision because it consumes provider quotas.
 

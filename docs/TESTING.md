@@ -25,6 +25,8 @@ Run the app, request `/api/bootstrap?fast=1`, and verify Best:
 - four emergency-cover candidates reported;
 - no bench overspend validation error;
 - fixture arrays and FDR values are present when Official FPL fixtures are available.
+- every selection-audit alternative is same-position and reports a legal-swap blocker honestly;
+- source readiness distinguishes available, partial and missing feeds instead of reporting configured sources as successful.
 
 Request `/api/bootstrap` and repeat for Best, Alternative, Differential, and Safe when external services are available. A failed external provider must not produce an empty draft array.
 
@@ -40,6 +42,8 @@ Request `/api/bootstrap` and repeat for Best, Alternative, Differential, and Saf
 8. No API-Football key: Official-FPL dashboard still works.
 9. KV missing: local settings still work and cloud API reports unconfigured.
 10. Mobile widths: no horizontal page overflow and all 11 pitch cards remain accessible.
+11. Better omitted player: selection audit explains projection/price/fixture deltas and whether budget, club limit, or global squad balance blocked the direct swap.
+12. Telegram digest: renders entry/rank, captain/vice, transfer or hold, differential, chip advice, risks/news, league context, and data coverage when those inputs are available.
 
 ## Transfer checks
 
