@@ -93,6 +93,8 @@ export function mnCategory(category?: string): string {
             return 'Шигшээгийн мэдээ';
         case 'friendly':
             return 'Нөхөрсөг тоглолтын мэдээ';
+        case 'press-conference':
+            return 'Хэвлэлийн хурлын мэдээ';
         case 'fatigue':
             return 'Ачааллын мэдээ';
         default:

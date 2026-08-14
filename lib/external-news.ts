@@ -124,6 +124,9 @@ function classify(headline: string): Pick<ExternalNewsSignal, 'category' | 'seve
   if (/fatigue|rested|late return|travel|jet lag|overload/.test(text)) {
     return { category: 'fatigue', severity: 'medium' };
   }
+  if (/press conference|manager confirms|manager says|team news update/.test(text)) {
+    return { category: 'press-conference', severity: 'low' };
+  }
   return { category: 'availability', severity: 'low' };
 }
 
@@ -214,7 +217,7 @@ export async function getExternalNewsSignals(
     candidates.map(async (player) => ({
       player,
       feed: await fetchFeed(
-        `"${player.name}" "${player.team}" (injury OR transfer OR "team news" OR rotation OR "set to leave" OR friendly OR preseason OR "international duty" OR fatigue)`,
+        `"${player.name}" "${player.team}" (injury OR transfer OR "team news" OR "press conference" OR "manager confirms" OR rotation OR "set to leave" OR friendly OR preseason OR "international duty" OR fatigue)`,
       ),
     })),
   );

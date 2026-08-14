@@ -39,13 +39,13 @@ export async function GET(request: Request) {
 
 const getFastDashboard = unstable_cache(
   () => buildDashboardPayload(true),
-  ['fpl-dashboard-fast-v16-selection-evidence'],
+  ['fpl-dashboard-fast-v17-structured-enrichment'],
   { revalidate: 300 },
 );
 
 const getVerifiedDashboard = unstable_cache(
   () => buildDashboardPayload(false),
-  ['fpl-dashboard-verified-v16-selection-evidence'],
+  ['fpl-dashboard-verified-v17-structured-enrichment'],
   { revalidate: 900 },
 );
 
@@ -60,7 +60,11 @@ async function buildDashboardPayload(fast: boolean) {
   // for the fully verified version in the background.
   const [apiFootballScan, newsScan] = fast
     ? [
-        { enabled: false, matchedPlayers: 0, fixturesChecked: 0, evidence: new Map<number, never>() },
+        {
+          enabled: false, matchedPlayers: 0, fixturesChecked: 0,
+          friendlyFixturesChecked: 0, oddsFixturesChecked: 0, oddsTeamsMatched: 0,
+          evidence: new Map<number, never>(),
+        },
         null,
       ] as const
     : await Promise.all([
@@ -100,6 +104,9 @@ async function buildDashboardPayload(fast: boolean) {
       enabled: apiFootballScan.enabled,
       matchedPlayers: apiFootballScan.matchedPlayers,
       fixturesChecked: apiFootballScan.fixturesChecked,
+      friendlyFixturesChecked: apiFootballScan.friendlyFixturesChecked,
+      oddsFixturesChecked: apiFootballScan.oddsFixturesChecked,
+      oddsTeamsMatched: apiFootballScan.oddsTeamsMatched,
       error: apiFootballScan.error,
     },
     verificationPending: fast,

@@ -2,6 +2,19 @@ import type { ModelPlayer } from '@/types/fpl';
 
 const API_BASE = 'https://v3.football.api-sports.io';
 const PREMIER_LEAGUE_ID = 39;
+const CLUB_FRIENDLIES_ID = 667;
+const MAX_PLAYER_FIXTURES = 24;
+const MAX_FRIENDLY_FIXTURES = 8;
+const MAX_ODDS_FIXTURES = 10;
+
+const TEAM_ALIASES: Record<string, string[]> = {
+  ARS: ['arsenal'], AVL: ['aston villa'], BOU: ['bournemouth'], BRE: ['brentford'],
+  BHA: ['brighton', 'brighton hove albion'], BUR: ['burnley'], CHE: ['chelsea'],
+  CRY: ['crystal palace'], EVE: ['everton'], FUL: ['fulham'], LEE: ['leeds'],
+  LIV: ['liverpool'], MCI: ['manchester city', 'man city'], MUN: ['manchester united', 'man united'],
+  NEW: ['newcastle', 'newcastle united'], NFO: ['nottingham forest'], SUN: ['sunderland'],
+  TOT: ['tottenham', 'tottenham hotspur'], WHU: ['west ham', 'west ham united'], WOL: ['wolves', 'wolverhampton'],
+};
 
 export type ApiFootballPlayerEvidence = {
   matches: number;
@@ -16,12 +29,22 @@ export type ApiFootballPlayerEvidence = {
   season: number;
   currentSeason: boolean;
   currentTeamMatched: boolean;
+  friendlyMatches: number;
+  friendlyStarts: number;
+  friendlyMinutes: number;
+  competitiveMatches: number;
+  competitiveStarts: number;
+  competitiveMinutes: number;
+  oddsWinProbability?: number;
 };
 
 export type ApiFootballScan = {
   enabled: boolean;
   matchedPlayers: number;
   fixturesChecked: number;
+  friendlyFixturesChecked: number;
+  oddsFixturesChecked: number;
+  oddsTeamsMatched: number;
   evidence: Map<number, ApiFootballPlayerEvidence>;
   error?: string;
 };
@@ -37,6 +60,12 @@ function normalize(value: string) {
 
 function surname(value: string) {
   return normalize(value).split(' ').at(-1) || '';
+}
+
+function teamCode(value: string) {
+  const normalized = normalize(value);
+  return Object.entries(TEAM_ALIASES).find(([, aliases]) =>
+    aliases.some((alias) => normalized.includes(normalize(alias))))?.[0] || null;
 }
 
 function seasonFor(date = new Date()) {
@@ -60,7 +89,21 @@ async function apiFetch<T>(path: string): Promise<T | null> {
 }
 
 type FixtureResponse = {
-  response?: Array<{ fixture?: { id?: number; status?: { short?: string } } }>;
+  response?: Array<{
+    fixture?: { id?: number; status?: { short?: string } };
+    teams?: { home?: { name?: string }; away?: { name?: string } };
+  }>;
+};
+
+type OddsResponse = {
+  response?: Array<{
+    bookmakers?: Array<{
+      bets?: Array<{
+        name?: string;
+        values?: Array<{ value?: string; odd?: string }>;
+      }>;
+    }>;
+  }>;
 };
 
 type PlayersResponse = {
@@ -81,11 +124,15 @@ type PlayersResponse = {
 
 export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<ApiFootballScan> {
   if (!process.env.API_FOOTBALL_KEY) {
-    return { enabled: false, matchedPlayers: 0, fixturesChecked: 0, evidence: new Map() };
+    return {
+      enabled: false, matchedPlayers: 0, fixturesChecked: 0,
+      friendlyFixturesChecked: 0, oddsFixturesChecked: 0, oddsTeamsMatched: 0,
+      evidence: new Map(),
+    };
   }
 
   const now = new Date();
-  const from = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const from = new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const to = now.toISOString().slice(0, 10);
   const currentSeason = seasonFor(now);
   let evidenceSeason = currentSeason;
@@ -93,7 +140,11 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
     `/fixtures?league=${PREMIER_LEAGUE_ID}&season=${currentSeason}&from=${from}&to=${to}`,
   );
   if (!fixtures) {
-    return { enabled: true, matchedPlayers: 0, fixturesChecked: 0, evidence: new Map(), error: 'API-Football unavailable or plan does not include this season.' };
+    return {
+      enabled: true, matchedPlayers: 0, fixturesChecked: 0,
+      friendlyFixturesChecked: 0, oddsFixturesChecked: 0, oddsTeamsMatched: 0,
+      evidence: new Map(), error: 'API-Football unavailable or plan does not include this season.',
+    };
   }
 
   let fixtureIds = (fixtures.response || [])
@@ -114,14 +165,19 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
       .filter((id): id is number => Number.isFinite(id));
   }
 
-  const teamAliases: Record<string, string[]> = {
-    ARS: ['arsenal'], AVL: ['aston villa'], BOU: ['bournemouth'], BRE: ['brentford'],
-    BHA: ['brighton', 'brighton hove albion'], BUR: ['burnley'], CHE: ['chelsea'],
-    CRY: ['crystal palace'], EVE: ['everton'], FUL: ['fulham'], LEE: ['leeds'],
-    LIV: ['liverpool'], MCI: ['manchester city', 'man city'], MUN: ['manchester united', 'man united'],
-    NEW: ['newcastle', 'newcastle united'], NFO: ['nottingham forest'], SUN: ['sunderland'],
-    TOT: ['tottenham', 'tottenham hotspur'], WHU: ['west ham', 'west ham united'], WOL: ['wolves', 'wolverhampton'],
-  };
+  // Club Friendlies (API-Football league 667) provides structured pre-season
+  // lineups/minutes without scraping SofaScore/OneFootball. Only fixtures
+  // involving a current PL team are retained and calls are strictly bounded.
+  const friendlyResponse = await apiFetch<FixtureResponse>(
+    `/fixtures?league=${CLUB_FRIENDLIES_ID}&season=${currentSeason}&from=${from}&to=${to}`,
+  );
+  const friendlyIds = (friendlyResponse?.response || [])
+    .filter((item) => teamCode(item.teams?.home?.name || '') || teamCode(item.teams?.away?.name || ''))
+    .map((item) => item.fixture?.id)
+    .filter((id): id is number => Number.isFinite(id))
+    .slice(-MAX_FRIENDLY_FIXTURES);
+  const friendlyIdSet = new Set(friendlyIds);
+  fixtureIds = [...new Set([...fixtureIds, ...friendlyIds])].slice(-MAX_PLAYER_FIXTURES);
   const uniqueSurname = new Map<string, ModelPlayer[]>();
   for (const player of players) {
     const key = surname(player.name);
@@ -129,17 +185,20 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
     uniqueSurname.set(key, [...(uniqueSurname.get(key) || []), player]);
   }
 
-  const raw = await Promise.all(fixtureIds.map((id) => apiFetch<PlayersResponse>(`/fixtures/players?fixture=${id}`)));
+  const raw = await Promise.all(fixtureIds.map(async (id) => ({
+    id,
+    response: await apiFetch<PlayersResponse>(`/fixtures/players?fixture=${id}`),
+  })));
   const aggregates = new Map<number, ApiFootballPlayerEvidence>();
   const checkedAt = new Date().toISOString();
 
-  for (const response of raw) {
-    for (const team of response?.response || []) {
+  for (const fixture of raw) {
+    for (const team of fixture.response?.response || []) {
       for (const item of team.players || []) {
         const candidates = uniqueSurname.get(surname(item.player?.name || '')) || [];
         const apiTeam = normalize(team.team?.name || '');
         const matched = candidates.find((candidate) =>
-          (teamAliases[candidate.team] || [candidate.team]).some((alias) => apiTeam.includes(normalize(alias))),
+          (TEAM_ALIASES[candidate.team] || [candidate.team]).some((alias) => apiTeam.includes(normalize(alias))),
         );
         if (!matched) continue;
         const stat = item.statistics?.[0];
@@ -150,16 +209,34 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
           season: evidenceSeason,
           currentSeason: evidenceSeason === currentSeason,
           currentTeamMatched: true,
+          friendlyMatches: 0,
+          friendlyStarts: 0,
+          friendlyMinutes: 0,
+          competitiveMatches: 0,
+          competitiveStarts: 0,
+          competitiveMinutes: 0,
         };
         const rating = Number(stat.games?.rating || 0);
+        const minutes = Number(stat.games?.minutes || 0);
+        const started = stat.games?.substitute === false;
+        const friendly = friendlyIdSet.has(fixture.id);
         current.matches += 1;
-        current.starts += stat.games?.substitute === false ? 1 : 0;
-        current.minutes += Number(stat.games?.minutes || 0);
+        current.starts += started ? 1 : 0;
+        current.minutes += minutes;
         current.rating += Number.isFinite(rating) ? rating : 0;
         current.shots += Number(stat.shots?.total || 0);
         current.keyPasses += Number(stat.passes?.key || 0);
         current.tackles += Number(stat.tackles?.total || 0);
         current.saves += Number(stat.goals?.saves || 0);
+        if (friendly) {
+          current.friendlyMatches += 1;
+          current.friendlyStarts += started ? 1 : 0;
+          current.friendlyMinutes += minutes;
+        } else {
+          current.competitiveMatches += 1;
+          current.competitiveStarts += started ? 1 : 0;
+          current.competitiveMinutes += minutes;
+        }
         aggregates.set(matched.id, current);
       }
     }
@@ -167,12 +244,68 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
 
   for (const value of aggregates.values()) {
     value.minutes = value.matches ? Math.round(value.minutes / value.matches) : 0;
+    value.friendlyMinutes = value.friendlyMatches
+      ? Math.round(value.friendlyMinutes / value.friendlyMatches)
+      : 0;
+    value.competitiveMinutes = value.competitiveMatches
+      ? Math.round(value.competitiveMinutes / value.competitiveMatches)
+      : 0;
     value.rating = value.matches ? Number((value.rating / value.matches).toFixed(2)) : 0;
+  }
+
+
+  // Odds are supporting market evidence, not a replacement for FPL FDR. We
+  // record normalized Match Winner probability but do not double-count it in
+  // expected points until the model is calibrated against finished GWs.
+  const upcoming = await apiFetch<FixtureResponse>(
+    `/fixtures?league=${PREMIER_LEAGUE_ID}&season=${currentSeason}&next=${MAX_ODDS_FIXTURES}`,
+  );
+  const oddsFixtures = (upcoming?.response || []).slice(0, MAX_ODDS_FIXTURES);
+  const oddsResults = await Promise.all(oddsFixtures.map(async (item) => ({
+    item,
+    odds: item.fixture?.id
+      ? await apiFetch<OddsResponse>(`/odds?fixture=${item.fixture.id}`)
+      : null,
+  })));
+  const teamOdds = new Map<string, number>();
+  let oddsFixturesChecked = 0;
+  for (const { item, odds } of oddsResults) {
+    const market = odds?.response?.[0]?.bookmakers
+      ?.flatMap((bookmaker) => bookmaker.bets || [])
+      .find((bet) => /match winner/i.test(bet.name || ''));
+    if (!market?.values?.length) continue;
+    const homeOdd = Number(market.values.find((value) => /home/i.test(value.value || ''))?.odd || 0);
+    const drawOdd = Number(market.values.find((value) => /draw/i.test(value.value || ''))?.odd || 0);
+    const awayOdd = Number(market.values.find((value) => /away/i.test(value.value || ''))?.odd || 0);
+    if (![homeOdd, drawOdd, awayOdd].every((odd) => odd > 1)) continue;
+    const total = 1 / homeOdd + 1 / drawOdd + 1 / awayOdd;
+    const home = teamCode(item.teams?.home?.name || '');
+    const away = teamCode(item.teams?.away?.name || '');
+    if (home) teamOdds.set(home, Number(((1 / homeOdd) / total).toFixed(3)));
+    if (away) teamOdds.set(away, Number(((1 / awayOdd) / total).toFixed(3)));
+    oddsFixturesChecked += 1;
+  }
+  for (const player of players) {
+    const oddsWinProbability = teamOdds.get(player.team);
+    if (oddsWinProbability == null) continue;
+    const current = aggregates.get(player.id) || {
+      matches: 0, starts: 0, minutes: 0, rating: 0,
+      shots: 0, keyPasses: 0, tackles: 0, saves: 0, checkedAt,
+      season: evidenceSeason, currentSeason: evidenceSeason === currentSeason,
+      currentTeamMatched: true,
+      friendlyMatches: 0, friendlyStarts: 0, friendlyMinutes: 0,
+      competitiveMatches: 0, competitiveStarts: 0, competitiveMinutes: 0,
+    };
+    current.oddsWinProbability = oddsWinProbability;
+    aggregates.set(player.id, current);
   }
   return {
     enabled: true,
     matchedPlayers: aggregates.size,
     fixturesChecked: fixtureIds.length,
+    friendlyFixturesChecked: friendlyIds.length,
+    oddsFixturesChecked,
+    oddsTeamsMatched: teamOdds.size,
     evidence: aggregates,
     error: fixtureIds.length ? undefined : 'No completed Premier League fixtures were available for verification.',
   };
@@ -182,13 +315,18 @@ export function applyApiFootballEvidence(players: ModelPlayer[], scan: ApiFootba
   return players.map((player) => {
     const api = scan.evidence.get(player.id);
     if (!api) return player;
-    const startRate = api.matches ? api.starts / api.matches : 0;
-    const canConfirmCurrentRole = api.currentSeason && api.currentTeamMatched && api.matches >= 2;
-    const starterConfidence = canConfirmCurrentRole
-      ? Math.round(Math.min(98, Math.max(2, player.starterConfidence * 0.35 + startRate * 100 * 0.65)))
+    const canConfirmCurrentRole = api.currentSeason && api.currentTeamMatched && api.competitiveMatches >= 2;
+    const canSupportPreseasonRole = api.currentTeamMatched && api.friendlyMatches >= 2;
+    const evidenceWeight = canConfirmCurrentRole ? 0.65 : canSupportPreseasonRole ? 0.3 : 0;
+    const startRate = canConfirmCurrentRole
+      ? api.competitiveStarts / Math.max(1, api.competitiveMatches)
+      : api.friendlyStarts / Math.max(1, api.friendlyMatches);
+    const evidenceMinutes = canConfirmCurrentRole ? api.competitiveMinutes : api.friendlyMinutes;
+    const starterConfidence = evidenceWeight
+      ? Math.round(Math.min(98, Math.max(2, player.starterConfidence * (1 - evidenceWeight) + startRate * 100 * evidenceWeight)))
       : player.starterConfidence;
-    const predictedMinutes = canConfirmCurrentRole
-      ? Math.round(Math.min(90, Math.max(0, player.predictedMinutes * 0.35 + api.minutes * 0.65)))
+    const predictedMinutes = evidenceWeight
+      ? Math.round(Math.min(90, Math.max(0, player.predictedMinutes * (1 - evidenceWeight) + evidenceMinutes * evidenceWeight)))
       : player.predictedMinutes;
     const previousAvailabilityCore = Math.max(
       0.03,
@@ -198,7 +336,7 @@ export function applyApiFootballEvidence(players: ModelPlayer[], scan: ApiFootba
       0.03,
       Math.min(1, player.appearanceProbability / previousAvailabilityCore),
     );
-    const appearanceProbability = canConfirmCurrentRole
+    const appearanceProbability = evidenceWeight
       ? Number(
           Math.max(
             0.03,
@@ -206,7 +344,7 @@ export function applyApiFootballEvidence(players: ModelPlayer[], scan: ApiFootba
           ).toFixed(3),
         )
       : player.appearanceProbability;
-    const projectionFactor = canConfirmCurrentRole
+    const projectionFactor = evidenceWeight
       ? appearanceProbability / Math.max(0.03, player.appearanceProbability)
       : 1;
     const expectedPoints = Number((player.expectedPoints * projectionFactor).toFixed(2));
@@ -233,17 +371,18 @@ export function applyApiFootballEvidence(players: ModelPlayer[], scan: ApiFootba
       },
       evidence: player.evidence ? {
         ...player.evidence,
-        coverageScore: Math.min(100, player.evidence.coverageScore + (canConfirmCurrentRole ? 12 : 4)),
-        trustLevel: player.evidence.coverageScore + (canConfirmCurrentRole ? 12 : 4) >= 78 ? 'high' as const : player.evidence.trustLevel,
+        coverageScore: Math.min(100, player.evidence.coverageScore + (canConfirmCurrentRole ? 12 : canSupportPreseasonRole ? 7 : api.oddsWinProbability ? 3 : 0)),
+        trustLevel: player.evidence.coverageScore + (canConfirmCurrentRole ? 12 : canSupportPreseasonRole ? 7 : 0) >= 78 ? 'high' as const : player.evidence.trustLevel,
         availableMetrics: [...new Set([
           ...player.evidence.availableMetrics,
-          canConfirmCurrentRole ? 'API-Football current-team lineup' : 'API-Football previous-season statistics',
-          'live match statistics',
+          ...(api.matches ? [canConfirmCurrentRole ? 'API-Football current-team lineup' : 'API-Football lineup/statistics'] : []),
+          ...(api.friendlyMatches ? ['structured club-friendly minutes'] : []),
+          ...(api.oddsWinProbability != null ? ['normalized market win probability'] : []),
         ])],
         sources: [...existingSources, {
           id: 'api-football' as const,
-          label: 'API-Football lineups/player statistics',
-          status: canConfirmCurrentRole ? 'available' as const : 'limited' as const,
+          label: 'API-Football lineups/player statistics/odds',
+          status: canConfirmCurrentRole || canSupportPreseasonRole ? 'available' as const : 'limited' as const,
         }],
       } : player.evidence,
     };

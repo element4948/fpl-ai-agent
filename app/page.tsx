@@ -1358,7 +1358,7 @@ export default function Home() {
                             <strong>API-Football</strong>
                             <small>
                                 {boot?.apiFootball?.enabled
-                                    ? `${boot.apiFootball.matchedPlayers} тоглогч · ${boot.apiFootball.fixturesChecked} тоглолтын lineup/stat`
+                                    ? `${boot.apiFootball.matchedPlayers} тоглогч · ${boot.apiFootball.fixturesChecked} lineup/stat · ${boot.apiFootball.friendlyFixturesChecked || 0} friendly · ${boot.apiFootball.oddsFixturesChecked || 0} odds`
                                     : 'Key тохируулаагүй'}
                             </small>
                         </div>

@@ -192,6 +192,7 @@ export type ExternalNewsSignal = {
     | 'availability'
     | 'international'
     | 'friendly'
+    | 'press-conference'
     | 'fatigue';
   severity: 'low' | 'medium' | 'high';
   verification: 'confirmed' | 'corroborated' | 'single-source' | 'unverified';
@@ -405,6 +406,13 @@ export type ModelPlayer = {
     season: number;
     currentSeason: boolean;
     currentTeamMatched: boolean;
+    friendlyMatches: number;
+    friendlyStarts: number;
+    friendlyMinutes: number;
+    competitiveMatches: number;
+    competitiveStarts: number;
+    competitiveMinutes: number;
+    oddsWinProbability?: number;
   };
   news?: string;
   status?: string;
