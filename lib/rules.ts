@@ -254,6 +254,13 @@ function buildSelectionAudit(
     eligiblePlayers: ModelPlayer[],
     mode: DraftMode,
 ) {
+    const selectedIds = new Set(selected.map((player) => player.id));
+    const selectedCost = roundMoney(selected.reduce((sum, player) => sum + player.price, 0));
+    const selectedClubCounts = selected.reduce((counts, player) => {
+        counts.set(player.teamId, (counts.get(player.teamId) || 0) + 1);
+        return counts;
+    }, new Map<number, number>());
+
     return Object.fromEntries(selected.map((player) => {
         const pool = evaluatedPlayers
             .filter((candidate) => candidate.position === player.position)
@@ -265,6 +272,35 @@ function buildSelectionAudit(
         const eligibleIndex = eligiblePool.findIndex((candidate) => candidate.id === player.id);
         const eligibleRank = eligibleIndex >= 0 ? eligibleIndex + 1 : null;
         const checks = positionMetricChecks(player);
+        const alternativePlayer = eligiblePool.find((candidate) => !selectedIds.has(candidate.id)) || null;
+        let alternative: DraftTeam['selectionAudit'][number]['alternative'] = null;
+        if (alternativePlayer) {
+            const priceDelta = roundMoney(alternativePlayer.price - player.price);
+            const newCost = roundMoney(selectedCost + priceDelta);
+            const candidateClubCount =
+                (selectedClubCounts.get(alternativePlayer.teamId) || 0) -
+                (alternativePlayer.teamId === player.teamId ? 1 : 0);
+            const clubLimitBlocked = candidateClubCount >= 3;
+            const budgetBlocked = newCost > maximumDraftSpend(mode) + 0.001;
+            const directSwapLegal = !budgetBlocked && !clubLimitBlocked;
+            alternative = {
+                id: alternativePlayer.id,
+                name: alternativePlayer.name,
+                price: alternativePlayer.price,
+                priceDelta,
+                expectedPointsDelta: Number((alternativePlayer.expectedPoints - player.expectedPoints).toFixed(2)),
+                nextFiveDelta: Number((alternativePlayer.projection.next5 - player.projection.next5).toFixed(2)),
+                modelScoreDelta: Number((playerScore(alternativePlayer, mode) - playerScore(player, mode)).toFixed(2)),
+                directSwapLegal,
+                blocker: budgetBlocked
+                    ? 'budget'
+                    : clubLimitBlocked
+                      ? 'club-limit'
+                      : directSwapLegal && playerScore(alternativePlayer, mode) > playerScore(player, mode)
+                        ? 'global-squad-balance'
+                        : 'none',
+            };
+        }
         return [player.id, {
             rank,
             totalCandidates: pool.length,
@@ -273,6 +309,7 @@ function buildSelectionAudit(
             higherRankedRejected: eligibleRank == null ? 0 : Math.max(0, rank - eligibleRank),
             passedMetrics: checks.filter(Boolean).length,
             totalMetrics: checks.length,
+            alternative,
         }];
     }));
 }

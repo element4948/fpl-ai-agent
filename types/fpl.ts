@@ -238,6 +238,13 @@ export type ModelReadiness = {
   multiSourceVerification: number;
   calibration: number;
   multiGameweekPlanning: number;
+  sources: Array<{
+    id: string;
+    label: string;
+    status: 'available' | 'partial' | 'missing';
+    coverage: number;
+  }>;
+  missingCritical: string[];
 };
 
 export type RoadmapWeek = {
@@ -445,6 +452,17 @@ export type DraftTeam = {
     higherRankedRejected: number;
     passedMetrics: number;
     totalMetrics: number;
+    alternative: {
+      id: number;
+      name: string;
+      price: number;
+      priceDelta: number;
+      expectedPointsDelta: number;
+      nextFiveDelta: number;
+      modelScoreDelta: number;
+      directSwapLegal: boolean;
+      blocker: 'none' | 'budget' | 'club-limit' | 'global-squad-balance';
+    } | null;
   }>;
   explanation: string[];
 };

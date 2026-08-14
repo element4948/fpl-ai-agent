@@ -204,6 +204,16 @@ function DraftPlayerTile({ player, role, audit }: { player: ModelPlayer; role: '
     const metricChecks = positionMetricChecks(player);
     const passedMetrics = audit?.passedMetrics ?? metricChecks.filter(Boolean).length;
     const totalMetrics = audit?.totalMetrics ?? metricChecks.length;
+    const alternative = audit?.alternative;
+    const alternativeReason = alternative
+        ? alternative.blocker === 'budget'
+            ? 'төсөв хүрэхгүй'
+            : alternative.blocker === 'club-limit'
+              ? 'клубийн 3 тоглогчийн хязгаар'
+              : alternative.blocker === 'global-squad-balance'
+                ? 'нийт squad-ийн хослол илүү'
+                : 'одоогийн сонголтын model score өндөр'
+        : '';
 
     return (
         <div className={`draft-player-tile ${starterTone}`}>
@@ -257,6 +267,14 @@ function DraftPlayerTile({ player, role, audit }: { player: ModelPlayer; role: '
             <div className="draft-why-compact">
                 ✓ {(selectionReasons.length ? selectionReasons : ['Нотолгоо хязгаарлагдмал'])[0]}
             </div>
+            {alternative ? (
+                <div
+                    className="draft-alternative-compact"
+                    title={`${alternative.name}: үнэ ${alternative.priceDelta >= 0 ? '+' : ''}£${alternative.priceDelta.toFixed(1)}m · next 5 ${alternative.nextFiveDelta >= 0 ? '+' : ''}${alternative.nextFiveDelta.toFixed(1)} xP · ${alternativeReason}`}
+                >
+                    Дараагийн хувилбар: <b>{alternative.name}</b> · {alternative.nextFiveDelta >= 0 ? '+' : ''}{alternative.nextFiveDelta.toFixed(1)} xP · {alternativeReason}
+                </div>
+            ) : null}
             {unreliable ? (
                 <div className="draft-player-reject">
                     ! Starter баталгаагүй — гараанд бүү тооц
@@ -1401,6 +1419,20 @@ export default function Home() {
                               ))
                             : <div className="skeleton" />}
                     </div>
+                    {readiness?.sources?.length ? (
+                        <details className="readiness-sources">
+                            <summary>
+                                Эх сурвалжийн бодит coverage · {readiness.sources.filter((source) => source.status === 'available').length}/{readiness.sources.length} бүрэн
+                            </summary>
+                            <div className="readiness-source-list">
+                                {readiness.sources.map((source) => (
+                                    <span key={source.id} className={`source-${source.status}`}>
+                                        {source.status === 'available' ? '✓' : source.status === 'partial' ? '△' : '✗'} {source.label} · {source.coverage}%
+                                    </span>
+                                ))}
+                            </div>
+                        </details>
+                    ) : null}
                     <div className="calibration-summary">
                         <strong>
                             {latestCalibration

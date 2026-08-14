@@ -67,6 +67,28 @@ describe('buildGlobalNews', () => {
 });
 
 describe('buildDigestMessage FPL-wide section', () => {
+    it('includes owner rank, chip, differential and honest data coverage', () => {
+        const message = buildDigestMessage({
+            nowMs: 0,
+            alerts: [],
+            captain: null,
+            vice: null,
+            transfer: null,
+            entry: { teamName: 'My XI', totalPoints: 123, overallRank: 4567, gameweekPoints: 61 },
+            differential: { name: 'Upside', team: 'ARS', ownership: 6.2, points: 5.4, nextFive: 26.5 },
+            chip: { chip: 'Triple Captain', action: 'Hold', confidence: 88, reason: 'Better opportunity expected.' },
+            coverage: { officialFpl: true, fixtures: true, squad: true, externalChecked: 15, externalTarget: 15, league: 'available' },
+            priceChanges: [],
+            league: null,
+            reports: [],
+        });
+        expect(message).toContain('My XI: 123 оноо');
+        expect(message).toContain('Overall #4,567');
+        expect(message).toContain('Differential: Upside');
+        expect(message).toContain('Chip: Triple Captain — Hold');
+        expect(message).toContain('news 15/15');
+    });
+
     it('renders the global section and a fresh-since-last headline', () => {
         const message = buildDigestMessage({
             eventName: 'Gameweek 1',

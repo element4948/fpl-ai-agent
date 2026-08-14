@@ -536,6 +536,8 @@ main>*,.card,.grid>*,.hero>*,.draft-layout>*,.target-sections>*,.more-section-bo
 .dashboard-shell .decision-footer{margin-top:12px}
 .dashboard-shell .notice:last-child,
 .dashboard-shell .card>:last-child{margin-bottom:0}
+.draft-alternative-compact{margin-top:5px;padding:5px 7px;border:1px solid #29435a;border-radius:7px;color:#b7c9d9;background:#0c1b2a;font-size:10px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.readiness-sources{margin-top:12px;border:1px solid #23394d;border-radius:10px;background:#0b1826}.readiness-sources summary{cursor:pointer;padding:10px 12px;color:#d8e7f4;font-weight:700}.readiness-source-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:0 12px 12px}.readiness-source-list span{padding:7px 8px;border-radius:7px;background:#101f2f;color:#b7c9d9;font-size:12px}.readiness-source-list .source-available{color:#8ce7b2}.readiness-source-list .source-missing{color:#ff9c9c}
 
 @media(max-width:960px){
   :root{--space-page:14px;--space-section:14px;--space-card:14px}
@@ -556,4 +558,5 @@ main>*,.card,.grid>*,.hero>*,.draft-layout>*,.target-sections>*,.more-section-bo
   .dashboard-shell .more-section-body{padding:8px}
   .dashboard-shell .draft-team-body{padding:8px}
   .dashboard-shell .draft-team-card+.draft-team-card{margin-top:8px}
+  .readiness-source-list{grid-template-columns:1fr}
 }

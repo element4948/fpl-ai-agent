@@ -15,6 +15,28 @@ export type LeagueLine = {
 };
 export type CaptainPick = { name: string; team: string; points: number } | null;
 export type TransferPick = { label: string; moves: string[]; netGain: number } | null;
+export type EntrySummary = {
+    teamName: string;
+    totalPoints: number;
+    overallRank: number | null;
+    gameweekPoints: number;
+} | null;
+export type DifferentialPick = {
+    name: string;
+    team: string;
+    ownership: number;
+    points: number;
+    nextFive: number;
+} | null;
+export type ChipPick = { chip: string; action: string; confidence: number; reason: string } | null;
+export type DigestCoverage = {
+    officialFpl: boolean;
+    fixtures: boolean;
+    squad: boolean;
+    externalChecked: number;
+    externalTarget: number;
+    league: 'available' | 'not-configured' | 'unavailable';
+};
 
 export function formatDeadlineLine(deadlineIso: string | undefined, nowMs: number): string | null {
     if (!deadlineIso) return null;
@@ -41,6 +63,10 @@ export function buildDigestMessage(input: {
     captain: CaptainPick;
     vice: CaptainPick;
     transfer: TransferPick;
+    entry?: EntrySummary;
+    differential?: DifferentialPick;
+    chip?: ChipPick;
+    coverage?: DigestCoverage;
     priceChanges: PriceChange[];
     priceWatch?: { falling: Array<{ name: string; net: number }>; rising: Array<{ name: string; net: number }> };
     league: LeagueLine | null;
@@ -55,6 +81,14 @@ export function buildDigestMessage(input: {
 
     const deadline = formatDeadlineLine(input.deadlineIso, input.nowMs);
     if (deadline) blocks.push(deadline);
+
+    if (input.entry) {
+        blocks.push(
+            `👤 ${input.entry.teamName}: ${input.entry.totalPoints} оноо · ` +
+                `Overall ${input.entry.overallRank ? `#${input.entry.overallRank.toLocaleString('en-US')}` : '—'} · ` +
+                `GW ${input.entry.gameweekPoints}`,
+        );
+    }
 
     if (input.alerts.length) {
         const lines = input.alerts.slice(0, 20).map((a) => `${ICON[a.severity]} ${a.name} (${a.team}): ${a.message}`);
@@ -73,6 +107,20 @@ export function buildDigestMessage(input: {
             input.transfer.moves.length
                 ? `⇄ Transfer: ${input.transfer.moves.join(', ')} (+${input.transfer.netGain.toFixed(1)} net · ${input.transfer.label})`
                 : '⇄ Transfer: Hold — энэ долоо хоног тодорхой ашиг алга',
+        );
+    }
+
+    if (input.differential) {
+        blocks.push(
+            `💎 Differential: ${input.differential.name} (${input.differential.team}) · ` +
+                `${input.differential.ownership.toFixed(1)}% owned · ${input.differential.points.toFixed(1)} xP · ` +
+                `next 5 ${input.differential.nextFive.toFixed(1)} xP`,
+        );
+    }
+
+    if (input.chip) {
+        blocks.push(
+            `🎴 Chip: ${input.chip.chip} — ${input.chip.action} (${input.chip.confidence}%)\n${input.chip.reason}`,
         );
     }
 
@@ -105,6 +153,19 @@ export function buildDigestMessage(input: {
 
     if (input.globalNews && hasGlobalNews(input.globalNews)) {
         blocks.push(formatGlobalNews(input.globalNews));
+    }
+
+    if (input.coverage) {
+        const league = input.coverage.league === 'available'
+            ? 'league ✓'
+            : input.coverage.league === 'not-configured'
+              ? 'league ID алга'
+              : 'league data алга';
+        blocks.push(
+            `🔎 Data coverage: Official FPL ${input.coverage.officialFpl ? '✓' : '✗'} · ` +
+                `fixture ${input.coverage.fixtures ? '✓' : '✗'} · squad ${input.coverage.squad ? '✓' : '✗'} · ` +
+                `news ${input.coverage.externalChecked}/${input.coverage.externalTarget} · ${league}`,
+        );
     }
 
     return blocks.join('\n\n');

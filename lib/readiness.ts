@@ -10,11 +10,11 @@ export function buildModelReadiness(
 ): ModelReadiness {
   const count = Math.max(players.length, 1);
   const goodData = players.filter((player) => player.dataQuality === 'good').length / count;
-  const officialWarnings = players.filter((player) => player.signals.length > 0).length;
-  const external = players.filter((player) => player.externalNews?.length).length;
   const trustedExternal = players.filter((player) =>
     player.externalNews?.some((signal) => signal.tier !== 'secondary'),
   ).length;
+  const newsChecked = players.filter((player) => Boolean(player.newsCheckedAt)).length;
+  const apiFootball = players.filter((player) => Boolean(player.apiFootball)).length;
   const friendlyInternational = players.filter((player) =>
     player.externalNews?.some((signal) =>
       ['friendly', 'international', 'fatigue'].includes(signal.category),
@@ -32,6 +32,28 @@ export function buildModelReadiness(
     return player.expectedGoalInvolvements > 0 || player.defensiveContributionPer90 > 0;
   }).length / count;
   const plannedPlayers = players.filter((player) => player.projection.gameweeks >= 3).length / count;
+  const newsCheckedCoverage = newsChecked / count;
+  const apiFootballCoverage = apiFootball / count;
+  const trustedExternalCoverage = trustedExternal / count;
+  const friendlyCoverage = friendlyInternational / count;
+  const sourceStatus = (
+    coverage: number,
+    partialThreshold = 0.01,
+    availableThreshold = 0.8,
+  ): 'available' | 'partial' | 'missing' =>
+    coverage >= availableThreshold ? 'available' : coverage >= partialThreshold ? 'partial' : 'missing';
+  const sources: ModelReadiness['sources'] = [
+    { id: 'official-fpl', label: 'Official FPL player data', status: 'available', coverage: 100 },
+    { id: 'official-fixtures', label: 'Official FPL fixtures', status: sourceStatus(fixtureCoverage), coverage: clamp(fixtureCoverage * 100) },
+    { id: 'official-history', label: 'Official FPL live/history fields', status: sourceStatus(goodData), coverage: clamp(goodData * 100) },
+    { id: 'api-football', label: 'API-Football lineup/minutes corroboration', status: sourceStatus(apiFootballCoverage), coverage: clamp(apiFootballCoverage * 100) },
+    { id: 'recent-news', label: 'Recent injury/transfer/news scan', status: sourceStatus(newsCheckedCoverage), coverage: clamp(newsCheckedCoverage * 100) },
+    { id: 'friendly-international', label: 'Friendly/international structured minutes', status: sourceStatus(friendlyCoverage), coverage: clamp(friendlyCoverage * 100) },
+    { id: 'calibration', label: 'Finished-GW prediction calibration', status: calibratedEvents >= 5 ? 'available' : calibratedEvents ? 'partial' : 'missing', coverage: clamp((calibratedEvents / 5) * 100) },
+  ];
+  const missingCritical = sources
+    .filter((source) => source.status !== 'available')
+    .map((source) => `${source.label}: ${source.coverage}% coverage`);
 
   return {
     rules: 100,
@@ -40,12 +62,16 @@ export function buildModelReadiness(
     squadOptimization: 88,
     officialData: clamp(evidenceCoverage * 0.75 + fixtureCoverage * 25),
     positionModels: clamp(45 + positionCoverage * 50),
-    starterMinutes: clamp(55 + goodData * 35),
-    injuryAvailability: clamp(62 + Math.min(18, officialWarnings * 2) + Math.min(10, trustedExternal)),
-    transferNews: clamp(45 + Math.min(35, trustedExternal * 4)),
-    friendlyInternational: clamp(25 + Math.min(55, friendlyInternational * 8)),
-    multiSourceVerification: clamp(48 + Math.min(32, external * 2) + Math.min(15, trustedExternal * 2)),
+    starterMinutes: clamp(goodData * 70 + apiFootballCoverage * 30),
+    injuryAvailability: clamp(70 + newsCheckedCoverage * 20 + trustedExternalCoverage * 10),
+    transferNews: clamp(newsCheckedCoverage * 65 + trustedExternalCoverage * 35),
+    // News mentions are not the same as a structured friendly/national-team
+    // minutes feed, so this category is deliberately capped below "ready".
+    friendlyInternational: Math.min(45, clamp(newsCheckedCoverage * 35 + friendlyCoverage * 10)),
+    multiSourceVerification: clamp(40 + newsCheckedCoverage * 30 + apiFootballCoverage * 30),
     calibration: clamp(10 + calibratedEvents * 14),
     multiGameweekPlanning: clamp(30 + plannedPlayers * 65),
+    sources,
+    missingCritical,
   };
 }

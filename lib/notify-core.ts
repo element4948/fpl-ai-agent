@@ -1,13 +1,16 @@
-import { currentEvent, getBootstrap, getEntryPicks, getFixtures, getLeague, nextEvent, toModelPlayers } from '@/lib/fpl';
+import { currentEvent, getBootstrap, getEntry, getEntryPicks, getFixtures, getLeague, nextEvent, toModelPlayers } from '@/lib/fpl';
 import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external-news';
 import { buildSquadAlerts, buildSquadReports, type SquadAlert } from '@/lib/squad-alerts';
-import { type CaptainPick, type LeagueLine, type PriceChange, type TransferPick } from '@/lib/digest';
+import { type CaptainPick, type ChipPick, type DifferentialPick, type DigestCoverage, type EntrySummary, type LeagueLine, type PriceChange, type TransferPick } from '@/lib/digest';
 import { rankCaptainCandidates } from '@/lib/scoring';
 import { buildTransferPlans } from '@/lib/transfers';
 import { predictPriceMoves, isLikelyMove } from '@/lib/price-predictor';
 import { buildGlobalNews, type GlobalNews } from '@/lib/global-news';
 import { alertKey } from '@/lib/alert-store';
 import type { ModelPlayer } from '@/types/fpl';
+import { isReliableStarter } from '@/lib/starter';
+import { buildSeasonRoadmap } from '@/lib/season-roadmap';
+import { chipPlanner } from '@/lib/chips';
 
 // Shared digest data-gathering used by BOTH the daily cron (/api/notify) and the
 // on-demand refresh button (/api/notify/refresh). Keeping it in one place means
@@ -25,6 +28,10 @@ export type DigestData = {
     captain: CaptainPick;
     vice: CaptainPick;
     transfer: TransferPick;
+    entry: EntrySummary;
+    differential: DifferentialPick;
+    chip: ChipPick;
+    coverage: DigestCoverage;
     priceChanges: PriceChange[];
     priceWatch: { falling: Array<{ name: string; net: number }>; rising: Array<{ name: string; net: number }> };
     league: LeagueLine | null;
@@ -43,6 +50,10 @@ export async function gatherDigest(): Promise<DigestData> {
         captain: null,
         vice: null,
         transfer: null,
+        entry: null,
+        differential: null,
+        chip: null,
+        coverage: { officialFpl: false, fixtures: false, squad: false, externalChecked: 0, externalTarget: 0, league: 'not-configured' },
         priceChanges: [],
         priceWatch: { falling: [], rising: [] },
         league: null,
@@ -59,7 +70,10 @@ export async function gatherDigest(): Promise<DigestData> {
 
     const entryId = process.env.FPL_ENTRY_ID;
     const event = currentEvent(boot.events);
-    const picks = entryId && event?.id ? await getEntryPicks(entryId, event.id) : null;
+    const [picks, entryData] = await Promise.all([
+        entryId && event?.id ? getEntryPicks(entryId, event.id) : Promise.resolve(null),
+        entryId ? getEntry(entryId) : Promise.resolve(null),
+    ]);
     const pickIds = picks?.picks?.map((pick) => pick.element) || [];
     const hasSquad = pickIds.length >= 11;
 
@@ -79,6 +93,15 @@ export async function gatherDigest(): Promise<DigestData> {
 
     const enriched = applyExternalNewsSignals(focus, await getExternalNewsSignals(focus, focusIds));
 
+    const entry: EntrySummary = entryData
+        ? {
+              teamName: entryData.name,
+              totalPoints: entryData.summary_overall_points,
+              overallRank: entryData.summary_overall_rank,
+              gameweekPoints: entryData.summary_event_points,
+          }
+        : null;
+
     const alerts = buildSquadAlerts(enriched);
     const reports = buildSquadReports(enriched);
 
@@ -87,6 +110,42 @@ export async function gatherDigest(): Promise<DigestData> {
     const capList = captainRanked.length ? captainRanked : captainFallback;
     const captain: CaptainPick = capList[0] ? { name: capList[0].name, team: capList[0].team, points: capList[0].expectedPoints } : null;
     const vice: CaptainPick = capList[1] ? { name: capList[1].name, team: capList[1].team, points: capList[1].expectedPoints } : null;
+
+    const focusSetForDifferential = new Set(pickIds);
+    const differentialPlayer = [...players]
+        .filter((player) =>
+            !focusSetForDifferential.has(player.id) &&
+            player.position !== 'GKP' &&
+            player.ownership <= 10 &&
+            isReliableStarter(player))
+        .sort((a, b) =>
+            (b.expectedPoints + b.projection.next5 / Math.max(1, b.projection.gameweeks)) -
+            (a.expectedPoints + a.projection.next5 / Math.max(1, a.projection.gameweeks)))[0];
+    const differential: DifferentialPick = differentialPlayer
+        ? {
+              name: differentialPlayer.name,
+              team: differentialPlayer.team,
+              ownership: differentialPlayer.ownership,
+              points: differentialPlayer.expectedPoints,
+              nextFive: differentialPlayer.projection.next5,
+          }
+        : null;
+
+    const roadmap = hasSquad ? buildSeasonRoadmap(enriched, players) : undefined;
+    const chipOptions = chipPlanner({
+        hasEntry: hasSquad,
+        isPreSeason: completed === 0,
+        roadmap,
+    });
+    const chipOption = chipOptions.find((option) => option.action !== 'Hold') || chipOptions[0] || null;
+    const chip: ChipPick = chipOption
+        ? {
+              chip: chipOption.chip,
+              action: chipOption.action,
+              confidence: chipOption.confidence,
+              reason: chipOption.reason,
+          }
+        : null;
 
     let transfer: TransferPick = null;
     if (hasSquad) {
@@ -133,6 +192,15 @@ export async function gatherDigest(): Promise<DigestData> {
         }
     }
 
+    const coverage: DigestCoverage = {
+        officialFpl: true,
+        fixtures: Boolean(fixtures?.length),
+        squad: hasSquad,
+        externalChecked: enriched.filter((player) => Boolean(player.newsCheckedAt)).length,
+        externalTarget: enriched.length,
+        league: !leagueId ? 'not-configured' : league ? 'available' : 'unavailable',
+    };
+
     const note = hasSquad
         ? undefined
         : 'ℹ️ Таны багийн picks нээгдээгүй (pre-season) тул хамгийн чухал тоглогчид дээр мэдээ/шинжилгээ (watchlist).';
@@ -156,6 +224,10 @@ export async function gatherDigest(): Promise<DigestData> {
         captain,
         vice,
         transfer,
+        entry,
+        differential,
+        chip,
+        coverage,
         priceChanges,
         priceWatch,
         league,
