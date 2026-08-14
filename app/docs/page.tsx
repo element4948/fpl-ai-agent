@@ -209,7 +209,7 @@ export default function DocsPage() {
         <div className="docs-callout">
           <b>Prediction Calibration:</b> Сайт дараагийн Gameweek-ийн forecast-ийг deadline-аас өмнө browser дээр хадгална. Gameweek дууссаны дараа тухайн тоглогчдын бодит оноотой харьцуулж MAE (дундаж абсолют алдаа), Bias болон ±2 оноонд багтсан хувийг гаргана. Ингэснээр “загвар 80%” гэдгийг таамгаар бус, хуримтлагдсан Gameweek-ийн үр дүнгээр хэмжинэ.
         </div>
-        <p className="doc-note">Friendly болон international data нь одоогоор player-specific news RSS-ээр injury, call-up, late return, fatigue, preseason гэсэн дохиог илрүүлнэ. Structured minutes/lineup API олдоогүй тоглогч дээр coverage бага хэвээр харагдана; систем дутуу data-г 80% болгон зохиомлоор өсгөхгүй.</p>
+        <p className="doc-note">Friendly болон international data нь player-specific news RSS-ээр injury, call-up, late return, fatigue, preseason гэсэн дохиог илрүүлнэ. API-Football lineup/minutes нь provider ID, current team, бүтэн/display name болон ambiguity шалгалт давсан үед л тоглогчийн model-д нөлөөлнө. Structured minutes/lineup API олдоогүй тоглогч дээр coverage бага хэвээр харагдана; систем дутуу data-г 80% болгон зохиомлоор өсгөхгүй.</p>
       </section>
 
       <section className="doc-section" id="roadmap">

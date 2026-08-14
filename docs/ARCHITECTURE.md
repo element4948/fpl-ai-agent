@@ -35,7 +35,7 @@ League standings ─────────────────────
 ## Domain pipeline
 
 1. `lib/fpl.ts` fetches Official FPL data and creates `ModelPlayer` objects.
-2. `lib/api-football.ts` optionally adds current-team minutes/lineup/stat evidence.
+2. `lib/player-identity.ts` verifies provider IDs/names inside the confirmed current team; `lib/api-football.ts` only applies minutes/lineup/stat evidence after that gate passes.
 3. `lib/external-news.ts` optionally classifies and verifies recent news signals.
 4. `lib/starter.ts`, `risk.ts`, `confidence.ts`, `position-model.ts`, and projection code enrich player readiness and upside.
 5. `lib/scoring.ts` ranks targets/captains.

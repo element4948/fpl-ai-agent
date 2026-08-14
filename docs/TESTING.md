@@ -47,6 +47,8 @@ Request `/api/bootstrap` and repeat for Best, Alternative, Differential, and Saf
 13. API-Football limited plan: unavailable friendly/odds endpoints leave explicit zero coverage and never remove Official-FPL drafts.
 14. Friendly evidence: affects starter confidence less than two or more current-season competitive starts.
 15. Pre-season fallback: previous-season PL evidence does not suppress current-season friendly starts/minutes, and the two samples are never averaged into one role rate.
+16. Identity collisions: exact full names match, unique surname tokens may match within one confirmed team, but two same-team surname candidates must be rejected as ambiguous.
+17. Provider-ID consistency: one FPL player cannot receive evidence from two different API-Football player IDs in the same scan.
 
 ## Transfer checks
 

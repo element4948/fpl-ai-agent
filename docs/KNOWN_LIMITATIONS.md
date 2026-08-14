@@ -5,7 +5,7 @@
 - Pre-season starter confidence is inherently uncertain; previous-season minutes are a prior, not proof of the new manager's XI.
 - Free public sources do not provide complete standardized friendly, national-team, press-conference, depth-chart, or dressing-room data.
 - API-Football availability depends on the key's plan and current-season coverage.
-- News matching/classification can miss aliases or ambiguous names.
+- News matching/classification can miss aliases or ambiguous names. API-Football identity matching now rejects ambiguity, but transliteration/name changes can therefore leave valid evidence unmatched until an alias is added.
 - FDR is a team-level difficulty signal and does not predict player minutes.
 - Expected Points is not calibrated against a multi-season automated backtest in this repository.
 - Beam search is bounded and can miss the mathematical global optimum.

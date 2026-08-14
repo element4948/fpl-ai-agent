@@ -25,6 +25,7 @@
 - A high-severity external warning blocks a pick only when confirmed or corroborated according to source verification logic.
 - Source count is displayed as coverage, not added repeatedly to the player score.
 - API-Football previous-season statistics may provide a prior but cannot alone prove a current starting role.
+- API-Football player evidence must pass current-team matching plus full/display-name scoring and API player-ID consistency. Ambiguous identities are rejected and never change minutes, starter confidence, or Expected Points.
 - Current-team mismatch, transfer uncertainty, or season-plan failure must remain visible in evidence/trust output.
 - Model Readiness reports each configured source as available, partial, or missing and exposes critical gaps. A configured adapter is not counted as successful unless the current response contains usable evidence.
 
@@ -51,6 +52,6 @@ The product cannot honestly promise “all football data”. Paid/private feeds,
 1. Confirm terms/licensing and whether server-side caching is allowed.
 2. Add a server-only adapter returning typed evidence.
 3. Include source name, observed time, data season, verification tier, and failure state.
-4. Match players conservatively; do not rely on surname only where collisions exist.
+4. Match players conservatively with provider ID, current team, full/display name and an ambiguity margin; never rely on surname alone where collisions exist.
 5. Apply evidence once in the projection/risk pipeline; avoid double-counting it in draft score.
 6. Add manual fixtures/tests and update this document.

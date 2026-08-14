@@ -33,6 +33,8 @@ Starting XI expectations:
 
 Current-season competitive lineups may strongly update minutes confidence. Club-friendly starts/minutes are tracked separately over a bounded 45-day window and provide a smaller pre-season update; they are never averaged into or treated as equivalent to competitive starts.
 
+External lineup evidence affects the model only after the identity gate passes: current team, normalized full/display name, stable API player ID, and a clear score margin over same-team alternatives. Ambiguous matches are counted in coverage diagnostics but rejected from player projections.
+
 ## Position model
 
 `lib/position-model.ts` evaluates different return routes:
