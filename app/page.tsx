@@ -1471,7 +1471,9 @@ export default function Home() {
                         {boot?.serverCalibration?.profile?.events ? (
                             <span>
                                 Position correction: {Object.entries(boot.serverCalibration.profile.positions || {})
-                                    .map(([position, item]: [string, any]) => `${position} ×${item.multiplier}${item.active ? '' : ' (хүлээж байна)'}`)
+                                    .map(([position, item]: [string, any]) => item.active
+                                        ? `${position} ×${item.multiplier} · ${item.sampleSize} sample · MAE ${item.mae}`
+                                        : `${position} collecting ${item.measuredEvents || 0}/3 GW · ${item.sampleSize || 0}/60 sample`)
                                     .join(' · ')}
                             </span>
                         ) : null}

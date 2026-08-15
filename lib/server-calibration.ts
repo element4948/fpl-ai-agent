@@ -62,6 +62,7 @@ function metrics(rows: Array<{ position: string; predicted: number; actual: numb
     mae: Number((errors.reduce((sum, error) => sum + Math.abs(error), 0) / rows.length).toFixed(2)),
     bias: Number((errors.reduce((sum, error) => sum + error, 0) / rows.length).toFixed(2)),
     withinTwo: Math.round(errors.filter((error) => Math.abs(error) <= 2).length / rows.length * 100),
+    squaredErrorSum: Number(errors.reduce((sum, error) => sum + error * error, 0).toFixed(4)),
   };
 }
 
@@ -90,19 +91,51 @@ export function buildCalibrationProfile(results: CalibrationResult[]): Calibrati
     const sampleSize = rows.reduce((sum, row) => sum + row.sampleSize, 0);
     const predicted = rows.reduce((sum, row) => sum + row.sumPredicted, 0);
     const actual = rows.reduce((sum, row) => sum + row.sumActual, 0);
+    const measuredEvents = rows.length;
+    const mae = sampleSize
+      ? rows.reduce((sum, row) => sum + row.mae * row.sampleSize, 0) / sampleSize
+      : 0;
+    const withinTwo = sampleSize
+      ? rows.reduce((sum, row) => sum + row.withinTwo * row.sampleSize, 0) / sampleSize
+      : 0;
     const active = recent.length >= MIN_EVENTS && sampleSize >= MIN_SAMPLES && predicted > 0;
     const rawMultiplier = predicted > 0 ? Math.max(0.75, Math.min(1.25, actual / predicted)) : 1;
     const shrinkage = Math.min(1, sampleSize / 180);
     const multiplier = active
       ? Number(Math.max(0.88, Math.min(1.12, 1 + (rawMultiplier - 1) * shrinkage)).toFixed(3))
       : 1;
-    return [position, { active, sampleSize, rawMultiplier: Number(rawMultiplier.toFixed(3)), multiplier }];
+    const hasExactVariance = sampleSize > 1 && rows.every((row) => Number.isFinite(row.squaredErrorSum));
+    const sumError = predicted - actual;
+    const squaredErrorSum = rows.reduce((sum, row) => sum + (row.squaredErrorSum || 0), 0);
+    const variance = hasExactVariance
+      ? Math.max(0, (squaredErrorSum - (sumError * sumError) / sampleSize) / (sampleSize - 1))
+      : 0;
+    const averagePredicted = sampleSize ? predicted / sampleSize : 0;
+    const margin = hasExactVariance ? 1.96 * Math.sqrt(variance / sampleSize) : 0;
+    const meanError = sampleSize ? sumError / sampleSize : 0;
+    const estimatedRange = hasExactVariance && averagePredicted > 0
+      ? {
+          low: Number(Math.max(0.5, Math.min(1.5, 1 - (meanError + margin) / averagePredicted)).toFixed(3)),
+          high: Number(Math.max(0.5, Math.min(1.5, 1 - (meanError - margin) / averagePredicted)).toFixed(3)),
+        }
+      : null;
+    return [position, {
+      active,
+      sampleSize,
+      rawMultiplier: Number(rawMultiplier.toFixed(3)),
+      multiplier,
+      measuredEvents,
+      mae: Number(mae.toFixed(2)),
+      withinTwo: Math.round(withinTwo),
+      status: active ? 'ready' as const : 'collecting' as const,
+      estimatedRange,
+    }];
   }));
   return { active: Object.values(positions).some((item) => item.active), events: recent.length, updatedAt: new Date().toISOString(), positions };
 }
 
 export function applyCalibrationProfile(players: ModelPlayer[], profile: CalibrationProfile): ModelPlayer[] {
-  return players.map((player) => {
+  const calibrated = players.map((player) => {
     const correction = profile.positions[player.position];
     if (!correction?.active || correction.multiplier === 1) return player;
     const scale = (value: number) => Number((value * correction.multiplier).toFixed(2));
@@ -125,6 +158,10 @@ export function applyCalibrationProfile(players: ModelPlayer[], profile: Calibra
         events: profile.events,
         beforeExpectedPoints: player.expectedPoints,
         expectedPointsDelta: Number((calibratedExpectedPoints - player.expectedPoints).toFixed(2)),
+        beforeOverallRank: 0,
+        afterOverallRank: 0,
+        rankingPoolSize: 0,
+        estimatedRange: correction.estimatedRange,
         beforeProjection: {
           next1: player.projection.next1,
           next3: player.projection.next3,
@@ -135,6 +172,23 @@ export function applyCalibrationProfile(players: ModelPlayer[], profile: Calibra
       },
     };
   });
+  const beforeRanks = new Map<number, number>();
+  const afterRanks = new Map<number, number>();
+  [...calibrated]
+    .sort((a, b) => (b.calibration?.beforeExpectedPoints ?? b.expectedPoints) - (a.calibration?.beforeExpectedPoints ?? a.expectedPoints))
+    .forEach((player, index) => beforeRanks.set(player.id, index + 1));
+  [...calibrated]
+    .sort((a, b) => b.expectedPoints - a.expectedPoints)
+    .forEach((player, index) => afterRanks.set(player.id, index + 1));
+  return calibrated.map((player) => player.calibration ? {
+    ...player,
+    calibration: {
+      ...player.calibration,
+      beforeOverallRank: beforeRanks.get(player.id) || 0,
+      afterOverallRank: afterRanks.get(player.id) || 0,
+      rankingPoolSize: calibrated.length,
+    },
+  } : player);
 }
 
 export async function refreshServerCalibration(eventId: number | undefined, actuals: CalibrationActual[]) {

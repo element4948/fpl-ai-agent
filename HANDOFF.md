@@ -67,6 +67,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-15 — Added explicit calibration gate progress, empirical multiplier uncertainty and pre/post position-xP rank provenance.
 - 2026-08-15 — Added pre/post-calibration xP provenance and separated calibration's contribution from total transfer gain.
 - 2026-08-15 — Exposed active position calibration provenance across draft, captain, transfer and player-detail views; player detail now applies the shared server profile.
 - 2026-08-15 — Removed calibration from the verified dashboard's serial critical path and changed per-Gameweek forecast persistence to one immutable KV write.

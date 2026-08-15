@@ -26,7 +26,7 @@ describe('position calibration safety gates', () => {
     bias: 0,
     withinTwo: 75,
     perPosition: {
-      MID: { sampleSize, sumPredicted: predicted, sumActual: actual, mae: 1, bias: 0, withinTwo: 75 },
+      MID: { sampleSize, sumPredicted: predicted, sumActual: actual, mae: 1, bias: 0, withinTwo: 75, squaredErrorSum: 160 },
     },
     evaluatedAt: new Date(2026, 0, eventId).toISOString(),
   });
@@ -46,7 +46,8 @@ describe('position calibration safety gates', () => {
     expect(profile.positions.MID.multiplier).toBeLessThanOrEqual(1.12);
     const mid = makePlayer({ position: 'MID', positionId: 3, expectedPoints: 5, price: 5 });
     const defender = makePlayer({ id: 2, position: 'DEF', positionId: 2, expectedPoints: 5, price: 5 });
-    const calibrated = applyCalibrationProfile([mid, defender], profile);
+    const forward = makePlayer({ id: 3, position: 'FWD', positionId: 4, expectedPoints: 5.5, price: 6 });
+    const calibrated = applyCalibrationProfile([mid, defender, forward], profile);
     expect(calibrated[0].expectedPoints).toBeGreaterThan(5);
     expect(calibrated[0].calibration?.beforeExpectedPoints).toBe(5);
     expect(calibrated[0].calibration?.expectedPointsDelta).toBeCloseTo(
@@ -54,6 +55,9 @@ describe('position calibration safety gates', () => {
       2,
     );
     expect(calibrated[0].calibration?.beforeProjection.next1).toBe(mid.projection.next1);
+    expect(calibrated[0].calibration?.estimatedRange).not.toBeNull();
+    expect(calibrated[0].calibration?.beforeOverallRank).toBe(2);
+    expect(calibrated[0].calibration?.afterOverallRank).toBe(1);
     expect(calibrated[1].expectedPoints).toBe(5);
   });
 });

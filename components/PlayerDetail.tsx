@@ -115,6 +115,10 @@ export function PlayerDetailModal() {
                                 хэмжсэн correction Expected Points-ийг {player.calibration.beforeExpectedPoints.toFixed(2)}-оос {player.expectedPoints.toFixed(2)} болгож
                                 ({player.calibration.expectedPointsDelta >= 0 ? '+' : ''}{player.calibration.expectedPointsDelta.toFixed(2)} xP) өөрчилсөн. Энэ нь тоглогчийг гараанд гарна гэж
                                 батлахгүй; starter, minutes, injury болон fixture шалгуур тусдаа хэвээр.
+                                {' '}Нийт тоглогчдын xP эрэмбэ #{player.calibration.beforeOverallRank}-ээс #{player.calibration.afterOverallRank}/{player.calibration.rankingPoolSize} болсон.
+                                {player.calibration.estimatedRange
+                                    ? ` Estimated multiplier range: ${player.calibration.estimatedRange.low.toFixed(3)}–${player.calibration.estimatedRange.high.toFixed(3)}.`
+                                    : ' Uncertainty range тооцох бодит sample хараахан хангалтгүй.'}
                             </div>
                         ) : null}
                         {player.evidence?.missingMetrics?.length ? (

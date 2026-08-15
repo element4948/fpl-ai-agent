@@ -38,11 +38,13 @@ export function CalibrationBadge({ player, compact = false }: { player: ModelPla
         `${calibration.events} Gameweek`,
         `${calibration.sampleSize} тоглогчийн үр дүн`,
         `${calibration.beforeExpectedPoints.toFixed(2)} xP → ${player.expectedPoints.toFixed(2)} xP (${calibration.expectedPointsDelta >= 0 ? '+' : ''}${calibration.expectedPointsDelta.toFixed(2)})`,
+        `Нийт тоглогчдын xP rank #${calibration.beforeOverallRank} → #${calibration.afterOverallRank}/${calibration.rankingPoolSize}`,
+        calibration.estimatedRange ? `Estimated multiplier range ${calibration.estimatedRange.low.toFixed(3)}–${calibration.estimatedRange.high.toFixed(3)}` : 'Uncertainty range цугларч байна',
         `Expected Points-д ×${calibration.multiplier.toFixed(3)} correction хэрэглэсэн`,
     ].join(' · ');
     return (
         <span className="calibration-badge" title={title}>
-            {compact ? 'CAL' : `${calibration.beforeExpectedPoints.toFixed(1)}→${player.expectedPoints.toFixed(1)} xP`} · ×{calibration.multiplier.toFixed(3)} {direction}
+            {compact ? 'CAL' : `${calibration.beforeExpectedPoints.toFixed(1)}→${player.expectedPoints.toFixed(1)} xP`} · rank #{calibration.beforeOverallRank}→#{calibration.afterOverallRank} · ×{calibration.multiplier.toFixed(3)} {direction}
         </span>
     );
 }

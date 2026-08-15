@@ -92,6 +92,7 @@ export function evaluateForecast(
         comparisons.length) *
         100,
     ),
+    squaredErrorSum: Number(comparisons.reduce((sum, item) => sum + item.error * item.error, 0).toFixed(4)),
     perPosition: Object.fromEntries(
       [...new Set(comparisons.map((item) => item.position))].map((position) => {
         const rows = comparisons.filter((item) => item.position === position);
@@ -102,6 +103,7 @@ export function evaluateForecast(
           mae: Number((rows.reduce((sum, item) => sum + Math.abs(item.error), 0) / rows.length).toFixed(2)),
           bias: Number((rows.reduce((sum, item) => sum + item.error, 0) / rows.length).toFixed(2)),
           withinTwo: Math.round(rows.filter((item) => Math.abs(item.error) <= 2).length / rows.length * 100),
+          squaredErrorSum: Number(rows.reduce((sum, item) => sum + item.error * item.error, 0).toFixed(4)),
         }];
       }),
     ),

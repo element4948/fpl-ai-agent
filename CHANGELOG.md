@@ -2,6 +2,7 @@
 
 ## 2026-08-15
 
+- Added calibration sample-gate progress, estimated multiplier uncertainty, and before/after position xP ranks.
 - Added before/after xP provenance and isolated calibration contribution to transfer gain.
 - Exposed active position calibration on player, draft, captain, transfer and detail views with multiplier/sample/Gameweek provenance.
 - Parallelized calibration I/O with verified provider scans and reduced immutable forecast persistence from two KV requests to one.

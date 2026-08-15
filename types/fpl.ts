@@ -228,6 +228,7 @@ export type CalibrationResult = {
   mae: number;
   bias: number;
   withinTwo: number;
+  squaredErrorSum?: number;
   perPosition: Record<string, CalibrationPositionResult>;
   evaluatedAt: string;
 };
@@ -239,6 +240,7 @@ export type CalibrationPositionResult = {
   mae: number;
   bias: number;
   withinTwo: number;
+  squaredErrorSum?: number;
 };
 
 export type CalibrationProfile = {
@@ -250,6 +252,11 @@ export type CalibrationProfile = {
     sampleSize: number;
     rawMultiplier: number;
     multiplier: number;
+    measuredEvents: number;
+    mae: number;
+    withinTwo: number;
+    status: 'collecting' | 'ready';
+    estimatedRange: { low: number; high: number } | null;
   }>;
 };
 
@@ -403,6 +410,10 @@ export type ModelPlayer = {
     events: number;
     beforeExpectedPoints: number;
     expectedPointsDelta: number;
+    beforeOverallRank: number;
+    afterOverallRank: number;
+    rankingPoolSize: number;
+    estimatedRange: { low: number; high: number } | null;
     beforeProjection: {
       next1: number;
       next3: number;
