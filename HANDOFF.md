@@ -18,7 +18,7 @@
 
 - Branch: `main`
 - Last committed baseline before this session: `a0960da` (shared finished-Gameweek calibration).
-- Current change set: parallel calibration/provider loading, immutable one-write-per-Gameweek forecast persistence and dashboard cache v23.
+- Current change set: baseline-isolated calibration safety guard, immutable one-write-per-Gameweek forecast persistence and dashboard cache v24.
 - Verification in this workspace: Next production compilation and production TypeScript check succeed; direct identity regression checks pass. Full Vitest remains blocked because local `node_modules` is missing the committed `vitest` dependency and network access cannot download it; run `npm install && npm run build && npm run test` in a networked environment before deployment.
 - Working tree should be clean after the current scoped commit. Local commits are not pushed unless the owner asks.
 
@@ -67,6 +67,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-15 — Added live calibration safety states, baseline-vs-calibrated MAE tracking and automatic rollback on measured degradation.
 - 2026-08-15 — Added explicit calibration gate progress, empirical multiplier uncertainty and pre/post position-xP rank provenance.
 - 2026-08-15 — Added pre/post-calibration xP provenance and separated calibration's contribution from total transfer gain.
 - 2026-08-15 — Exposed active position calibration provenance across draft, captain, transfer and player-detail views; player detail now applies the shared server profile.

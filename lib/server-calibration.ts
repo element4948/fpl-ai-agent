@@ -7,8 +7,8 @@ import type {
   ModelPlayer,
 } from '@/types/fpl';
 
-const FORECAST_KEY_PREFIX = 'fpl-ai-agent:calibration:forecast:v2';
-const RESULTS_KEY = 'fpl-ai-agent:calibration:results:v1';
+const FORECAST_KEY_PREFIX = 'fpl-ai-agent:calibration:forecast:v3';
+const RESULTS_KEY = 'fpl-ai-agent:calibration:results:v2';
 const POSITIONS = ['GKP', 'DEF', 'MID', 'FWD'];
 const MIN_EVENTS = 3;
 const MIN_SAMPLES = 60;
@@ -53,16 +53,27 @@ function forecastKey(eventId: number) {
   return `${FORECAST_KEY_PREFIX}:${eventId}`;
 }
 
-function metrics(rows: Array<{ position: string; predicted: number; actual: number }>): CalibrationPositionResult {
-  const errors = rows.map((row) => row.predicted - row.actual);
+function metrics(rows: Array<{ position: string; predicted: number; actual: number; basePredicted?: number; calibrationMultiplier?: number }>): CalibrationPositionResult {
+  const basePrediction = (row: typeof rows[number]) => row.basePredicted ?? row.predicted;
+  const baseErrors = rows.map((row) => basePrediction(row) - row.actual);
+  const appliedRows = rows.filter((row) => row.calibrationMultiplier != null && row.calibrationMultiplier !== 1 && Number.isFinite(row.basePredicted));
   return {
     sampleSize: rows.length,
-    sumPredicted: Number(rows.reduce((sum, row) => sum + row.predicted, 0).toFixed(2)),
+    // Profile learning always uses the uncalibrated baseline. Otherwise a
+    // deployed multiplier trains on its own output and creates a feedback loop.
+    sumPredicted: Number(rows.reduce((sum, row) => sum + basePrediction(row), 0).toFixed(2)),
     sumActual: Number(rows.reduce((sum, row) => sum + row.actual, 0).toFixed(2)),
-    mae: Number((errors.reduce((sum, error) => sum + Math.abs(error), 0) / rows.length).toFixed(2)),
-    bias: Number((errors.reduce((sum, error) => sum + error, 0) / rows.length).toFixed(2)),
-    withinTwo: Math.round(errors.filter((error) => Math.abs(error) <= 2).length / rows.length * 100),
-    squaredErrorSum: Number(errors.reduce((sum, error) => sum + error * error, 0).toFixed(4)),
+    mae: Number((baseErrors.reduce((sum, error) => sum + Math.abs(error), 0) / rows.length).toFixed(2)),
+    bias: Number((baseErrors.reduce((sum, error) => sum + error, 0) / rows.length).toFixed(2)),
+    withinTwo: Math.round(baseErrors.filter((error) => Math.abs(error) <= 2).length / rows.length * 100),
+    squaredErrorSum: Number(baseErrors.reduce((sum, error) => sum + error * error, 0).toFixed(4)),
+    baselineMae: appliedRows.length
+      ? Number((appliedRows.reduce((sum, row) => sum + Math.abs((row.basePredicted as number) - row.actual), 0) / appliedRows.length).toFixed(2))
+      : undefined,
+    calibratedMae: appliedRows.length
+      ? Number((appliedRows.reduce((sum, row) => sum + Math.abs(row.predicted - row.actual), 0) / appliedRows.length).toFixed(2))
+      : undefined,
+    calibrationAppliedSampleSize: appliedRows.length,
   };
 }
 
@@ -70,7 +81,13 @@ export function evaluateSnapshot(snapshot: ForecastSnapshot, actuals: Calibratio
   const actualMap = new Map(actuals.map((item) => [item.id, item.points]));
   const rows = snapshot.players
     .filter((player) => actualMap.has(player.id))
-    .map((player) => ({ position: player.position, predicted: player.predicted, actual: actualMap.get(player.id) || 0 }));
+    .map((player) => ({
+      position: player.position,
+      predicted: player.predicted,
+      basePredicted: player.basePredicted,
+      calibrationMultiplier: player.calibrationMultiplier,
+      actual: actualMap.get(player.id) || 0,
+    }));
   if (!rows.length) return null;
   const overall = metrics(rows);
   return {
@@ -98,12 +115,10 @@ export function buildCalibrationProfile(results: CalibrationResult[]): Calibrati
     const withinTwo = sampleSize
       ? rows.reduce((sum, row) => sum + row.withinTwo * row.sampleSize, 0) / sampleSize
       : 0;
-    const active = recent.length >= MIN_EVENTS && sampleSize >= MIN_SAMPLES && predicted > 0;
+    const gateReady = measuredEvents >= MIN_EVENTS && sampleSize >= MIN_SAMPLES && predicted > 0;
     const rawMultiplier = predicted > 0 ? Math.max(0.75, Math.min(1.25, actual / predicted)) : 1;
     const shrinkage = Math.min(1, sampleSize / 180);
-    const multiplier = active
-      ? Number(Math.max(0.88, Math.min(1.12, 1 + (rawMultiplier - 1) * shrinkage)).toFixed(3))
-      : 1;
+    const proposedMultiplier = Number(Math.max(0.88, Math.min(1.12, 1 + (rawMultiplier - 1) * shrinkage)).toFixed(3));
     const hasExactVariance = sampleSize > 1 && rows.every((row) => Number.isFinite(row.squaredErrorSum));
     const sumError = predicted - actual;
     const squaredErrorSum = rows.reduce((sum, row) => sum + (row.squaredErrorSum || 0), 0);
@@ -119,6 +134,35 @@ export function buildCalibrationProfile(results: CalibrationResult[]): Calibrati
           high: Number(Math.max(0.5, Math.min(1.5, 1 - (meanError - margin) / averagePredicted)).toFixed(3)),
         }
       : null;
+    const calibratedRows = rows.filter((row) =>
+      (row.calibrationAppliedSampleSize || 0) > 0 && row.baselineMae != null && row.calibratedMae != null,
+    );
+    const calibrationAppliedSampleSize = calibratedRows.reduce((sum, row) => sum + (row.calibrationAppliedSampleSize || 0), 0);
+    const calibratedMae = calibrationAppliedSampleSize
+      ? calibratedRows.reduce((sum, row) => sum + (row.calibratedMae || 0) * (row.calibrationAppliedSampleSize || 0), 0) / calibrationAppliedSampleSize
+      : null;
+    const baselineMae = calibrationAppliedSampleSize
+      ? calibratedRows.reduce((sum, row) => sum + (row.baselineMae || 0) * (row.calibrationAppliedSampleSize || 0), 0) / calibrationAppliedSampleSize
+      : null;
+    const driftPaused = calibrationAppliedSampleSize >= 20 && calibratedMae != null && baselineMae != null
+      && calibratedMae > baselineMae * 1.02 + 0.02;
+    const rangeExcludesOne = Boolean(estimatedRange && (estimatedRange.high < 1 || estimatedRange.low > 1));
+    const status = !gateReady
+      ? 'collecting' as const
+      : driftPaused
+        ? 'paused' as const
+        : !rangeExcludesOne
+          ? 'uncertain' as const
+          : 'ready' as const;
+    const active = status === 'ready';
+    const multiplier = active ? proposedMultiplier : 1;
+    const reason = status === 'collecting'
+      ? `Need ${Math.max(0, MIN_EVENTS - measuredEvents)} more Gameweek(s) and ${Math.max(0, MIN_SAMPLES - sampleSize)} more samples`
+      : status === 'paused'
+        ? `Paused: calibrated MAE ${calibratedMae?.toFixed(2)} is worse than baseline ${baselineMae?.toFixed(2)}`
+        : status === 'uncertain'
+          ? 'Uncertain: estimated multiplier range includes 1.0'
+          : 'Ready: sample gate passed and uncertainty excludes 1.0';
     return [position, {
       active,
       sampleSize,
@@ -127,7 +171,10 @@ export function buildCalibrationProfile(results: CalibrationResult[]): Calibrati
       measuredEvents,
       mae: Number(mae.toFixed(2)),
       withinTwo: Math.round(withinTwo),
-      status: active ? 'ready' as const : 'collecting' as const,
+      status,
+      reason,
+      baselineMae: baselineMae == null ? null : Number(baselineMae.toFixed(2)),
+      calibratedMae: calibratedMae == null ? null : Number(calibratedMae.toFixed(2)),
       estimatedRange,
     }];
   }));
@@ -217,7 +264,14 @@ export async function saveServerForecast(eventId: number | undefined, deadline: 
   try {
     const snapshot: ForecastSnapshot = {
       eventId, deadline, createdAt: new Date().toISOString(),
-      players: players.map((player) => ({ id: player.id, name: player.name, position: player.position, predicted: player.projection.next1 })),
+      players: players.map((player) => ({
+        id: player.id,
+        name: player.name,
+        position: player.position,
+        predicted: player.projection.next1,
+        basePredicted: player.calibration?.beforeProjection.next1 ?? player.projection.next1,
+        calibrationMultiplier: player.calibration?.multiplier ?? 1,
+      })),
     };
     // One immutable snapshot per Gameweek. SET NX avoids a preliminary GET and
     // prevents a later request from overwriting the pre-deadline forecast.

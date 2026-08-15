@@ -2,6 +2,7 @@
 
 ## 2026-08-15
 
+- Added calibration drift protection with collecting/uncertain/ready/paused states and automatic rollback when deployed MAE underperforms the saved baseline.
 - Added calibration sample-gate progress, estimated multiplier uncertainty, and before/after position xP ranks.
 - Added before/after xP provenance and isolated calibration contribution to transfer gain.
 - Exposed active position calibration on player, draft, captain, transfer and detail views with multiplier/sample/Gameweek provenance.

@@ -12,21 +12,38 @@ import { splitTelegramMessage } from '@/lib/telegram';
 import { matchPlayerIdentity } from '@/lib/player-identity';
 import { calculateInternationalFatigueRisk } from '@/lib/api-football';
 import { applyRecentHistoryEvidence } from '@/lib/history-enrichment';
-import { applyCalibrationProfile, buildCalibrationProfile } from '@/lib/server-calibration';
+import { applyCalibrationProfile, buildCalibrationProfile, evaluateSnapshot } from '@/lib/server-calibration';
 import type { FplPlayer } from '@/types/fpl';
 import { makePlayer, makeLegalSquad } from './helpers';
 
 describe('position calibration safety gates', () => {
-  const result = (eventId: number, sampleSize: number, predicted: number, actual: number) => ({
+  const result = (
+    eventId: number,
+    sampleSize: number,
+    predicted: number,
+    actual: number,
+    deployed?: { baselineMae: number; calibratedMae: number },
+  ) => ({
     eventId,
     sampleSize,
     sumPredicted: predicted,
     sumActual: actual,
-    mae: 1,
+    mae: deployed?.baselineMae ?? 1,
     bias: 0,
     withinTwo: 75,
     perPosition: {
-      MID: { sampleSize, sumPredicted: predicted, sumActual: actual, mae: 1, bias: 0, withinTwo: 75, squaredErrorSum: 160 },
+      MID: {
+        sampleSize,
+        sumPredicted: predicted,
+        sumActual: actual,
+        mae: deployed?.baselineMae ?? 1,
+        bias: 0,
+        withinTwo: 75,
+        squaredErrorSum: 160,
+        baselineMae: deployed?.baselineMae,
+        calibratedMae: deployed?.calibratedMae,
+        calibrationAppliedSampleSize: deployed ? sampleSize : 0,
+      },
     },
     evaluatedAt: new Date(2026, 0, eventId).toISOString(),
   });
@@ -35,6 +52,19 @@ describe('position calibration safety gates', () => {
     const profile = buildCalibrationProfile([result(1, 30, 120, 150), result(2, 30, 120, 150)]);
     expect(profile.positions.MID.active).toBe(false);
     expect(profile.positions.MID.multiplier).toBe(1);
+  });
+
+  it('learns from the saved baseline instead of feeding corrected output back into itself', () => {
+    const measured = evaluateSnapshot({
+      eventId: 1,
+      deadline: '2026-08-15T09:00:00Z',
+      createdAt: '2026-08-15T08:00:00Z',
+      players: [{ id: 1, name: 'Test', position: 'MID', predicted: 8, basePredicted: 5, calibrationMultiplier: 1.1 }],
+    }, [{ id: 1, name: 'Test', points: 5 }]);
+    expect(measured?.mae).toBe(0);
+    expect(measured?.sumPredicted).toBe(5);
+    expect(measured?.perPosition.MID.baselineMae).toBe(0);
+    expect(measured?.perPosition.MID.calibratedMae).toBe(3);
   });
 
   it('applies a bounded, shrunk position correction after enough evidence', () => {
@@ -59,6 +89,26 @@ describe('position calibration safety gates', () => {
     expect(calibrated[0].calibration?.beforeOverallRank).toBe(2);
     expect(calibrated[0].calibration?.afterOverallRank).toBe(1);
     expect(calibrated[1].expectedPoints).toBe(5);
+  });
+
+  it('holds an uncertain correction when its estimated range includes 1.0', () => {
+    const profile = buildCalibrationProfile([
+      result(1, 25, 100, 104), result(2, 25, 100, 104), result(3, 25, 100, 104),
+    ]);
+    expect(profile.positions.MID.status).toBe('uncertain');
+    expect(profile.positions.MID.active).toBe(false);
+    expect(profile.positions.MID.multiplier).toBe(1);
+  });
+
+  it('pauses correction when deployed MAE is worse than its saved baseline', () => {
+    const profile = buildCalibrationProfile([
+      result(1, 25, 100, 140, { baselineMae: 0.5, calibratedMae: 1 }),
+      result(2, 25, 100, 140, { baselineMae: 0.5, calibratedMae: 1 }),
+      result(3, 25, 100, 140, { baselineMae: 0.5, calibratedMae: 1 }),
+    ]);
+    expect(profile.positions.MID.status).toBe('paused');
+    expect(profile.positions.MID.active).toBe(false);
+    expect(profile.positions.MID.multiplier).toBe(1);
   });
 });
 

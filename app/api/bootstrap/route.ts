@@ -41,13 +41,13 @@ export async function GET(request: Request) {
 
 const getFastDashboard = unstable_cache(
   () => buildDashboardPayload(true),
-  ['fpl-dashboard-fast-v23-parallel-calibration'],
+  ['fpl-dashboard-fast-v24-calibration-guard'],
   { revalidate: 300 },
 );
 
 const getVerifiedDashboard = unstable_cache(
   () => buildDashboardPayload(false),
-  ['fpl-dashboard-verified-v23-parallel-calibration'],
+  ['fpl-dashboard-verified-v24-calibration-guard'],
   { revalidate: 900 },
 );
 

@@ -1471,9 +1471,13 @@ export default function Home() {
                         {boot?.serverCalibration?.profile?.events ? (
                             <span>
                                 Position correction: {Object.entries(boot.serverCalibration.profile.positions || {})
-                                    .map(([position, item]: [string, any]) => item.active
-                                        ? `${position} ×${item.multiplier} · ${item.sampleSize} sample · MAE ${item.mae}`
-                                        : `${position} collecting ${item.measuredEvents || 0}/3 GW · ${item.sampleSize || 0}/60 sample`)
+                                    .map(([position, item]: [string, any]) => item.status === 'ready'
+                                        ? `${position} ACTIVE ×${item.multiplier} · ${item.sampleSize} sample · MAE ${item.mae}`
+                                        : item.status === 'paused'
+                                          ? `${position} PAUSED · ${item.reason}`
+                                          : item.status === 'uncertain'
+                                            ? `${position} UNCERTAIN · range ${item.estimatedRange?.low ?? '—'}–${item.estimatedRange?.high ?? '—'} includes 1.0`
+                                            : `${position} COLLECTING ${item.measuredEvents || 0}/3 GW · ${item.sampleSize || 0}/60 sample`)
                                     .join(' · ')}
                             </span>
                         ) : null}

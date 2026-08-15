@@ -205,6 +205,8 @@ export type ForecastPlayer = {
   name: string;
   position: string;
   predicted: number;
+  basePredicted?: number;
+  calibrationMultiplier?: number;
 };
 
 export type ForecastSnapshot = {
@@ -241,6 +243,9 @@ export type CalibrationPositionResult = {
   bias: number;
   withinTwo: number;
   squaredErrorSum?: number;
+  baselineMae?: number;
+  calibratedMae?: number;
+  calibrationAppliedSampleSize?: number;
 };
 
 export type CalibrationProfile = {
@@ -255,7 +260,10 @@ export type CalibrationProfile = {
     measuredEvents: number;
     mae: number;
     withinTwo: number;
-    status: 'collecting' | 'ready';
+    status: 'collecting' | 'uncertain' | 'paused' | 'ready';
+    reason: string;
+    baselineMae: number | null;
+    calibratedMae: number | null;
     estimatedRange: { low: number; high: number } | null;
   }>;
 };
