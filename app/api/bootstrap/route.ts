@@ -11,6 +11,7 @@ import { buildSeasonRoadmap } from '@/lib/season-roadmap';
 import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-football';
 import { applyRecentHistoryEvidence, getRecentHistoryEvidence } from '@/lib/history-enrichment';
 import { applyCalibrationProfile, refreshServerCalibration, saveServerForecast } from '@/lib/server-calibration';
+import { applyDataFreshnessGuard } from '@/lib/data-freshness';
 
 export const revalidate = 900;
 // The verified dashboard fans out to API-Football + news feeds; the default
@@ -41,17 +42,18 @@ export async function GET(request: Request) {
 
 const getFastDashboard = unstable_cache(
   () => buildDashboardPayload(true),
-  ['fpl-dashboard-fast-v24-calibration-guard'],
+  ['fpl-dashboard-fast-v25-data-freshness'],
   { revalidate: 300 },
 );
 
 const getVerifiedDashboard = unstable_cache(
   () => buildDashboardPayload(false),
-  ['fpl-dashboard-verified-v24-calibration-guard'],
+  ['fpl-dashboard-verified-v25-data-freshness'],
   { revalidate: 900 },
 );
 
 async function buildDashboardPayload(fast: boolean) {
+  const generatedAt = new Date().toISOString();
   const [boot, fixtures] = await Promise.all([getBootstrap(), getFixtures()]);
   // Throw (do not return) so unstable_cache never stores an outage response.
   if (!boot) throw new Error('FPL_API_UNAVAILABLE');
@@ -114,11 +116,16 @@ async function buildDashboardPayload(fast: boolean) {
     ? (['Best'] as const)
     : (['Best','Alternative','Differential','Safe'] as const);
   const evidencePlayers = newsScan ? applyExternalNewsSignals(statsPlayers, newsScan) : statsPlayers;
+  const freshnessPlayers = applyDataFreshnessGuard(evidencePlayers, {
+    officialCheckedAt: generatedAt,
+    fixturesAvailable: Boolean(fixtures?.length),
+    verified: !fast,
+  });
   const isOldGw38 = next?.name?.includes('38') && next?.deadline_time && new Date(next.deadline_time).getTime() < Date.now();
   const isPreSeason = completedGameweeks === 0 || !next || !next.deadline_time || !!isOldGw38;
   const calibrationState = await calibrationPromise;
   const { actuals: calibrationActuals, ...serverCalibration } = calibrationState;
-  const players = applyCalibrationProfile(evidencePlayers, serverCalibration.profile);
+  const players = applyCalibrationProfile(freshnessPlayers, serverCalibration.profile);
   const topPlayers = [...players].sort((a,b) => (b.expectedPoints + b.valueScore - b.risk * 0.03) - (a.expectedPoints + a.valueScore - a.risk * 0.03)).slice(0, 40);
   // Always return usable Official-FPL drafts in the fast response. External
   // verification can replace them later, but a failed/slow enrichment request
@@ -135,6 +142,13 @@ async function buildDashboardPayload(fast: boolean) {
     fixtureReady: !!fixtures?.length,
     fixtureSource: 'Official FPL fixtures API',
     fixtureUpdatedAt: new Date().toISOString(),
+    generatedAt,
+    freshness: {
+      fresh: players.filter((player) => player.dataFreshness?.status === 'fresh').length,
+      aging: players.filter((player) => player.dataFreshness?.status === 'aging').length,
+      stale: players.filter((player) => player.dataFreshness?.status === 'stale').length,
+      missing: players.filter((player) => player.dataFreshness?.status === 'missing').length,
+    },
     apiFootball: {
       enabled: apiFootballScan.enabled,
       matchedPlayers: apiFootballScan.matchedPlayers,

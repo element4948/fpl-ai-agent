@@ -1,4 +1,5 @@
 import type { DraftTrust, ModelPlayer, PlayerEvidence } from '@/types/fpl';
+import { hasFreshRoleEvidence } from '@/lib/data-freshness';
 
 function clamp(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
@@ -102,6 +103,7 @@ export function buildDraftTrust(
         player.apiFootball.identityVerified &&
         player.apiFootball.competitiveMatches >= 2) ||
       (player.roleAssessment?.role === 'first-choice' &&
+        hasFreshRoleEvidence(player) &&
         player.roleAssessment.confidence >= 75),
     ),
   );
@@ -120,6 +122,8 @@ export function buildDraftTrust(
   const score = goodDataPlayers === 0 ? Math.min(72, rawScore) : rawScore;
   const blockers: string[] = [];
   const warnings: string[] = [];
+  const stalePlayers = squad.filter((player) => player.dataFreshness?.status === 'stale');
+  const stalePositivePlayers = squad.filter((player) => player.dataFreshness?.stalePositiveEvidence);
 
   if (squad.length !== 15) blockers.push('15 тоглогчтой бүрэн squad бүрдээгүй.');
   if (lowCoverageStarters.length) {
@@ -150,6 +154,10 @@ export function buildDraftTrust(
   }
   if (limitedDataPlayers) warnings.push(`${limitedDataPlayers} тоглогч limited data-тай.`);
   if (unknownDataPlayers) warnings.push(`${unknownDataPlayers} тоглогч unknown data-тай.`);
+  if (stalePlayers.length) blockers.push(`${stalePlayers.length} тоглогчийн critical data хуучирсан.`);
+  if (stalePositivePlayers.length) {
+    blockers.push(`${stalePositivePlayers.length} тоглогчийн хуучирсан эерэг role нотолгоог ашиглаагүй.`);
+  }
   if (!squad.some((player) => player.expectedGoalInvolvements > 0)) {
     warnings.push('Live xG/xA/xGI өгөгдөл хараахан бүрдээгүй.');
   }

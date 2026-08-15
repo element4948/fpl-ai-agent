@@ -2,6 +2,7 @@
 
 ## 2026-08-15
 
+- Added per-source Fresh/Aging/Stale/Missing tracking and removed expired, uncorroborated first-choice boosts from starter minutes, Expected Points and draft eligibility.
 - Added calibration drift protection with collecting/uncertain/ready/paused states and automatic rollback when deployed MAE underperforms the saved baseline.
 - Added calibration sample-gate progress, estimated multiplier uncertainty, and before/after position xP ranks.
 - Added before/after xP provenance and isolated calibration contribution to transfer gain.

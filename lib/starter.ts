@@ -148,6 +148,7 @@ export function isReliableStarter(
     predictedMinutes: number;
     starterLabel: StarterLabel;
     dataQuality?: 'good' | 'limited' | 'unknown';
+    dataFreshness?: { status: 'fresh' | 'aging' | 'stale' | 'missing'; stalePositiveEvidence: boolean };
     roleAssessment?: { role: 'first-choice' | 'competition' | 'backup' | 'unknown' };
     externalNews?: Array<{ severity: 'low' | 'medium' | 'high'; verification: 'confirmed' | 'corroborated' | 'single-source' | 'unverified' }>;
   },
@@ -163,6 +164,8 @@ export function isReliableStarter(
     player.starterLabel !== 'bench' &&
     player.starterLabel !== 'unknown' &&
     player.dataQuality !== 'unknown' &&
+    player.dataFreshness?.status !== 'stale' &&
+    !player.dataFreshness?.stalePositiveEvidence &&
     player.roleAssessment?.role !== 'backup' &&
     player.roleAssessment?.role !== 'competition' &&
     !verifiedWarning &&

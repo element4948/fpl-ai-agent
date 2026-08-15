@@ -19,6 +19,9 @@
 - Fast dashboard intentionally uses only Official FPL data.
 - Verified dashboard checks external evidence for a bounded shortlist, not every player in the database.
 - News categories have age limits in `lib/external-news.ts`; old headlines must not remain active indefinitely.
+- `lib/data-freshness.ts` labels every applicable player source as `fresh`, `aging`, `stale`, or `missing` with source-specific time windows. A successful scan with no player evidence is not presented as proof of a clean role/risk state.
+- An expired first-choice role assessment cannot raise starter confidence, predicted minutes, appearance probability, Expected Points, or projection horizons. It must be corroborated by fresh/aging current-season competitive evidence or a sufficiently strong recent Official FPL history sample.
+- Previous-season API-Football evidence is always context (`aging`) rather than current-role proof, even when it was fetched recently.
 
 ## Evidence rules
 

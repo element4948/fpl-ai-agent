@@ -1,7 +1,7 @@
 'use client';
 
 import { Card } from '@/components/Card';
-import { CalibrationBadge, DataQualityBadge, FixtureTrendBadge } from '@/components/PlayerBadges';
+import { CalibrationBadge, DataFreshnessBadge, DataQualityBadge, FixtureTrendBadge } from '@/components/PlayerBadges';
 import { DraftCompareTable } from '@/components/DraftCompareTable';
 import { PlayerDetailButton, PlayerDetailModal } from '@/components/PlayerDetail';
 import { MoreSection } from '@/components/MoreSection';
@@ -231,6 +231,7 @@ function DraftPlayerTile({ player, role, audit }: { player: ModelPlayer; role: '
                     {role === 'starter' ? 'Starting XI' : unreliable ? 'Bench only' : 'Bench cover'}
                 </span>
                 <CalibrationBadge player={player} compact />
+                <DataFreshnessBadge player={player} />
             </div>
             {player.signals?.length ? (
                 <div className="player-signal" title={player.signals.map((signal) => signal.message).join(' · ')}>
@@ -338,6 +339,7 @@ function DraftPlayerTile({ player, role, audit }: { player: ModelPlayer; role: '
                         </b>
                     </span>
                     <DataQualityBadge quality={player.dataQuality} />
+                    <DataFreshnessBadge player={player} />
                 </div>
                 {player.roleAssessment ? (
                     <div className="draft-role-warning">

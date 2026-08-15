@@ -18,6 +18,31 @@ export function DataQualityBadge({ quality }: { quality: ModelPlayer['dataQualit
     );
 }
 
+export function DataFreshnessBadge({ player }: { player: ModelPlayer }) {
+    const freshness = player.dataFreshness;
+    if (!freshness) return null;
+    const labels = {
+        fresh: 'Fresh',
+        aging: 'Aging',
+        stale: 'Stale',
+        missing: 'Missing',
+    } as const;
+    const sourceSummary = freshness.sources
+        .map((source) => `${source.label}: ${labels[source.status]}${source.ageHours == null ? '' : ` (${source.ageHours}h)`}`)
+        .join(' · ');
+    const warning = freshness.stalePositiveEvidence
+        ? ' · Хуучирсан first-choice мэдээлэл starter баталгаа болон Draft boost-д ашиглагдаагүй.'
+        : '';
+    return (
+        <span
+            className={`data-quality data-quality-${freshness.status === 'fresh' ? 'good' : freshness.status === 'aging' ? 'limited' : 'unknown'}`}
+            title={`${freshness.score}/100 freshness · ${sourceSummary}${warning}`}
+        >
+            {labels[freshness.status]} {freshness.score}%
+        </span>
+    );
+}
+
 export function FixtureTrendBadge({ fixture }: { fixture?: ModelPlayer['fixture'] }) {
     if (!fixture || fixture.trend === 'unknown') return null;
     const label =

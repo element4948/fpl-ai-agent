@@ -164,6 +164,22 @@ export type PlayerEvidence = {
   }>;
 };
 
+export type DataFreshnessStatus = 'fresh' | 'aging' | 'stale' | 'missing';
+
+export type PlayerDataFreshness = {
+  status: DataFreshnessStatus;
+  score: number;
+  stalePositiveEvidence: boolean;
+  sources: Array<{
+    id: 'official-fpl' | 'official-fpl-fixtures' | 'official-fpl-history' | 'api-football' | 'recent-news' | 'role-assessment';
+    label: string;
+    status: DataFreshnessStatus;
+    checkedAt?: string;
+    ageHours?: number;
+    reason?: string;
+  }>;
+};
+
 export type PlayerRoleAssessment = {
   role: 'first-choice' | 'competition' | 'backup' | 'unknown';
   confidence: number;
@@ -451,6 +467,7 @@ export type ModelPlayer = {
   dataQuality: 'good' | 'limited' | 'unknown';
   signals: PlayerSignal[];
   evidence?: PlayerEvidence;
+  dataFreshness?: PlayerDataFreshness;
   roleAssessment?: PlayerRoleAssessment;
   externalNews?: ExternalNewsSignal[];
   newsCheckedAt?: string;

@@ -15,6 +15,72 @@ import { applyRecentHistoryEvidence } from '@/lib/history-enrichment';
 import { applyCalibrationProfile, buildCalibrationProfile, evaluateSnapshot } from '@/lib/server-calibration';
 import type { FplPlayer } from '@/types/fpl';
 import { makePlayer, makeLegalSquad } from './helpers';
+import { applyDataFreshnessGuard, freshnessStatus, hasFreshRoleEvidence } from '@/lib/data-freshness';
+
+describe('data freshness guard', () => {
+  const now = new Date('2026-08-15T09:00:00Z');
+
+  it('distinguishes fresh, aging, stale and missing timestamps', () => {
+    expect(freshnessStatus('2026-08-15T08:00:00Z', { freshHours: 2, agingHours: 8 }, now).status).toBe('fresh');
+    expect(freshnessStatus('2026-08-15T04:00:00Z', { freshHours: 2, agingHours: 8 }, now).status).toBe('aging');
+    expect(freshnessStatus('2026-08-14T09:00:00Z', { freshHours: 2, agingHours: 8 }, now).status).toBe('stale');
+    expect(freshnessStatus(undefined, { freshHours: 2, agingHours: 8 }, now).status).toBe('missing');
+  });
+
+  it('does not accept an expired first-choice assessment as current role proof', () => {
+    const player = makePlayer({
+      roleAssessment: {
+        role: 'first-choice', confidence: 95, note: 'old', sourceLabel: 'Club',
+        sourceUrl: 'https://example.com', checkedAt: '2026-07-01', expiresAt: '2026-07-10',
+      },
+    });
+    const guarded = applyDataFreshnessGuard([player], {
+      officialCheckedAt: now.toISOString(), fixturesAvailable: true, verified: true, now,
+    })[0];
+    expect(guarded.dataFreshness?.stalePositiveEvidence).toBe(true);
+    expect(hasFreshRoleEvidence(guarded)).toBe(false);
+    expect(guarded.starterConfidence).toBeLessThan(68);
+    expect(guarded.predictedMinutes).toBeLessThan(60);
+    expect(guarded.starterLabel).toBe('rotation');
+  });
+
+  it('keeps current Official FPL role evidence when an old note expires', () => {
+    const player = makePlayer({
+      historyCheckedAt: now.toISOString(),
+      recentHistory: {
+        sampleSize: 5, starts: 4, startRate: 80, averageMinutes: 76,
+        sixtyPlus: 4, sixtyPlusRate: 80, trend: 'stable', dataQuality: 'good',
+      },
+      roleAssessment: {
+        role: 'first-choice', confidence: 95, note: 'old', sourceLabel: 'Club',
+        sourceUrl: 'https://example.com', checkedAt: '2026-07-01', expiresAt: '2026-07-10',
+      },
+    });
+    const guarded = applyDataFreshnessGuard([player], {
+      officialCheckedAt: now.toISOString(), fixturesAvailable: true, verified: true, now,
+    })[0];
+    expect(guarded.dataFreshness?.stalePositiveEvidence).toBe(false);
+    expect(guarded.starterConfidence).toBe(player.starterConfidence);
+    expect(guarded.predictedMinutes).toBe(player.predictedMinutes);
+  });
+
+  it('labels previous-season provider evidence as aging, not current proof', () => {
+    const player = makePlayer({
+      apiFootball: {
+        matches: 5, starts: 5, minutes: 88, rating: 7, shots: 0, keyPasses: 0,
+        tackles: 0, saves: 0, checkedAt: now.toISOString(), season: 2025,
+        currentSeason: false, currentTeamMatched: true, friendlyMatches: 0,
+        friendlyStarts: 0, friendlyMinutes: 0, competitiveMatches: 5,
+        competitiveStarts: 5, competitiveMinutes: 88, internationalMatches: 0,
+        internationalStarts: 0, internationalMinutes: 0, internationalFatigueRisk: 0,
+      },
+    });
+    const guarded = applyDataFreshnessGuard([player], {
+      officialCheckedAt: now.toISOString(), fixturesAvailable: true, verified: true, now,
+    })[0];
+    expect(guarded.dataFreshness?.sources.find((item) => item.id === 'api-football')?.status).toBe('aging');
+  });
+});
 
 describe('position calibration safety gates', () => {
   const result = (

@@ -51,6 +51,8 @@ Recent structured international minutes use the same verified provider ID. The m
 
 Official-club news is queried once per current club represented in the verified shortlist. A club-domain injury/absence/transfer warning is confirmed evidence; reliable media becomes corroborated only when publisher-domain metadata shows at least two independent sources. Confirmed/corroborated high warnings reduce availability, minutes, projection and draft eligibility consistently. Missing news is unknown, not a clean bill of health.
 
+Every player also carries per-source freshness metadata. The strict XI gate rejects stale critical data and expired positive role evidence. If an old first-choice assessment has no current corroboration, the freshness guard caps starter confidence below the XI threshold, caps predicted minutes, marks the player as rotation risk, and proportionally removes the stale availability boost from xP and all projection horizons. Fresh recent Official FPL starts/minutes or identity-verified current-season competitive evidence prevents a false downgrade.
+
 ## Position model
 
 `lib/position-model.ts` evaluates different return routes:
