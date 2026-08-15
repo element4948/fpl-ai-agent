@@ -2,6 +2,7 @@
 
 ## 2026-08-15
 
+- Added before/after xP provenance and isolated calibration contribution to transfer gain.
 - Exposed active position calibration on player, draft, captain, transfer and detail views with multiplier/sample/Gameweek provenance.
 - Parallelized calibration I/O with verified provider scans and reduced immutable forecast persistence from two KV requests to one.
 - Added a shared server-side forecast calibration loop using finished-Gameweek Official FPL live points, position-level MAE/bias tracking, and conservative sample-gated projection correction.

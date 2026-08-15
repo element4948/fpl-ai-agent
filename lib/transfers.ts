@@ -39,6 +39,7 @@ export function suggestSafeTransfers(squad: ModelPlayer[], all: ModelPlayer[], b
           outPlayer: out,
           inPlayer: inn,
           expectedGain: Number(gain.toFixed(2)),
+          calibrationImpact: Number(calibrationImpact(inn, out).toFixed(2)),
           costChange: Number((inn.price - sellOut).toFixed(1)),
           hitCost: 0,
           freeTransfersUsed: 1,
@@ -65,6 +66,7 @@ export type TransferPlanMove = {
   inId: number;
   gain: number;
   costChange: number;
+  calibrationImpact: number;
 };
 
 export type TransferPlan = {
@@ -105,6 +107,7 @@ function makePlan(moves: Move[], freeTransfers: number): TransferPlan {
       inId: m.in.id,
       gain: Number(m.gain.toFixed(2)),
       costChange: m.costChange,
+      calibrationImpact: Number(calibrationImpact(m.in, m.out).toFixed(2)),
     })),
     transfersUsed,
     hitCost,
@@ -199,6 +202,29 @@ function transferGain(inn: ModelPlayer, out: ModelPlayer) {
     (likelyRoundTrip ? 0.9 : 0) -
     (shortFixtureChase ? 1.5 : 0)
   );
+}
+
+function withoutCalibration(player: ModelPlayer): ModelPlayer {
+  const calibration = player.calibration;
+  if (!calibration) return player;
+  return {
+    ...player,
+    expectedPoints: calibration.beforeExpectedPoints,
+    calibration: undefined,
+    projection: {
+      ...player.projection,
+      next1: calibration.beforeProjection.next1,
+      next3: calibration.beforeProjection.next3,
+      next5: calibration.beforeProjection.next5,
+      next8: calibration.beforeProjection.next8,
+      byEvent: calibration.beforeProjection.byEvent.map((item) => ({ ...item })),
+    },
+  };
+}
+
+function calibrationImpact(inn: ModelPlayer, out: ModelPlayer) {
+  if (!inn.calibration && !out.calibration) return 0;
+  return transferGain(inn, out) - transferGain(withoutCalibration(inn), withoutCalibration(out));
 }
 
 function transferDurability(inn: ModelPlayer, out: ModelPlayer) {

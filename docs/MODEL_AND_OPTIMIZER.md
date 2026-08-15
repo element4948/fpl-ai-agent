@@ -26,7 +26,7 @@ Before each deadline the verified dashboard stores one immutable next-Gameweek f
 
 Calibration cannot alter recommendations from one noisy week. A position correction activates only after at least three measured Gameweeks and 60 matched player results. The observed actual/predicted ratio is shrunk toward 1.0 and hard-clamped to 0.88–1.12 before it scales current Expected Points and projection horizons. Missing KV configuration or live results leaves the base model unchanged.
 
-When a correction is active, player/draft/captain/transfer/detail views expose its position multiplier, measured sample and Gameweek count. No badge means no correction was applied; it must not be interpreted as a perfect or fully calibrated prediction.
+When a correction is active, player/draft/captain/transfer/detail views expose its before/after Expected Points, position multiplier, measured sample and Gameweek count. Transfer suggestions separately report how much of their modeled gain came from calibration. No badge means no correction was applied; it must not be interpreted as a perfect or fully calibrated prediction.
 
 ## Starter and risk gates
 

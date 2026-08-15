@@ -401,6 +401,15 @@ export type ModelPlayer = {
     multiplier: number;
     sampleSize: number;
     events: number;
+    beforeExpectedPoints: number;
+    expectedPointsDelta: number;
+    beforeProjection: {
+      next1: number;
+      next3: number;
+      next5: number;
+      next8: number;
+      byEvent: Array<{ event: number; points: number }>;
+    };
   };
   appearanceProbability: number;
   defensiveContributionPoints: number;

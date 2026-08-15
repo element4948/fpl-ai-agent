@@ -112,7 +112,8 @@ export function PlayerDetailModal() {
                         {player.calibration ? (
                             <div className="notice calibration-explanation">
                                 {player.position} байрлалын {player.calibration.sampleSize} бодит үр дүн, {player.calibration.events} дууссан Gameweek дээр
-                                хэмжсэн correction Expected Points-д ×{player.calibration.multiplier.toFixed(3)} нөлөөлсөн. Энэ нь тоглогчийг гараанд гарна гэж
+                                хэмжсэн correction Expected Points-ийг {player.calibration.beforeExpectedPoints.toFixed(2)}-оос {player.expectedPoints.toFixed(2)} болгож
+                                ({player.calibration.expectedPointsDelta >= 0 ? '+' : ''}{player.calibration.expectedPointsDelta.toFixed(2)} xP) өөрчилсөн. Энэ нь тоглогчийг гараанд гарна гэж
                                 батлахгүй; starter, minutes, injury болон fixture шалгуур тусдаа хэвээр.
                             </div>
                         ) : null}

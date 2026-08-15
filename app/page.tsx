@@ -1754,6 +1754,11 @@ export default function Home() {
                                     <div className="row-meta">
                                         {t.expected}: +{x.expectedGain} · {t.cost}: {x.costChange}m · {t.hit}: {x.hitCost}
                                     </div>
+                                    {Math.abs(x.calibrationImpact || 0) >= 0.01 ? (
+                                        <div className="row-meta calibration-transfer-impact">
+                                            Calibration-ийн transfer gain нөлөө: {x.calibrationImpact >= 0 ? '+' : ''}{x.calibrationImpact.toFixed(2)} xP
+                                        </div>
+                                    ) : null}
                                     {x.inPlayer ? <CalibrationBadge player={x.inPlayer} /> : null}
                                     <div className="tabs" style={{ marginTop: 10 }}>
                                         {x.reasons.map((r: string) => (

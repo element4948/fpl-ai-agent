@@ -106,10 +106,11 @@ export function applyCalibrationProfile(players: ModelPlayer[], profile: Calibra
     const correction = profile.positions[player.position];
     if (!correction?.active || correction.multiplier === 1) return player;
     const scale = (value: number) => Number((value * correction.multiplier).toFixed(2));
+    const calibratedExpectedPoints = scale(player.expectedPoints);
     return {
       ...player,
-      expectedPoints: scale(player.expectedPoints),
-      valueScore: Number((scale(player.expectedPoints) / Math.max(player.price, 1)).toFixed(2)),
+      expectedPoints: calibratedExpectedPoints,
+      valueScore: Number((calibratedExpectedPoints / Math.max(player.price, 1)).toFixed(2)),
       projection: {
         ...player.projection,
         next1: scale(player.projection.next1),
@@ -118,7 +119,20 @@ export function applyCalibrationProfile(players: ModelPlayer[], profile: Calibra
         next8: scale(player.projection.next8),
         byEvent: player.projection.byEvent.map((item) => ({ ...item, points: scale(item.points) })),
       },
-      calibration: { multiplier: correction.multiplier, sampleSize: correction.sampleSize, events: profile.events },
+      calibration: {
+        multiplier: correction.multiplier,
+        sampleSize: correction.sampleSize,
+        events: profile.events,
+        beforeExpectedPoints: player.expectedPoints,
+        expectedPointsDelta: Number((calibratedExpectedPoints - player.expectedPoints).toFixed(2)),
+        beforeProjection: {
+          next1: player.projection.next1,
+          next3: player.projection.next3,
+          next5: player.projection.next5,
+          next8: player.projection.next8,
+          byEvent: player.projection.byEvent.map((item) => ({ ...item })),
+        },
+      },
     };
   });
 }

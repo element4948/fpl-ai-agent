@@ -37,11 +37,12 @@ export function CalibrationBadge({ player, compact = false }: { player: ModelPla
         `${player.position} байрлалын дууссан Gameweek-ийн calibration`,
         `${calibration.events} Gameweek`,
         `${calibration.sampleSize} тоглогчийн үр дүн`,
+        `${calibration.beforeExpectedPoints.toFixed(2)} xP → ${player.expectedPoints.toFixed(2)} xP (${calibration.expectedPointsDelta >= 0 ? '+' : ''}${calibration.expectedPointsDelta.toFixed(2)})`,
         `Expected Points-д ×${calibration.multiplier.toFixed(3)} correction хэрэглэсэн`,
     ].join(' · ');
     return (
         <span className="calibration-badge" title={title}>
-            {compact ? 'CAL' : `${player.position} calibration`} ×{calibration.multiplier.toFixed(3)} {direction}
+            {compact ? 'CAL' : `${calibration.beforeExpectedPoints.toFixed(1)}→${player.expectedPoints.toFixed(1)} xP`} · ×{calibration.multiplier.toFixed(3)} {direction}
         </span>
     );
 }

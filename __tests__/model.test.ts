@@ -48,6 +48,12 @@ describe('position calibration safety gates', () => {
     const defender = makePlayer({ id: 2, position: 'DEF', positionId: 2, expectedPoints: 5, price: 5 });
     const calibrated = applyCalibrationProfile([mid, defender], profile);
     expect(calibrated[0].expectedPoints).toBeGreaterThan(5);
+    expect(calibrated[0].calibration?.beforeExpectedPoints).toBe(5);
+    expect(calibrated[0].calibration?.expectedPointsDelta).toBeCloseTo(
+      calibrated[0].expectedPoints - 5,
+      2,
+    );
+    expect(calibrated[0].calibration?.beforeProjection.next1).toBe(mid.projection.next1);
     expect(calibrated[1].expectedPoints).toBe(5);
   });
 });
