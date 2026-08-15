@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { ModelPlayer } from '@/types/fpl';
-import { DataQualityBadge, FixtureTrendBadge } from '@/components/PlayerBadges';
+import { CalibrationBadge, DataQualityBadge, FixtureTrendBadge } from '@/components/PlayerBadges';
 
 type Any = any;
 
@@ -106,8 +106,16 @@ export function PlayerDetailModal() {
 
                         <div className="player-detail-quality">
                             <DataQualityBadge quality={recent.dataQuality} />
+                            <CalibrationBadge player={player} />
                             <span>Сүүлийн {recent.sampleSize} тоглолтын бодит мэдээлэлд тулгуурлав.</span>
                         </div>
+                        {player.calibration ? (
+                            <div className="notice calibration-explanation">
+                                {player.position} байрлалын {player.calibration.sampleSize} бодит үр дүн, {player.calibration.events} дууссан Gameweek дээр
+                                хэмжсэн correction Expected Points-д ×{player.calibration.multiplier.toFixed(3)} нөлөөлсөн. Энэ нь тоглогчийг гараанд гарна гэж
+                                батлахгүй; starter, minutes, injury болон fixture шалгуур тусдаа хэвээр.
+                            </div>
+                        ) : null}
                         {player.evidence?.missingMetrics?.length ? (
                             <div className="evidence-missing">
                                 <b>Одоогоор дутуу:</b> {player.evidence.missingMetrics.join(', ')}

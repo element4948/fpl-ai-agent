@@ -5,6 +5,7 @@ import { analyzePlayerHistory } from '@/lib/player-history';
 import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-football';
 import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external-news';
 import { applyRecentHistoryEvidence } from '@/lib/history-enrichment';
+import { applyCalibrationProfile, refreshServerCalibration } from '@/lib/server-calibration';
 
 export async function GET(
   _request: Request,
@@ -43,6 +44,8 @@ export async function GET(
     return NextResponse.json({ error: 'Player not found' }, { status: 404 });
   }
 
+  const calibrationPromise = refreshServerCalibration(undefined, []);
+
   const recent = analyzePlayerHistory(summary.history, 5);
   const historyPlayer = applyRecentHistoryEvidence([basePlayer], {
     analyses: new Map([[basePlayer.id, recent]]),
@@ -54,10 +57,12 @@ export async function GET(
   })[0];
   const apiFootballScan = await getApiFootballEvidence([historyPlayer]);
   const statsPlayer = applyApiFootballEvidence([historyPlayer], apiFootballScan)[0];
-  const player = applyExternalNewsSignals(
+  const evidencePlayer = applyExternalNewsSignals(
     [statsPlayer],
     await getExternalNewsSignals([statsPlayer], [statsPlayer.id]),
   )[0];
+  const calibration = await calibrationPromise;
+  const player = applyCalibrationProfile([evidencePlayer], calibration.profile)[0];
 
   return NextResponse.json({
     player,
@@ -78,6 +83,11 @@ export async function GET(
       internationalFixturesChecked: apiFootballScan.internationalFixturesChecked,
       internationalPlayersMatched: apiFootballScan.internationalPlayersMatched,
       error: apiFootballScan.error,
+    },
+    calibration: {
+      configured: calibration.configured,
+      unavailable: 'unavailable' in calibration ? calibration.unavailable : false,
+      events: calibration.profile.events,
     },
   });
 }

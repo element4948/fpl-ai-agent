@@ -28,3 +28,20 @@ export function FixtureTrendBadge({ fixture }: { fixture?: ModelPlayer['fixture'
               : '→ Хуваарь тогтвортой';
     return <span className={`fixture-trend fixture-trend-${fixture.trend}`}>{label}</span>;
 }
+
+export function CalibrationBadge({ player, compact = false }: { player: ModelPlayer; compact?: boolean }) {
+    const calibration = player.calibration;
+    if (!calibration || calibration.multiplier === 1) return null;
+    const direction = calibration.multiplier > 1 ? '↑' : '↓';
+    const title = [
+        `${player.position} байрлалын дууссан Gameweek-ийн calibration`,
+        `${calibration.events} Gameweek`,
+        `${calibration.sampleSize} тоглогчийн үр дүн`,
+        `Expected Points-д ×${calibration.multiplier.toFixed(3)} correction хэрэглэсэн`,
+    ].join(' · ');
+    return (
+        <span className="calibration-badge" title={title}>
+            {compact ? 'CAL' : `${player.position} calibration`} ×{calibration.multiplier.toFixed(3)} {direction}
+        </span>
+    );
+}

@@ -67,6 +67,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-15 — Exposed active position calibration provenance across draft, captain, transfer and player-detail views; player detail now applies the shared server profile.
 - 2026-08-15 — Removed calibration from the verified dashboard's serial critical path and changed per-Gameweek forecast persistence to one immutable KV write.
 - 2026-08-15 — Added shared KV forecast snapshots, Official FPL event-live evaluation and conservative position-level calibration correction after 3 events / 60 samples.
 - 2026-08-15 — Wired Official FPL recent-five starts/minutes/60+ rate/trend into role projections for a bounded shortlist and reduced overlapping API-Football role weight.

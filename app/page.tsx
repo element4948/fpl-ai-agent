@@ -1,7 +1,7 @@
 'use client';
 
 import { Card } from '@/components/Card';
-import { DataQualityBadge, FixtureTrendBadge } from '@/components/PlayerBadges';
+import { CalibrationBadge, DataQualityBadge, FixtureTrendBadge } from '@/components/PlayerBadges';
 import { DraftCompareTable } from '@/components/DraftCompareTable';
 import { PlayerDetailButton, PlayerDetailModal } from '@/components/PlayerDetail';
 import { MoreSection } from '@/components/MoreSection';
@@ -61,6 +61,7 @@ function PlayerRow({ p, index, lang }: { p: ModelPlayer; index?: number; lang: '
                         <span className="badge red" title={p.signals.map((signal) => signal.message).join(' · ')}>Official warning</span>
                     ) : null}
                     <DataQualityBadge quality={p.dataQuality} />
+                    <CalibrationBadge player={p} compact />
                 </div>
                 <div className="row-meta">
                     {p.team} · {p.position} · £{p.price}m ·{' '}
@@ -229,6 +230,7 @@ function DraftPlayerTile({ player, role, audit }: { player: ModelPlayer; role: '
                 <span className={`draft-player-role ${role === 'bench' ? 'bench-role' : 'starter-role'}`}>
                     {role === 'starter' ? 'Starting XI' : unreliable ? 'Bench only' : 'Bench cover'}
                 </span>
+                <CalibrationBadge player={player} compact />
             </div>
             {player.signals?.length ? (
                 <div className="player-signal" title={player.signals.map((signal) => signal.message).join(' · ')}>
@@ -1293,6 +1295,7 @@ export default function Home() {
                             <small>Captain (Ахлагч)</small>
                             <strong>{decision?.captain?.name || '—'}</strong>
                             <p>{decision?.captain ? `${decision.captain.expectedPoints.toFixed(1)} expected ↑ · ${decision.captain.starterConfidence}% starter` : 'Мэдээлэл хүлээж байна'}</p>
+                            {decision?.captain ? <CalibrationBadge player={decision.captain} compact /> : null}
                             <TrustChip trust={captainTrust} />
                         </div>
                         <div className="decision-glance">
@@ -1707,6 +1710,7 @@ export default function Home() {
                                     {captainPick.fixture ? <span>FDR ↓ <b>{captainPick.fixture.nextDifficulty}</b></span> : null}
                                     {captainPick.fixture ? <span>Next 5 avg ↓ <b>{captainPick.fixture.averageDifficulty}</b></span> : null}
                                 </div>
+                                <CalibrationBadge player={captainPick} />
                                 {captainPick.fixture?.fixtures?.length ? (
                                     <div className="position-fixture-run captain-fixture-run">
                                         {captainPick.fixture.fixtures.slice(0, 5).map((fixture: any, index: number) => (
@@ -1750,6 +1754,7 @@ export default function Home() {
                                     <div className="row-meta">
                                         {t.expected}: +{x.expectedGain} · {t.cost}: {x.costChange}m · {t.hit}: {x.hitCost}
                                     </div>
+                                    {x.inPlayer ? <CalibrationBadge player={x.inPlayer} /> : null}
                                     <div className="tabs" style={{ marginTop: 10 }}>
                                         {x.reasons.map((r: string) => (
                                             <span className="tab" key={r}>

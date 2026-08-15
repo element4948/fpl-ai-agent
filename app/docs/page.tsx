@@ -203,8 +203,8 @@ export default function DocsPage() {
         <h2>12. Одоогийн хувилбар юу хийж чаддаг вэ?</h2>
         <div className="status-list">
           <div className="done"><b>Бэлэн</b><span>Next.js суурь, Official FPL data, дүрэм хамгаалсан Draft Optimizer, formation, starter/minutes, fixture projection, Captain shortlist, risk/confidence тайлбар, Монгол/Англи UI.</span></div>
-          <div className="partial"><b>Хэсэгчлэн бэлэн</b><span>External News Engine, My Team integration, Transfer Engine, Chip Planner, League Intelligence. Эдгээр нь ажилладаг боловч data coverage болон улирлын бодит үр дүнгээр цааш calibration шаардана.</span></div>
-          <div className="todo"><b>Дараагийн хөгжүүлэлт</b><span>Official-club news adapter, илүү өргөн press conference coverage, prediction backtest/calibration, өрсөлдөгчийн squad-level харьцуулалт.</span></div>
+          <div className="partial"><b>Хэсэгчлэн бэлэн</b><span>External News Engine, My Team integration, Transfer Engine, Chip Planner, League Intelligence. Calibration correction идэвхтэй тоглогч дээр байрлал, multiplier, sample болон хэмжсэн Gameweek харагдана; өгөгдөл хангалтгүй үед correction хийхгүй.</span></div>
+          <div className="todo"><b>Дараагийн хөгжүүлэлт</b><span>Calibration sample-ийг улирлын турш нэмэгдүүлэх, offline backtest-тэй харьцуулах, press conference coverage болон өрсөлдөгчийн squad-level анализыг өргөжүүлэх.</span></div>
         </div>
         <div className="docs-callout">
           <b>Prediction Calibration:</b> Сайт дараагийн Gameweek-ийн forecast-ийг deadline-аас өмнө browser дээр хадгална. Gameweek дууссаны дараа тухайн тоглогчдын бодит оноотой харьцуулж MAE (дундаж абсолют алдаа), Bias болон ±2 оноонд багтсан хувийг гаргана. Ингэснээр “загвар 80%” гэдгийг таамгаар бус, хуримтлагдсан Gameweek-ийн үр дүнгээр хэмжинэ.

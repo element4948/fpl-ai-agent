@@ -2,6 +2,7 @@
 
 ## 2026-08-15
 
+- Exposed active position calibration on player, draft, captain, transfer and detail views with multiplier/sample/Gameweek provenance.
 - Parallelized calibration I/O with verified provider scans and reduced immutable forecast persistence from two KV requests to one.
 - Added a shared server-side forecast calibration loop using finished-Gameweek Official FPL live points, position-level MAE/bias tracking, and conservative sample-gated projection correction.
 - Added bounded Official FPL recent-five history enrichment for starter confidence, predicted minutes, role trend and draft eligibility, with API-Football overlap de-duplicated.
