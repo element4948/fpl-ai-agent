@@ -39,13 +39,13 @@ export async function GET(request: Request) {
 
 const getFastDashboard = unstable_cache(
   () => buildDashboardPayload(true),
-  ['fpl-dashboard-fast-v18-verified-identity'],
+  ['fpl-dashboard-fast-v19-international-minutes'],
   { revalidate: 300 },
 );
 
 const getVerifiedDashboard = unstable_cache(
   () => buildDashboardPayload(false),
-  ['fpl-dashboard-verified-v18-verified-identity'],
+  ['fpl-dashboard-verified-v19-international-minutes'],
   { revalidate: 900 },
 );
 
@@ -64,6 +64,7 @@ async function buildDashboardPayload(fast: boolean) {
           enabled: false, matchedPlayers: 0, fixturesChecked: 0,
           friendlyFixturesChecked: 0, oddsFixturesChecked: 0, oddsTeamsMatched: 0,
           identityMatched: 0, identityAmbiguous: 0, identityUnmatched: 0,
+          internationalFixturesChecked: 0, internationalPlayersMatched: 0,
           evidence: new Map<number, never>(),
         },
         null,
@@ -111,6 +112,8 @@ async function buildDashboardPayload(fast: boolean) {
       identityMatched: apiFootballScan.identityMatched,
       identityAmbiguous: apiFootballScan.identityAmbiguous,
       identityUnmatched: apiFootballScan.identityUnmatched,
+      internationalFixturesChecked: apiFootballScan.internationalFixturesChecked,
+      internationalPlayersMatched: apiFootballScan.internationalPlayersMatched,
       error: apiFootballScan.error,
     },
     verificationPending: fast,

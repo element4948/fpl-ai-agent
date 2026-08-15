@@ -1358,7 +1358,7 @@ export default function Home() {
                             <strong>API-Football</strong>
                             <small>
                                 {boot?.apiFootball?.enabled
-                                    ? `${boot.apiFootball.identityMatched || 0} ID баталсан · ${boot.apiFootball.identityAmbiguous || 0} ambiguity reject · ${boot.apiFootball.fixturesChecked} lineup/stat · ${boot.apiFootball.friendlyFixturesChecked || 0} friendly · ${boot.apiFootball.oddsFixturesChecked || 0} odds`
+                                    ? `${boot.apiFootball.identityMatched || 0} ID баталсан · ${boot.apiFootball.identityAmbiguous || 0} ambiguity reject · ${boot.apiFootball.fixturesChecked} lineup/stat · ${boot.apiFootball.friendlyFixturesChecked || 0} friendly · ${boot.apiFootball.internationalFixturesChecked || 0} international (${boot.apiFootball.internationalPlayersMatched || 0} player) · ${boot.apiFootball.oddsFixturesChecked || 0} odds`
                                     : 'Key тохируулаагүй'}
                             </small>
                         </div>

@@ -414,6 +414,11 @@ export type ModelPlayer = {
     competitiveMatches: number;
     competitiveStarts: number;
     competitiveMinutes: number;
+    internationalMatches: number;
+    internationalStarts: number;
+    internationalMinutes: number;
+    lastInternationalAt?: string;
+    internationalFatigueRisk: number;
     apiPlayerId?: number;
     identityConfidence?: number;
     identityVerified?: boolean;

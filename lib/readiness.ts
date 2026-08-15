@@ -19,6 +19,9 @@ export function buildModelReadiness(
   ).length;
   const clubFriendlies = players.filter((player) => (player.apiFootball?.friendlyMatches || 0) > 0).length;
   const marketOdds = players.filter((player) => player.apiFootball?.oddsWinProbability != null).length;
+  const internationalMinutes = players.filter((player) =>
+    Boolean(player.apiFootball?.identityVerified) && (player.apiFootball?.internationalMatches || 0) > 0,
+  ).length;
   const pressConference = players.filter((player) =>
     player.externalNews?.some((signal) => signal.category === 'press-conference'),
   ).length;
@@ -48,6 +51,7 @@ export function buildModelReadiness(
   const oddsCoverage = marketOdds / count;
   const pressCoverage = pressConference / count;
   const internationalCoverage = internationalSignals / count;
+  const structuredInternationalCoverage = internationalMinutes / count;
   const trustedExternalCoverage = trustedExternal / count;
   const friendlyCoverage = friendlyInternational / count;
   const sourceStatus = (
@@ -65,7 +69,7 @@ export function buildModelReadiness(
     { id: 'market-odds', label: 'API-Football normalized match odds', status: sourceStatus(oddsCoverage), coverage: clamp(oddsCoverage * 100) },
     { id: 'recent-news', label: 'Recent injury/transfer/news scan', status: sourceStatus(newsCheckedCoverage), coverage: clamp(newsCheckedCoverage * 100) },
     { id: 'press-conference', label: 'Official/reliable press-conference reports', status: sourceStatus(pressCoverage), coverage: clamp(pressCoverage * 100) },
-    { id: 'international-minutes', label: 'Structured international minutes', status: 'missing', coverage: 0 },
+    { id: 'international-minutes', label: 'Structured international minutes', status: sourceStatus(structuredInternationalCoverage), coverage: clamp(structuredInternationalCoverage * 100) },
     { id: 'calibration', label: 'Finished-GW prediction calibration', status: calibratedEvents >= 5 ? 'available' : calibratedEvents ? 'partial' : 'missing', coverage: clamp((calibratedEvents / 5) * 100) },
   ];
   const missingCritical = sources
@@ -84,7 +88,7 @@ export function buildModelReadiness(
     transferNews: clamp(newsCheckedCoverage * 65 + trustedExternalCoverage * 35),
     // News mentions are not the same as a structured friendly/national-team
     // minutes feed, so this category is deliberately capped below "ready".
-    friendlyInternational: Math.min(70, clamp(clubFriendlyCoverage * 45 + internationalCoverage * 15 + friendlyCoverage * 10)),
+    friendlyInternational: Math.min(85, clamp(clubFriendlyCoverage * 35 + structuredInternationalCoverage * 35 + internationalCoverage * 10 + friendlyCoverage * 5)),
     multiSourceVerification: clamp(30 + newsCheckedCoverage * 25 + apiLineupCoverage * 25 + oddsCoverage * 10 + pressCoverage * 10),
     calibration: clamp(10 + calibratedEvents * 14),
     multiGameweekPlanning: clamp(30 + plannedPlayers * 65),

@@ -9,7 +9,7 @@
 | Official FPL `element-summary/:id` | recent history and upcoming player fixtures | Primary | Player detail returns unavailable. |
 | Official FPL entry/picks | public squad, bank, value, rank | Primary but deadline-limited | Before picks are public, use saved planned draft and explain limitation. |
 | Official FPL league standings | rank/gap | Primary | Return a clear ID/not-found error. |
-| API-Football | current-team lineup/minutes/stat corroboration, bounded PL club-friendly lineups, normalized upcoming match-winner odds | Optional secondary | Continue with Official FPL and mark each enrichment unavailable. |
+| API-Football | current-team lineup/minutes/stat corroboration, bounded PL club-friendly lineups, recent structured international minutes, normalized upcoming match-winner odds | Optional secondary | Continue with Official FPL and mark each enrichment unavailable. |
 | Recent news scan | injury, role, transfer, suspension and published press-conference context | Supporting evidence | Missing news never equals confirmation or zero risk. |
 
 ## Freshness
@@ -26,6 +26,7 @@
 - Source count is displayed as coverage, not added repeatedly to the player score.
 - API-Football previous-season statistics may provide a prior but cannot alone prove a current starting role.
 - API-Football player evidence must pass current-team matching plus full/display-name scoring and API player-ID consistency. Ambiguous identities are rejected and never change minutes, starter confidence, or Expected Points.
+- Recent international minutes are joined only through an API player ID already verified by that identity gate. They can add a small, recovery-time-based fatigue penalty, but they never prove or disprove the player's Premier League starting role.
 - Current-team mismatch, transfer uncertainty, or season-plan failure must remain visible in evidence/trust output.
 - Model Readiness reports each configured source as available, partial, or missing and exposes critical gaps. A configured adapter is not counted as successful unless the current response contains usable evidence.
 
@@ -40,7 +41,7 @@
 - Dedicated multi-bookmaker/player-prop odds beyond the bounded API-Football match-winner check.
 - SofaScore/OneFootball private/unofficial scraping.
 - Full press-conference transcripts when no official/reliable public report is published.
-- Structured national-team minutes and complete friendly coverage outside API-Football's plan/competition coverage.
+- Complete national-team/friendly coverage outside API-Football's plan and the bounded 21-day/latest-60-fixture competition scan.
 - Reddit/X consensus.
 
 Do not write documentation or UI suggesting these sources are active until code, licensing, freshness checks, and failure handling exist.

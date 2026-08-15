@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-15
+
+- Added quota-bounded API-Football international fixture/minutes enrichment using the verified player-identity gate.
+- Added recovery-time-based international fatigue risk without treating national-team minutes as proof of a Premier League starting role.
+- Exposed international fixture/player coverage in Model Readiness and the dashboard source status.
+
 ## Unreleased
 
 - Added provider-ID, current-team and full/display-name identity verification for API-Football evidence; ambiguous same-team matches are rejected before they can alter projections.

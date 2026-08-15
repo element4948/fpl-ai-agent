@@ -7,6 +7,10 @@ const CLUB_FRIENDLIES_ID = 667;
 const MAX_PLAYER_FIXTURES = 24;
 const MAX_FRIENDLY_FIXTURES = 8;
 const MAX_ODDS_FIXTURES = 10;
+const MAX_INTERNATIONAL_FIXTURES = 60;
+const INTERNATIONAL_FIXTURE_BATCH_SIZE = 20;
+const INTERNATIONAL_WINDOW_DAYS = 21;
+const INTERNATIONAL_LEAGUE_IDS = new Set([1, 4, 5, 6, 7, 9, 10, 22, 29, 30, 31, 32, 33, 34]);
 
 const TEAM_ALIASES: Record<string, string[]> = {
   ARS: ['arsenal'], AVL: ['aston villa'], BOU: ['bournemouth'], BRE: ['brentford'],
@@ -36,6 +40,11 @@ export type ApiFootballPlayerEvidence = {
   competitiveMatches: number;
   competitiveStarts: number;
   competitiveMinutes: number;
+  internationalMatches: number;
+  internationalStarts: number;
+  internationalMinutes: number;
+  lastInternationalAt?: string;
+  internationalFatigueRisk: number;
   apiPlayerId?: number;
   identityConfidence?: number;
   identityVerified?: boolean;
@@ -53,6 +62,8 @@ export type ApiFootballScan = {
   identityMatched: number;
   identityAmbiguous: number;
   identityUnmatched: number;
+  internationalFixturesChecked: number;
+  internationalPlayersMatched: number;
   evidence: Map<number, ApiFootballPlayerEvidence>;
   error?: string;
 };
@@ -99,8 +110,10 @@ async function apiFetch<T>(path: string): Promise<T | null> {
 
 type FixtureResponse = {
   response?: Array<{
-    fixture?: { id?: number; status?: { short?: string } };
+    fixture?: { id?: number; date?: string; status?: { short?: string } };
+    league?: { id?: number; name?: string; type?: string };
     teams?: { home?: { name?: string }; away?: { name?: string } };
+    players?: PlayerStatTeam[];
   }>;
 };
 
@@ -115,8 +128,7 @@ type OddsResponse = {
   }>;
 };
 
-type PlayersResponse = {
-  response?: Array<{
+type PlayerStatTeam = {
     team?: { name?: string };
     players?: Array<{
       player?: { id?: number; name?: string };
@@ -128,8 +140,34 @@ type PlayersResponse = {
         goals?: { saves?: number | null };
       }>;
     }>;
-  }>;
 };
+
+type PlayersResponse = {
+  response?: PlayerStatTeam[];
+};
+
+function isInternationalFixture(item: NonNullable<FixtureResponse['response']>[number]) {
+  const name = item.league?.name || '';
+  if (/club/i.test(name)) return false;
+  return INTERNATIONAL_LEAGUE_IDS.has(Number(item.league?.id)) ||
+    /world cup|euro|nations league|africa cup|asian cup|copa america|gold cup|friendlies|qualification/i.test(name);
+}
+
+export function calculateInternationalFatigueRisk(
+  minutes: number,
+  lastMatchAt?: string,
+  now = new Date(),
+) {
+  if (!minutes || !lastMatchAt) return 0;
+  const elapsed = now.getTime() - new Date(lastMatchAt).getTime();
+  if (!Number.isFinite(elapsed) || elapsed < 0) return 0;
+  const days = elapsed / (24 * 60 * 60 * 1000);
+  if (days <= 4 && minutes >= 150) return 45;
+  if (days <= 7 && minutes >= 120) return 30;
+  if (days <= 10 && minutes >= 180) return 22;
+  if (minutes >= 240) return 15;
+  return 0;
+}
 
 export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<ApiFootballScan> {
   if (!process.env.API_FOOTBALL_KEY) {
@@ -137,6 +175,7 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
       enabled: false, matchedPlayers: 0, fixturesChecked: 0,
       friendlyFixturesChecked: 0, oddsFixturesChecked: 0, oddsTeamsMatched: 0,
       identityMatched: 0, identityAmbiguous: 0, identityUnmatched: 0,
+      internationalFixturesChecked: 0, internationalPlayersMatched: 0,
       evidence: new Map(),
     };
   }
@@ -154,6 +193,7 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
       enabled: true, matchedPlayers: 0, fixturesChecked: 0,
       friendlyFixturesChecked: 0, oddsFixturesChecked: 0, oddsTeamsMatched: 0,
       identityMatched: 0, identityAmbiguous: 0, identityUnmatched: 0,
+      internationalFixturesChecked: 0, internationalPlayersMatched: 0,
       evidence: new Map(), error: 'API-Football unavailable or plan does not include this season.',
     };
   }
@@ -249,6 +289,10 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
           competitiveMatches: 0,
           competitiveStarts: 0,
           competitiveMinutes: 0,
+          internationalMatches: 0,
+          internationalStarts: 0,
+          internationalMinutes: 0,
+          internationalFatigueRisk: 0,
           apiPlayerId: apiPlayerId as number,
           identityConfidence: identity.confidence,
           identityVerified: true,
@@ -289,6 +333,64 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
       ? Math.round(value.competitiveMinutes / value.competitiveMatches)
       : 0;
     value.rating = value.matches ? Number((value.rating / value.matches).toFixed(2)) : 0;
+  }
+
+  // Quota-friendly: one date-range request and one fixture batch. National-
+  // team evidence is attached only through an API player ID already verified
+  // against the player's current Premier League team.
+  const internationalFrom = new Date(
+    now.getTime() - INTERNATIONAL_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString().slice(0, 10);
+  const internationalList = await apiFetch<FixtureResponse>(
+    `/fixtures?from=${internationalFrom}&to=${to}`,
+  );
+  const internationalFixtureIds = (internationalList?.response || [])
+    .filter(isInternationalFixture)
+    .filter((item) => ['FT', 'AET', 'PEN', 'LIVE', '1H', '2H', 'HT'].includes(item.fixture?.status?.short || ''))
+    .sort((a, b) => new Date(a.fixture?.date || 0).getTime() - new Date(b.fixture?.date || 0).getTime())
+    .map((item) => item.fixture?.id)
+    .filter((id): id is number => Number.isFinite(id))
+    .slice(-MAX_INTERNATIONAL_FIXTURES);
+  const internationalIdBatches = Array.from(
+    { length: Math.ceil(internationalFixtureIds.length / INTERNATIONAL_FIXTURE_BATCH_SIZE) },
+    (_, index) => internationalFixtureIds.slice(
+      index * INTERNATIONAL_FIXTURE_BATCH_SIZE,
+      (index + 1) * INTERNATIONAL_FIXTURE_BATCH_SIZE,
+    ),
+  );
+  const internationalBatches = await Promise.all(
+    internationalIdBatches.map((ids) => apiFetch<FixtureResponse>(`/fixtures?ids=${ids.join('-')}`)),
+  );
+  const internationalMatchedIds = new Set<number>();
+  for (const fixture of internationalBatches.flatMap((batch) => batch?.response || [])) {
+    const playedAt = fixture.fixture?.date;
+    for (const team of fixture.players || []) {
+      for (const item of team.players || []) {
+        const apiPlayerId = item.player?.id;
+        if (!Number.isFinite(apiPlayerId)) continue;
+        const identity = identityByApiId.get(apiPlayerId as number);
+        if (!identity) continue;
+        const current = aggregates.get(identity.candidate.id);
+        const stat = item.statistics?.[0];
+        if (!current || !stat) continue;
+        const minutes = Number(stat.games?.minutes || 0);
+        if (minutes <= 0) continue;
+        current.internationalMatches += 1;
+        current.internationalStarts += stat.games?.substitute === false ? 1 : 0;
+        current.internationalMinutes += minutes;
+        if (playedAt && (!current.lastInternationalAt || playedAt > current.lastInternationalAt)) {
+          current.lastInternationalAt = playedAt;
+        }
+        internationalMatchedIds.add(identity.candidate.id);
+      }
+    }
+  }
+  for (const value of aggregates.values()) {
+    value.internationalFatigueRisk = calculateInternationalFatigueRisk(
+      value.internationalMinutes,
+      value.lastInternationalAt,
+      now,
+    );
   }
 
 
@@ -333,6 +435,8 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
       currentTeamMatched: true,
       friendlyMatches: 0, friendlyStarts: 0, friendlyMinutes: 0,
       competitiveMatches: 0, competitiveStarts: 0, competitiveMinutes: 0,
+      internationalMatches: 0, internationalStarts: 0, internationalMinutes: 0,
+      internationalFatigueRisk: 0,
     };
     current.oddsWinProbability = oddsWinProbability;
     aggregates.set(player.id, current);
@@ -347,6 +451,8 @@ export async function getApiFootballEvidence(players: ModelPlayer[]): Promise<Ap
     identityMatched: identityByApiId.size,
     identityAmbiguous: ambiguousApiIds.size,
     identityUnmatched: unmatchedApiIds.size,
+    internationalFixturesChecked: internationalFixtureIds.length,
+    internationalPlayersMatched: internationalMatchedIds.size,
     evidence: aggregates,
     error: fixtureIds.length ? undefined : 'No completed Premier League fixtures were available for verification.',
   };
@@ -388,43 +494,61 @@ export function applyApiFootballEvidence(players: ModelPlayer[], scan: ApiFootba
     const projectionFactor = evidenceWeight
       ? appearanceProbability / Math.max(0.03, player.appearanceProbability)
       : 1;
-    const expectedPoints = Number((player.expectedPoints * projectionFactor).toFixed(2));
+    const fatigueFactor = api.internationalFatigueRisk >= 45
+      ? 0.94
+      : api.internationalFatigueRisk >= 30
+        ? 0.97
+        : api.internationalFatigueRisk >= 20
+          ? 0.985
+          : 1;
+    const finalProjectionFactor = projectionFactor * fatigueFactor;
+    const expectedPoints = Number((player.expectedPoints * finalProjectionFactor).toFixed(2));
+    const risk = Math.max(player.risk, api.internationalFatigueRisk);
+    const riskLevel = risk >= 60 ? 'high' as const : risk >= 30 ? 'medium' as const : 'low' as const;
     const existingSources = player.evidence?.sources || [];
     return {
       ...player,
       apiFootball: api,
       starterConfidence,
-      predictedMinutes,
-      appearanceProbability,
+      predictedMinutes: Math.round(predictedMinutes * fatigueFactor),
+      appearanceProbability: Number((appearanceProbability * fatigueFactor).toFixed(3)),
+      risk,
+      riskBreakdown: player.riskBreakdown ? {
+        ...player.riskBreakdown,
+        total: Math.max(player.riskBreakdown.total, api.internationalFatigueRisk),
+        level: riskLevel,
+      } : player.riskBreakdown,
       expectedPoints,
-      fixtureImpact: Number((player.fixtureImpact * projectionFactor).toFixed(2)),
+      fixtureImpact: Number((player.fixtureImpact * finalProjectionFactor).toFixed(2)),
       valueScore: Number((expectedPoints / Math.max(player.price, 1)).toFixed(2)),
       projection: {
         ...player.projection,
-        next1: Number((player.projection.next1 * projectionFactor).toFixed(2)),
-        next3: Number((player.projection.next3 * projectionFactor).toFixed(2)),
-        next5: Number((player.projection.next5 * projectionFactor).toFixed(2)),
-        next8: Number((player.projection.next8 * projectionFactor).toFixed(2)),
+        next1: Number((player.projection.next1 * finalProjectionFactor).toFixed(2)),
+        next3: Number((player.projection.next3 * finalProjectionFactor).toFixed(2)),
+        next5: Number((player.projection.next5 * finalProjectionFactor).toFixed(2)),
+        next8: Number((player.projection.next8 * finalProjectionFactor).toFixed(2)),
         byEvent: player.projection.byEvent.map((item) => ({
           ...item,
-          points: Number((item.points * projectionFactor).toFixed(2)),
+          points: Number((item.points * finalProjectionFactor).toFixed(2)),
         })),
       },
       evidence: player.evidence ? {
         ...player.evidence,
-        coverageScore: Math.min(100, player.evidence.coverageScore + (canConfirmCurrentRole ? 12 : canSupportPreseasonRole ? 7 : api.oddsWinProbability ? 3 : 0)),
+        coverageScore: Math.min(100, player.evidence.coverageScore + (canConfirmCurrentRole ? 12 : canSupportPreseasonRole ? 7 : api.internationalMatches ? 4 : api.oddsWinProbability ? 3 : 0)),
         trustLevel: player.evidence.coverageScore + (canConfirmCurrentRole ? 12 : canSupportPreseasonRole ? 7 : 0) >= 78 ? 'high' as const : player.evidence.trustLevel,
         availableMetrics: [...new Set([
           ...player.evidence.availableMetrics,
           ...(api.matches && api.identityVerified ? [canConfirmCurrentRole ? 'API-Football current-team lineup' : 'API-Football lineup/statistics'] : []),
           ...(api.identityVerified ? [`API player identity ${api.identityConfidence || 0}%`] : []),
           ...(api.friendlyMatches ? ['structured club-friendly minutes'] : []),
+          ...(api.internationalMatches ? [`structured international minutes (${api.internationalMinutes})`] : []),
+          ...(api.internationalFatigueRisk ? [`international fatigue risk ${api.internationalFatigueRisk}%`] : []),
           ...(api.oddsWinProbability != null ? ['normalized market win probability'] : []),
         ])],
         sources: [...existingSources, {
           id: 'api-football' as const,
-          label: 'API-Football lineups/player statistics/odds',
-          status: canConfirmCurrentRole || canSupportPreseasonRole ? 'available' as const : 'limited' as const,
+          label: 'API-Football lineups/player statistics/international minutes/odds',
+          status: canConfirmCurrentRole || canSupportPreseasonRole || api.internationalMatches ? 'available' as const : 'limited' as const,
         }],
       } : player.evidence,
     };

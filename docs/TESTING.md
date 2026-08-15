@@ -49,6 +49,7 @@ Request `/api/bootstrap` and repeat for Best, Alternative, Differential, and Saf
 15. Pre-season fallback: previous-season PL evidence does not suppress current-season friendly starts/minutes, and the two samples are never averaged into one role rate.
 16. Identity collisions: exact full names match, unique surname tokens may match within one confirmed team, but two same-team surname candidates must be rejected as ambiguous.
 17. Provider-ID consistency: one FPL player cannot receive evidence from two different API-Football player IDs in the same scan.
+18. International minutes: only identity-verified provider IDs receive minutes; recent heavy workload increases fatigue risk, older/light workload decays, and the signal never raises club starter confidence.
 
 ## Transfer checks
 

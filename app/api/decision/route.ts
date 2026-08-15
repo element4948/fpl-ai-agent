@@ -58,6 +58,8 @@ export async function POST(req: Request) {
         identityMatched: apiFootballScan.identityMatched,
         identityAmbiguous: apiFootballScan.identityAmbiguous,
         identityUnmatched: apiFootballScan.identityUnmatched,
+        internationalFixturesChecked: apiFootballScan.internationalFixturesChecked,
+        internationalPlayersMatched: apiFootballScan.internationalPlayersMatched,
         error: apiFootballScan.error,
       },
     });
@@ -101,6 +103,8 @@ export async function POST(req: Request) {
       identityMatched: apiFootballScan.identityMatched,
       identityAmbiguous: apiFootballScan.identityAmbiguous,
       identityUnmatched: apiFootballScan.identityUnmatched,
+      internationalFixturesChecked: apiFootballScan.internationalFixturesChecked,
+      internationalPlayersMatched: apiFootballScan.internationalPlayersMatched,
       error: apiFootballScan.error,
     },
   });

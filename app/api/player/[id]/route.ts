@@ -65,6 +65,8 @@ export async function GET(
       identityMatched: apiFootballScan.identityMatched,
       identityAmbiguous: apiFootballScan.identityAmbiguous,
       identityUnmatched: apiFootballScan.identityUnmatched,
+      internationalFixturesChecked: apiFootballScan.internationalFixturesChecked,
+      internationalPlayersMatched: apiFootballScan.internationalPlayersMatched,
       error: apiFootballScan.error,
     },
   });

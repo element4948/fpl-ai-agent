@@ -10,6 +10,7 @@ import { alertKey } from '@/lib/alert-store';
 import { predictPriceMoves, isLikelyMove } from '@/lib/price-predictor';
 import { splitTelegramMessage } from '@/lib/telegram';
 import { matchPlayerIdentity } from '@/lib/player-identity';
+import { calculateInternationalFatigueRisk } from '@/lib/api-football';
 import type { FplPlayer } from '@/types/fpl';
 import { makePlayer, makeLegalSquad } from './helpers';
 
@@ -106,6 +107,24 @@ describe('matchPlayerIdentity', () => {
     expect(matchPlayerIdentity('Johnson', [
       { id: 1, name: 'Son', fullName: 'Heung-min Son' },
     ]).status).toBe('unmatched');
+  });
+});
+
+describe('calculateInternationalFatigueRisk', () => {
+  const now = new Date('2026-08-15T12:00:00.000Z');
+
+  it('penalizes a heavy, very recent international workload', () => {
+    expect(calculateInternationalFatigueRisk(180, '2026-08-12T12:00:00.000Z', now)).toBe(45);
+  });
+
+  it('decays the penalty as recovery time increases', () => {
+    expect(calculateInternationalFatigueRisk(130, '2026-08-09T12:00:00.000Z', now)).toBe(30);
+    expect(calculateInternationalFatigueRisk(190, '2026-08-06T12:00:00.000Z', now)).toBe(22);
+  });
+
+  it('does not invent fatigue when minutes or date are unavailable', () => {
+    expect(calculateInternationalFatigueRisk(0, '2026-08-12T12:00:00.000Z', now)).toBe(0);
+    expect(calculateInternationalFatigueRisk(180, undefined, now)).toBe(0);
   });
 });
 

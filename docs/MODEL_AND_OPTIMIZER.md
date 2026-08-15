@@ -35,6 +35,8 @@ Current-season competitive lineups may strongly update minutes confidence. Club-
 
 External lineup evidence affects the model only after the identity gate passes: current team, normalized full/display name, stable API player ID, and a clear score margin over same-team alternatives. Ambiguous matches are counted in coverage diagnostics but rejected from player projections.
 
+Recent structured international minutes use the same verified provider ID. The model scans a bounded 21-day/latest-60-fixture window in API-safe batches and applies only a small fatigue adjustment that decays with recovery time. International starts/minutes never update Premier League starter confidence because national-team role and club role are different signals.
+
 ## Position model
 
 `lib/position-model.ts` evaluates different return routes:

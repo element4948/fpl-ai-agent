@@ -18,7 +18,7 @@
 
 - Branch: `main`
 - Last committed baseline before this session: `1751f88` (structured enrichment coverage documentation).
-- Current change set: API-Football player identity verification using current team, full/display names, provider IDs, ambiguity rejection, diagnostics and cache v18.
+- Current change set: structured international minutes and recovery-time fatigue using verified API-Football player identities; dashboard cache v19.
 - Verification in this workspace: Next production compilation and production TypeScript check succeed; direct identity regression checks pass. Full Vitest remains blocked because local `node_modules` is missing the committed `vitest` dependency and network access cannot download it; run `npm install && npm run build && npm run test` in a networked environment before deployment.
 - Working tree should be clean after the current scoped commit. Local commits are not pushed unless the owner asks.
 
@@ -59,8 +59,7 @@ Stages 3-4 NOT started (next work):
 
 ## Next steps / open priorities
 
-Next source priority is structured international minutes with the same verified
-identity gate, followed by official-club news adapters and model backtest/calibration.
+Next source priority is official-club news adapters and model backtest/calibration.
 Keep each change small, run `npm run build`+`npm run test`, update this file, commit.
 
 Deferred/optional (from audit, not yet done): session-token expiry, profile
@@ -68,6 +67,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-15 — Added a bounded structured international-minutes scan, identity-safe joins, recovery-time fatigue adjustments, readiness/UI coverage and regression tests.
 - 2026-08-14 — Added API-Football player identity verification using current team, full/display-name scoring, stable provider IDs and ambiguity rejection; only verified identities can alter minutes/starter projections.
 - 2026-08-14 — Added same-position counterfactual explanations without player-name rules, explicit available/partial/missing source readiness, and Telegram entry/rank, differential, chip and coverage sections.
 - 2026-08-14 — Expanded the existing API-Football key usage to separately weighted 45-day club-friendly lineup/minutes and upcoming PL odds; fixed previous-season PL fallback suppressing current friendly evidence; added press-conference report signals and explicit international-minutes gap reporting.
