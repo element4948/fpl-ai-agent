@@ -17,8 +17,8 @@
 ## Current state
 
 - Branch: `main`
-- Last committed baseline before this session: `6efa514` (verified official-club news).
-- Current change set: bounded Official FPL recent-five starts/minutes enrichment, API-Football overlap de-duplication and dashboard cache v21.
+- Last committed baseline before this session: `a0960da` (shared finished-Gameweek calibration).
+- Current change set: parallel calibration/provider loading, immutable one-write-per-Gameweek forecast persistence and dashboard cache v23.
 - Verification in this workspace: Next production compilation and production TypeScript check succeed; direct identity regression checks pass. Full Vitest remains blocked because local `node_modules` is missing the committed `vitest` dependency and network access cannot download it; run `npm install && npm run build && npm run test` in a networked environment before deployment.
 - Working tree should be clean after the current scoped commit. Local commits are not pushed unless the owner asks.
 
@@ -59,7 +59,7 @@ Stages 3-4 NOT started (next work):
 
 ## Next steps / open priorities
 
-Next source priority is model backtest/calibration and position-level bias correction after finished Gameweeks provide enough samples.
+Next model priority is observing the first finished-Gameweek calibration samples, then validating correction/readiness output against the offline backtest before changing thresholds.
 Keep each change small, run `npm run build`+`npm run test`, update this file, commit.
 
 Deferred/optional (from audit, not yet done): session-token expiry, profile
@@ -67,6 +67,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-15 — Removed calibration from the verified dashboard's serial critical path and changed per-Gameweek forecast persistence to one immutable KV write.
 - 2026-08-15 — Added shared KV forecast snapshots, Official FPL event-live evaluation and conservative position-level calibration correction after 3 events / 60 samples.
 - 2026-08-15 — Wired Official FPL recent-five starts/minutes/60+ rate/trend into role projections for a bounded shortlist and reduced overlapping API-Football role weight.
 - 2026-08-15 — Added one-per-club official news searches for shortlisted players, per-feed coverage, collision-safe aliases and correct independent-publisher corroboration.

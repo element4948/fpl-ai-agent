@@ -7,7 +7,7 @@ import type {
   ModelPlayer,
 } from '@/types/fpl';
 
-const FORECASTS_KEY = 'fpl-ai-agent:calibration:forecasts:v1';
+const FORECAST_KEY_PREFIX = 'fpl-ai-agent:calibration:forecast:v2';
 const RESULTS_KEY = 'fpl-ai-agent:calibration:results:v1';
 const POSITIONS = ['GKP', 'DEF', 'MID', 'FWD'];
 const MIN_EVENTS = 3;
@@ -47,6 +47,10 @@ async function readJson<T>(key: string, fallback: T): Promise<T> {
 
 async function writeJson(key: string, value: unknown) {
   await redis(['SET', key, JSON.stringify(value)]);
+}
+
+function forecastKey(eventId: number) {
+  return `${FORECAST_KEY_PREFIX}:${eventId}`;
 }
 
 function metrics(rows: Array<{ position: string; predicted: number; actual: number }>): CalibrationPositionResult {
@@ -122,13 +126,12 @@ export function applyCalibrationProfile(players: ModelPlayer[], profile: Calibra
 export async function refreshServerCalibration(eventId: number | undefined, actuals: CalibrationActual[]) {
   if (!calibrationStoreConfigured()) return { configured: false, results: [] as CalibrationResult[], profile: buildCalibrationProfile([]) };
   try {
-    const [forecasts, storedResults] = await Promise.all([
-      readJson<ForecastSnapshot[]>(FORECASTS_KEY, []),
+    const [snapshot, storedResults] = await Promise.all([
+      eventId ? readJson<ForecastSnapshot | null>(forecastKey(eventId), null) : Promise.resolve(null),
       readJson<CalibrationResult[]>(RESULTS_KEY, []),
     ]);
     let results = storedResults;
     if (eventId && actuals.length && !results.some((item) => item.eventId === eventId)) {
-      const snapshot = forecasts.find((item) => item.eventId === eventId);
       const evaluated = snapshot ? evaluateSnapshot(snapshot, actuals) : null;
       if (evaluated) {
         results = [...results, evaluated].slice(-12);
@@ -144,13 +147,13 @@ export async function refreshServerCalibration(eventId: number | undefined, actu
 export async function saveServerForecast(eventId: number | undefined, deadline: string | undefined, players: ModelPlayer[]) {
   if (!calibrationStoreConfigured() || !eventId || !deadline || !players.length) return;
   try {
-    const forecasts = await readJson<ForecastSnapshot[]>(FORECASTS_KEY, []);
-    if (forecasts.some((item) => item.eventId === eventId)) return;
     const snapshot: ForecastSnapshot = {
       eventId, deadline, createdAt: new Date().toISOString(),
       players: players.map((player) => ({ id: player.id, name: player.name, position: player.position, predicted: player.projection.next1 })),
     };
-    await writeJson(FORECASTS_KEY, [...forecasts, snapshot].slice(-12));
+    // One immutable snapshot per Gameweek. SET NX avoids a preliminary GET and
+    // prevents a later request from overwriting the pre-deadline forecast.
+    await redis(['SET', forecastKey(eventId), JSON.stringify(snapshot), 'NX']);
   } catch {
     // Calibration persistence must never make the dashboard unavailable.
   }

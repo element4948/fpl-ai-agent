@@ -22,7 +22,7 @@ API-Football market odds are stored as corroborating evidence only. They are not
 
 ## Forecast calibration
 
-Before each deadline the verified dashboard stores the next-Gameweek forecast in the configured KV store. After a Gameweek is marked finished, the stored forecast is compared with Official FPL's event-live total points. MAE, bias and within-two-points accuracy are measured overall and by position.
+Before each deadline the verified dashboard stores one immutable next-Gameweek forecast in the configured KV store. After a Gameweek is marked finished, the stored forecast is compared with Official FPL's event-live total points. MAE, bias and within-two-points accuracy are measured overall and by position. Event-live/KV reads run in parallel with verified news/history/provider scans so calibration does not add a separate serial wait to the dashboard.
 
 Calibration cannot alter recommendations from one noisy week. A position correction activates only after at least three measured Gameweeks and 60 matched player results. The observed actual/predicted ratio is shrunk toward 1.0 and hard-clamped to 0.88–1.12 before it scales current Expected Points and projection horizons. Missing KV configuration or live results leaves the base model unchanged.
 

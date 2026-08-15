@@ -41,13 +41,13 @@ export async function GET(request: Request) {
 
 const getFastDashboard = unstable_cache(
   () => buildDashboardPayload(true),
-  ['fpl-dashboard-fast-v22-calibration'],
+  ['fpl-dashboard-fast-v23-parallel-calibration'],
   { revalidate: 300 },
 );
 
 const getVerifiedDashboard = unstable_cache(
   () => buildDashboardPayload(false),
-  ['fpl-dashboard-verified-v22-calibration'],
+  ['fpl-dashboard-verified-v23-parallel-calibration'],
   { revalidate: 900 },
 );
 
@@ -57,6 +57,33 @@ async function buildDashboardPayload(fast: boolean) {
   if (!boot) throw new Error('FPL_API_UNAVAILABLE');
   const next = nextEvent(boot.events);
   const completedGameweeks = boot.events.filter((event) => event.finished).length;
+  const lastFinishedEvent = [...boot.events]
+    .filter((event) => event.finished)
+    .sort((a, b) => b.id - a.id)[0];
+  const liveUnfinishedEvent = boot.events.find(
+    (event) => event.is_current && !event.finished,
+  );
+  const calibrationEvent = liveUnfinishedEvent ? null : lastFinishedEvent;
+  const playerNames = new Map(boot.elements.map((player) => [player.id, player.web_name]));
+  // Start calibration I/O before the slower provider scans. It is independent
+  // from news/history enrichment and should not extend the verified critical path.
+  const calibrationPromise = fast
+    ? Promise.resolve({
+        configured: false,
+        results: [],
+        profile: { active: false, events: 0, updatedAt: new Date().toISOString(), positions: {} },
+        actuals: [] as Array<{ id: number; name: string; points: number }>,
+      })
+    : (calibrationEvent ? getEventLive(calibrationEvent.id) : Promise.resolve(null))
+        .then((eventLive) => {
+          const actuals = eventLive?.elements.map((player) => ({
+            id: player.id,
+            name: playerNames.get(player.id) || String(player.id),
+            points: Number(player.stats.total_points || 0),
+          })) || [];
+          return refreshServerCalibration(calibrationEvent?.id, actuals)
+            .then((state) => ({ ...state, actuals }));
+        });
   const basePlayers = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], next?.id, completedGameweeks);
   // The fast response makes the page usable immediately. The client then asks
   // for the fully verified version in the background.
@@ -89,22 +116,8 @@ async function buildDashboardPayload(fast: boolean) {
   const evidencePlayers = newsScan ? applyExternalNewsSignals(statsPlayers, newsScan) : statsPlayers;
   const isOldGw38 = next?.name?.includes('38') && next?.deadline_time && new Date(next.deadline_time).getTime() < Date.now();
   const isPreSeason = completedGameweeks === 0 || !next || !next.deadline_time || !!isOldGw38;
-  const lastFinishedEvent = [...boot.events]
-    .filter((event) => event.finished)
-    .sort((a, b) => b.id - a.id)[0];
-  const liveUnfinishedEvent = boot.events.find(
-    (event) => event.is_current && !event.finished,
-  );
-  const calibrationEvent = liveUnfinishedEvent ? null : lastFinishedEvent;
-  const eventLive = !fast && calibrationEvent ? await getEventLive(calibrationEvent.id) : null;
-  const calibrationActuals = eventLive?.elements.map((player) => ({
-    id: player.id,
-    name: boot.elements.find((item) => item.id === player.id)?.web_name || String(player.id),
-    points: Number(player.stats.total_points || 0),
-  })) || [];
-  const serverCalibration = fast
-    ? { configured: false, results: [], profile: { active: false, events: 0, updatedAt: new Date().toISOString(), positions: {} } }
-    : await refreshServerCalibration(calibrationEvent?.id, calibrationActuals);
+  const calibrationState = await calibrationPromise;
+  const { actuals: calibrationActuals, ...serverCalibration } = calibrationState;
   const players = applyCalibrationProfile(evidencePlayers, serverCalibration.profile);
   const topPlayers = [...players].sort((a,b) => (b.expectedPoints + b.valueScore - b.risk * 0.03) - (a.expectedPoints + a.valueScore - a.risk * 0.03)).slice(0, 40);
   // Always return usable Official-FPL drafts in the fast response. External
