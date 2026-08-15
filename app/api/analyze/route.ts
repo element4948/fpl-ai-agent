@@ -11,6 +11,7 @@ import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external
 import { buildSeasonRoadmap } from '@/lib/season-roadmap';
 import { buildDraftTrust } from '@/lib/evidence';
 import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-football';
+import { applyRecentHistoryEvidence, getRecentHistoryEvidence } from '@/lib/history-enrichment';
 
 // External enrichment (API-Football + news) can exceed the default 10s timeout.
 export const maxDuration = 60;
@@ -122,12 +123,15 @@ export async function POST(req: Request) {
         fixtureEventId,
         boot.events.filter((item) => item.finished).length,
     );
-    const apiFootballScan = await getApiFootballEvidence(basePlayers);
-    const statsPlayers = applyApiFootballEvidence(basePlayers, apiFootballScan);
-    const allPlayers = applyExternalNewsSignals(
-        statsPlayers,
-        await getExternalNewsSignals(statsPlayers, picks.picks.map((pick) => pick.element)),
-    );
+    const squadIds = picks.picks.map((pick) => pick.element);
+    const [apiFootballScan, newsScan, historyScan] = await Promise.all([
+        getApiFootballEvidence(basePlayers),
+        getExternalNewsSignals(basePlayers, squadIds),
+        getRecentHistoryEvidence(basePlayers, squadIds),
+    ]);
+    const historyPlayers = applyRecentHistoryEvidence(basePlayers, historyScan);
+    const statsPlayers = applyApiFootballEvidence(historyPlayers, apiFootballScan);
+    const allPlayers = applyExternalNewsSignals(statsPlayers, newsScan);
 
     const playerMap = new Map(allPlayers.map((player) => [player.id, player]));
 
@@ -217,6 +221,12 @@ export async function POST(req: Request) {
             internationalFixturesChecked: apiFootballScan.internationalFixturesChecked,
             internationalPlayersMatched: apiFootballScan.internationalPlayersMatched,
             error: apiFootballScan.error,
+        },
+        historyVerification: {
+            ok: historyScan.ok,
+            requestedPlayers: historyScan.requestedPlayers,
+            successfulPlayers: historyScan.successfulPlayers,
+            checkedAt: historyScan.checkedAt,
         },
 
         captainShortlist: captains,

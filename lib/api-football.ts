@@ -464,7 +464,12 @@ export function applyApiFootballEvidence(players: ModelPlayer[], scan: ApiFootba
     if (!api) return player;
     const canConfirmCurrentRole = Boolean(api.identityVerified) && api.currentSeason && api.currentTeamMatched && api.competitiveMatches >= 2;
     const canSupportPreseasonRole = Boolean(api.identityVerified) && api.currentTeamMatched && api.friendlyMatches >= 2;
-    const evidenceWeight = canConfirmCurrentRole ? 0.65 : canSupportPreseasonRole ? 0.3 : 0;
+    // Official recent match history and API-Football often describe the same
+    // matches. When the primary history sample is good, keep API-Football as
+    // corroboration instead of applying the same role evidence twice.
+    const evidenceWeight = canConfirmCurrentRole
+      ? player.recentHistory?.dataQuality === 'good' ? 0.2 : 0.65
+      : canSupportPreseasonRole ? 0.3 : 0;
     const startRate = canConfirmCurrentRole
       ? api.competitiveStarts / Math.max(1, api.competitiveMatches)
       : api.friendlyStarts / Math.max(1, api.friendlyMatches);

@@ -6,7 +6,7 @@
 |---|---|---|---|
 | Official FPL `bootstrap-static` | players, teams, positions, prices, status/news, ownership, season totals, xG/xA fields | Primary | Dashboard reports FPL unavailable. |
 | Official FPL `fixtures` | opponents, home/away, FDR, next 3/5/8 schedule | Primary | Fixture fields become limited; do not invent fixtures. |
-| Official FPL `element-summary/:id` | recent history and upcoming player fixtures | Primary | Player detail returns unavailable. |
+| Official FPL `element-summary/:id` | recent five-match starts/minutes/60+ rate/trend for a bounded shortlist, plus player detail history and upcoming fixtures | Primary | Continue with cumulative Official FPL fields and report zero recent-history coverage. |
 | Official FPL entry/picks | public squad, bank, value, rank | Primary but deadline-limited | Before picks are public, use saved planned draft and explain limitation. |
 | Official FPL league standings | rank/gap | Primary | Return a clear ID/not-found error. |
 | API-Football | current-team lineup/minutes/stat corroboration, bounded PL club-friendly lineups, recent structured international minutes, normalized upcoming match-winner odds | Optional secondary | Continue with Official FPL and mark each enrichment unavailable. |

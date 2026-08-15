@@ -209,7 +209,7 @@ export default function DocsPage() {
         <div className="docs-callout">
           <b>Prediction Calibration:</b> Сайт дараагийн Gameweek-ийн forecast-ийг deadline-аас өмнө browser дээр хадгална. Gameweek дууссаны дараа тухайн тоглогчдын бодит оноотой харьцуулж MAE (дундаж абсолют алдаа), Bias болон ±2 оноонд багтсан хувийг гаргана. Ингэснээр “загвар 80%” гэдгийг таамгаар бус, хуримтлагдсан Gameweek-ийн үр дүнгээр хэмжинэ.
         </div>
-        <p className="doc-note">Friendly болон international data нь news RSS-ээр injury, call-up, late return, fatigue, preseason дохио илрүүлэхээс гадна API-Football-ийн structured minutes-ийг ашиглана. Сүүлийн 21 хоногийн шигшээ багийн ачаалал recovery хугацаатайгаа нийлж жижиг fatigue penalty өгнө; энэ нь Premier League-ийн гарааны эрхийг батлахгүй. Provider ID, current team, бүтэн/display name болон ambiguity шалгалт давсан үед л model-д нөлөөлнө. API plan-д дата олдоогүй тоглогч дээр coverage бага хэвээр харагдана; систем дутуу data-г 80% болгон зохиомлоор өсгөхгүй.</p>
+        <p className="doc-note">Verified scan үед shortlist/өөрийн багийн тоглогчдын Official FPL сүүлийн 5 тоглолтын starts, дундаж минут, 60+ минутын хувь, минутын trend-ийг шалгаж starter confidence-д оруулна. Friendly болон international data нь news RSS дохио болон API-Football structured minutes ашиглана. Сүүлийн 21 хоногийн шигшээ багийн ачаалал recovery хугацаатайгаа нийлж жижиг fatigue penalty өгнө; энэ нь Premier League-ийн гарааны эрхийг батлахгүй. Ижил тоглолтын API-Football evidence-ийг давхар бүтэн жинлэхгүй. Дата олдоогүй тоглогч дээр coverage бага хэвээр харагдана.</p>
       </section>
 
       <section className="doc-section" id="roadmap">

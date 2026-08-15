@@ -15,6 +15,7 @@ export function buildModelReadiness(
   ).length;
   const newsChecked = players.filter((player) => Boolean(player.newsCheckedAt)).length;
   const officialClubChecked = players.filter((player) => Boolean(player.officialClubNewsCheckedAt)).length;
+  const recentHistoryChecked = players.filter((player) => Boolean(player.historyCheckedAt)).length;
   const apiLineups = players.filter((player) =>
     Boolean(player.apiFootball?.identityVerified) && (player.apiFootball?.matches || 0) > 0,
   ).length;
@@ -48,6 +49,7 @@ export function buildModelReadiness(
   const plannedPlayers = players.filter((player) => player.projection.gameweeks >= 3).length / count;
   const newsCheckedCoverage = newsChecked / count;
   const officialClubCoverage = officialClubChecked / count;
+  const recentHistoryCoverage = recentHistoryChecked / count;
   const apiLineupCoverage = apiLineups / count;
   const clubFriendlyCoverage = clubFriendlies / count;
   const oddsCoverage = marketOdds / count;
@@ -66,6 +68,7 @@ export function buildModelReadiness(
     { id: 'official-fpl', label: 'Official FPL player data', status: 'available', coverage: 100 },
     { id: 'official-fixtures', label: 'Official FPL fixtures', status: sourceStatus(fixtureCoverage), coverage: clamp(fixtureCoverage * 100) },
     { id: 'official-history', label: 'Official FPL live/history fields', status: sourceStatus(goodData), coverage: clamp(goodData * 100) },
+    { id: 'recent-player-history', label: 'Official FPL recent 5-match history', status: sourceStatus(recentHistoryCoverage), coverage: clamp(recentHistoryCoverage * 100) },
     { id: 'api-football', label: 'API-Football lineup/minutes corroboration', status: sourceStatus(apiLineupCoverage), coverage: clamp(apiLineupCoverage * 100) },
     { id: 'club-friendlies', label: 'Structured club-friendly lineup/minutes', status: sourceStatus(clubFriendlyCoverage), coverage: clamp(clubFriendlyCoverage * 100) },
     { id: 'market-odds', label: 'API-Football normalized match odds', status: sourceStatus(oddsCoverage), coverage: clamp(oddsCoverage * 100) },
@@ -86,7 +89,7 @@ export function buildModelReadiness(
     squadOptimization: 88,
     officialData: clamp(evidenceCoverage * 0.75 + fixtureCoverage * 25),
     positionModels: clamp(45 + positionCoverage * 50),
-    starterMinutes: clamp(goodData * 70 + apiLineupCoverage * 30),
+    starterMinutes: clamp(goodData * 50 + recentHistoryCoverage * 30 + apiLineupCoverage * 20),
     injuryAvailability: clamp(65 + newsCheckedCoverage * 15 + officialClubCoverage * 10 + trustedExternalCoverage * 10),
     transferNews: clamp(newsCheckedCoverage * 50 + officialClubCoverage * 20 + trustedExternalCoverage * 30),
     // News mentions are not the same as a structured friendly/national-team

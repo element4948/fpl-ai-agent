@@ -33,6 +33,8 @@ Starting XI expectations:
 
 Current-season competitive lineups may strongly update minutes confidence. Club-friendly starts/minutes are tracked separately over a bounded 45-day window and provide a smaller pre-season update; they are never averaged into or treated as equivalent to competitive starts.
 
+For the bounded shortlist, Official FPL `element-summary` supplies the latest five match records. Start rate, average minutes, 60+ minute rate and minutes trend are blended into starter confidence and predicted minutes with sample-size weights (five matches stronger than two). A good recent Official FPL sample becomes the primary role signal; overlapping API-Football competitive evidence is reduced to corroboration weight to prevent double-counting. Empty pre-season history does not create a synthetic role update.
+
 External lineup evidence affects the model only after the identity gate passes: current team, normalized full/display name, stable API player ID, and a clear score margin over same-team alternatives. Ambiguous matches are counted in coverage diagnostics but rejected from player projections.
 
 Recent structured international minutes use the same verified provider ID. The model scans a bounded 21-day/latest-60-fixture window in API-safe batches and applies only a small fatigue adjustment that decays with recovery time. International starts/minutes never update Premier League starter confidence because national-team role and club role are different signals.

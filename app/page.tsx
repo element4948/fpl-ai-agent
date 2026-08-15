@@ -1371,6 +1371,15 @@ export default function Home() {
                                     : 'Verified scan хүлээж байна'}
                             </small>
                         </div>
+                        <div className={`engine-status ${boot?.historyVerification?.successfulPlayers ? 'good-engine' : ''}`}>
+                            <span>{boot?.historyVerification?.successfulPlayers ? '✓' : '△'}</span>
+                            <strong>Recent Minutes</strong>
+                            <small>
+                                {boot?.historyVerification
+                                    ? `${boot.historyVerification.successfulPlayers}/${boot.historyVerification.requestedPlayers} тоглогч · сүүлийн 5 тоглолтын starts/minutes`
+                                    : 'Verified scan хүлээж байна'}
+                            </small>
+                        </div>
                         <div className="engine-facts">
                             <div><span>Players</span><b>{boot?.playerCount ?? '...'}</b></div>
                             <div><span>Teams</span><b>{boot?.teamCount ?? '...'}</b></div>

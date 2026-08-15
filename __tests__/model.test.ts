@@ -11,6 +11,7 @@ import { predictPriceMoves, isLikelyMove } from '@/lib/price-predictor';
 import { splitTelegramMessage } from '@/lib/telegram';
 import { matchPlayerIdentity } from '@/lib/player-identity';
 import { calculateInternationalFatigueRisk } from '@/lib/api-football';
+import { applyRecentHistoryEvidence } from '@/lib/history-enrichment';
 import type { FplPlayer } from '@/types/fpl';
 import { makePlayer, makeLegalSquad } from './helpers';
 
@@ -176,6 +177,44 @@ describe('calculateInternationalFatigueRisk', () => {
   it('does not invent fatigue when minutes or date are unavailable', () => {
     expect(calculateInternationalFatigueRisk(0, '2026-08-12T12:00:00.000Z', now)).toBe(0);
     expect(calculateInternationalFatigueRisk(180, undefined, now)).toBe(0);
+  });
+});
+
+describe('applyRecentHistoryEvidence', () => {
+  const checkedAt = '2026-08-15T12:00:00.000Z';
+
+  it('promotes a strong recent five-match role without exceeding valid ranges', () => {
+    const player = makePlayer({ starterConfidence: 55, predictedMinutes: 50, risk: 55 });
+    const [enriched] = applyRecentHistoryEvidence([player], {
+      analyses: new Map([[player.id, {
+        sampleSize: 5, starts: 5, startRate: 100, averageMinutes: 86,
+        sixtyPlusRate: 100, averagePoints: 5, recentMinutes: [85, 90, 88, 82, 85],
+        recentPoints: [2, 6, 3, 7, 7], trend: 'stable', dataQuality: 'good',
+      }]]),
+      checkedIds: new Set([player.id]), checkedAt,
+      requestedPlayers: 1, successfulPlayers: 1, ok: true,
+    });
+    expect(enriched.starterConfidence).toBeGreaterThan(player.starterConfidence);
+    expect(enriched.predictedMinutes).toBeGreaterThan(player.predictedMinutes);
+    expect(enriched.risk).toBeLessThan(player.risk);
+    expect(enriched.historyCheckedAt).toBe(checkedAt);
+  });
+
+  it('penalizes repeated low-minute bench appearances', () => {
+    const player = makePlayer({ starterConfidence: 82, predictedMinutes: 80, risk: 15 });
+    const [enriched] = applyRecentHistoryEvidence([player], {
+      analyses: new Map([[player.id, {
+        sampleSize: 5, starts: 0, startRate: 0, averageMinutes: 12,
+        sixtyPlusRate: 0, averagePoints: 1, recentMinutes: [10, 15, 0, 20, 15],
+        recentPoints: [1, 1, 0, 2, 1], trend: 'stable', dataQuality: 'good',
+      }]]),
+      checkedIds: new Set([player.id]), checkedAt,
+      requestedPlayers: 1, successfulPlayers: 1, ok: true,
+    });
+    expect(enriched.starterConfidence).toBeLessThan(player.starterConfidence);
+    expect(enriched.predictedMinutes).toBeLessThan(player.predictedMinutes);
+    expect(enriched.risk).toBeGreaterThanOrEqual(55);
+    expect(enriched.expectedPoints).toBeLessThan(player.expectedPoints);
   });
 });
 

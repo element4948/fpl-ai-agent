@@ -4,6 +4,7 @@ import { getBootstrap, getFixtures, getPlayerSummary, nextEvent, toModelPlayers 
 import { analyzePlayerHistory } from '@/lib/player-history';
 import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-football';
 import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external-news';
+import { applyRecentHistoryEvidence } from '@/lib/history-enrichment';
 
 export async function GET(
   _request: Request,
@@ -42,8 +43,17 @@ export async function GET(
     return NextResponse.json({ error: 'Player not found' }, { status: 404 });
   }
 
-  const apiFootballScan = await getApiFootballEvidence([basePlayer]);
-  const statsPlayer = applyApiFootballEvidence([basePlayer], apiFootballScan)[0];
+  const recent = analyzePlayerHistory(summary.history, 5);
+  const historyPlayer = applyRecentHistoryEvidence([basePlayer], {
+    analyses: new Map([[basePlayer.id, recent]]),
+    checkedIds: new Set([basePlayer.id]),
+    checkedAt: new Date().toISOString(),
+    requestedPlayers: 1,
+    successfulPlayers: 1,
+    ok: true,
+  })[0];
+  const apiFootballScan = await getApiFootballEvidence([historyPlayer]);
+  const statsPlayer = applyApiFootballEvidence([historyPlayer], apiFootballScan)[0];
   const player = applyExternalNewsSignals(
     [statsPlayer],
     await getExternalNewsSignals([statsPlayer], [statsPlayer.id]),
@@ -51,7 +61,7 @@ export async function GET(
 
   return NextResponse.json({
     player,
-    recent: analyzePlayerHistory(summary.history, 5),
+    recent,
     history: summary.history.slice(-10),
     upcomingFixtures: summary.fixtures.slice(0, 5),
     updatedAt: new Date().toISOString(),

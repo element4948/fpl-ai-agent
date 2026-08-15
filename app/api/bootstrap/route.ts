@@ -9,6 +9,7 @@ import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external
 import { buildModelReadiness } from '@/lib/readiness';
 import { buildSeasonRoadmap } from '@/lib/season-roadmap';
 import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-football';
+import { applyRecentHistoryEvidence, getRecentHistoryEvidence } from '@/lib/history-enrichment';
 
 export const revalidate = 900;
 // The verified dashboard fans out to API-Football + news feeds; the default
@@ -39,13 +40,13 @@ export async function GET(request: Request) {
 
 const getFastDashboard = unstable_cache(
   () => buildDashboardPayload(true),
-  ['fpl-dashboard-fast-v20-official-club-news'],
+  ['fpl-dashboard-fast-v21-recent-history'],
   { revalidate: 300 },
 );
 
 const getVerifiedDashboard = unstable_cache(
   () => buildDashboardPayload(false),
-  ['fpl-dashboard-verified-v20-official-club-news'],
+  ['fpl-dashboard-verified-v21-recent-history'],
   { revalidate: 900 },
 );
 
@@ -58,7 +59,8 @@ async function buildDashboardPayload(fast: boolean) {
   const basePlayers = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], next?.id, completedGameweeks);
   // The fast response makes the page usable immediately. The client then asks
   // for the fully verified version in the background.
-  const [apiFootballScan, newsScan] = fast
+  const candidateIds = finalCandidateIdsFor(basePlayers);
+  const [apiFootballScan, newsScan, historyScan] = fast
     ? [
         {
           enabled: false, matchedPlayers: 0, fixturesChecked: 0,
@@ -68,12 +70,18 @@ async function buildDashboardPayload(fast: boolean) {
           evidence: new Map<number, never>(),
         },
         null,
+        {
+          analyses: new Map(), checkedIds: new Set<number>(), checkedAt: new Date().toISOString(),
+          requestedPlayers: 0, successfulPlayers: 0, ok: true,
+        },
       ] as const
     : await Promise.all([
         getApiFootballEvidence(basePlayers),
-        getExternalNewsSignals(basePlayers, finalCandidateIdsFor(basePlayers)),
+        getExternalNewsSignals(basePlayers, candidateIds),
+        getRecentHistoryEvidence(basePlayers, candidateIds),
       ]);
-  const statsPlayers = applyApiFootballEvidence(basePlayers, apiFootballScan);
+  const historyPlayers = applyRecentHistoryEvidence(basePlayers, historyScan);
+  const statsPlayers = applyApiFootballEvidence(historyPlayers, apiFootballScan);
   const modes = fast
     ? (['Best'] as const)
     : (['Best','Alternative','Differential','Safe'] as const);
@@ -125,6 +133,12 @@ async function buildDashboardPayload(fast: boolean) {
       officialClubSignals: newsScan.officialClubSignals,
       checkedAt: newsScan.checkedAt,
     } : null,
+    historyVerification: {
+      ok: historyScan.ok,
+      requestedPlayers: historyScan.requestedPlayers,
+      successfulPlayers: historyScan.successfulPlayers,
+      checkedAt: historyScan.checkedAt,
+    },
     verificationPending: fast,
     dataStatus: {
       fixtures: !!fixtures?.length,

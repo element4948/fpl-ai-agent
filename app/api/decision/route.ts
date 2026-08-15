@@ -4,6 +4,7 @@ import { buildDecision } from '@/lib/decision';
 import type { Goal, ModelPlayer, RiskProfile } from '@/types/fpl';
 import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external-news';
 import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-football';
+import { applyRecentHistoryEvidence, getRecentHistoryEvidence } from '@/lib/history-enrichment';
 
 // External enrichment (API-Football + news) can exceed the default 10s timeout.
 export const maxDuration = 60;
@@ -26,11 +27,13 @@ export async function POST(req: Request) {
   const next = nextEvent(boot.events);
   const completedGameweeks = boot.events.filter(event => event.finished).length;
   const basePlayers = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], next?.id, completedGameweeks);
-  const [apiFootballScan, newsScan] = await Promise.all([
+  const [apiFootballScan, newsScan, historyScan] = await Promise.all([
     getApiFootballEvidence(basePlayers),
     getExternalNewsSignals(basePlayers, plannedSquadIds),
+    getRecentHistoryEvidence(basePlayers, plannedSquadIds),
   ]);
-  const statsPlayers = applyApiFootballEvidence(basePlayers, apiFootballScan);
+  const historyPlayers = applyRecentHistoryEvidence(basePlayers, historyScan);
+  const statsPlayers = applyApiFootballEvidence(historyPlayers, apiFootballScan);
   const allPlayers = applyExternalNewsSignals(statsPlayers, newsScan);
   const oldGw38 = next?.name?.includes('38') && next?.deadline_time && new Date(next.deadline_time).getTime() < Date.now();
   const isPreSeason = completedGameweeks === 0 || !next || !next.deadline_time || !!oldGw38;
@@ -61,6 +64,12 @@ export async function POST(req: Request) {
         internationalFixturesChecked: apiFootballScan.internationalFixturesChecked,
         internationalPlayersMatched: apiFootballScan.internationalPlayersMatched,
         error: apiFootballScan.error,
+      },
+      historyVerification: {
+        ok: historyScan.ok,
+        requestedPlayers: historyScan.requestedPlayers,
+        successfulPlayers: historyScan.successfulPlayers,
+        checkedAt: historyScan.checkedAt,
       },
     });
   }
@@ -106,6 +115,12 @@ export async function POST(req: Request) {
       internationalFixturesChecked: apiFootballScan.internationalFixturesChecked,
       internationalPlayersMatched: apiFootballScan.internationalPlayersMatched,
       error: apiFootballScan.error,
+    },
+    historyVerification: {
+      ok: historyScan.ok,
+      requestedPlayers: historyScan.requestedPlayers,
+      successfulPlayers: historyScan.successfulPlayers,
+      checkedAt: historyScan.checkedAt,
     },
   });
 }

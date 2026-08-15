@@ -3,6 +3,7 @@
 ## Model and evidence
 
 - Pre-season starter confidence is inherently uncertain; previous-season minutes are a prior, not proof of the new manager's XI.
+- Recent-history enrichment is intentionally limited to at most 40 shortlisted/owned players per verified request to protect Official FPL latency; players outside that pool retain cumulative evidence until shortlisted.
 - Free public sources do not provide complete standardized friendly, national-team, press-conference, depth-chart, or dressing-room data.
 - API-Football availability depends on the key's plan and current-season coverage.
 - Structured international minutes cover only competitions and fixtures returned by the configured API-Football plan within the bounded recent window; missing coverage remains unknown rather than zero fatigue.

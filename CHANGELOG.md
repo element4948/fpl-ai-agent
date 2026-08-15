@@ -2,6 +2,7 @@
 
 ## 2026-08-15
 
+- Added bounded Official FPL recent-five history enrichment for starter confidence, predicted minutes, role trend and draft eligibility, with API-Football overlap de-duplicated.
 - Added one-per-club official-domain news searches for verified draft candidates, conservative player-name aliases, per-feed coverage, and correct publisher-domain corroboration.
 - Made confirmed/corroborated news update risk breakdown consistently with availability, minutes and projections.
 - Added quota-bounded API-Football international fixture/minutes enrichment using the verified player-identity gate.

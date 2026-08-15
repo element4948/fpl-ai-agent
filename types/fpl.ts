@@ -397,6 +397,8 @@ export type ModelPlayer = {
   externalNews?: ExternalNewsSignal[];
   newsCheckedAt?: string;
   officialClubNewsCheckedAt?: string;
+  recentHistory?: PlayerHistoryAnalysis;
+  historyCheckedAt?: string;
   apiFootball?: {
     matches: number;
     starts: number;
