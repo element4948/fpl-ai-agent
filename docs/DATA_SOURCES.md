@@ -10,7 +10,8 @@
 | Official FPL entry/picks | public squad, bank, value, rank | Primary but deadline-limited | Before picks are public, use saved planned draft and explain limitation. |
 | Official FPL league standings | rank/gap | Primary | Return a clear ID/not-found error. |
 | API-Football | current-team lineup/minutes/stat corroboration, bounded PL club-friendly lineups, recent structured international minutes, normalized upcoming match-winner odds | Optional secondary | Continue with Official FPL and mark each enrichment unavailable. |
-| Recent news scan | injury, role, transfer, suspension and published press-conference context | Supporting evidence | Missing news never equals confirmation or zero risk. |
+| Official club news search | one bounded Google News RSS site-query per shortlisted player's current club; injury, availability, transfer and press-conference headlines from the club domain | Official supporting evidence | Per-club feed success is reported; missing results never equal confirmation or zero risk. |
+| Recent news scan | player-specific injury, role, transfer, suspension and published press-conference context | Supporting evidence | Missing news never equals confirmation or zero risk. |
 
 ## Freshness
 
@@ -22,6 +23,8 @@
 ## Evidence rules
 
 - Official club/FPL information outranks media reports.
+- Official club searches are constrained to the configured current-club domain, then matched to the player with display/full-name aliases. Surname-only matching is allowed only when it is unique inside that club.
+- Google News redirect URLs are not treated as independent publishers; corroboration counts the article publisher domain from the RSS source metadata.
 - A high-severity external warning blocks a pick only when confirmed or corroborated according to source verification logic.
 - Source count is displayed as coverage, not added repeatedly to the player score.
 - API-Football previous-season statistics may provide a prior but cannot alone prove a current starting role.

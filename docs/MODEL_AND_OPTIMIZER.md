@@ -37,6 +37,8 @@ External lineup evidence affects the model only after the identity gate passes: 
 
 Recent structured international minutes use the same verified provider ID. The model scans a bounded 21-day/latest-60-fixture window in API-safe batches and applies only a small fatigue adjustment that decays with recovery time. International starts/minutes never update Premier League starter confidence because national-team role and club role are different signals.
 
+Official-club news is queried once per current club represented in the verified shortlist. A club-domain injury/absence/transfer warning is confirmed evidence; reliable media becomes corroborated only when publisher-domain metadata shows at least two independent sources. Confirmed/corroborated high warnings reduce availability, minutes, projection and draft eligibility consistently. Missing news is unknown, not a clean bill of health.
+
 ## Position model
 
 `lib/position-model.ts` evaluates different return routes:

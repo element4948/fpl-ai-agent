@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeTeamStrength, fixtureAttackMultiplier, cleanSheetProbabilityFrom } from '@/lib/fpl';
-import { headlineMentionsName } from '@/lib/external-news';
+import { classifyHeadline, headlineMentionsName, playerNewsAliases, verifySignals } from '@/lib/external-news';
 import { validateSquad } from '@/lib/rules';
 import { captainScore } from '@/lib/scoring';
 import { suggestSafeTransfers, buildTransferPlans } from '@/lib/transfers';
@@ -70,6 +70,57 @@ describe('headlineMentionsName (news false-positive regression)', () => {
   });
   it('ignores names that are too short', () => {
     expect(headlineMentionsName('Any headline', 'Xu')).toBe(false);
+  });
+});
+
+describe('playerNewsAliases', () => {
+  it('matches display, full and unique same-team surname forms', () => {
+    expect(playerNewsAliases(
+      { id: 1, name: 'B.Fernandes', fullName: 'Bruno Miguel Borges Fernandes' },
+      [{ id: 1, name: 'B.Fernandes', fullName: 'Bruno Miguel Borges Fernandes' }],
+    )).toEqual(expect.arrayContaining(['B.Fernandes', 'B Fernandes', 'Bruno Miguel Borges Fernandes', 'Fernandes']));
+  });
+
+  it('does not use surname-only matching when same-team names collide', () => {
+    const aliases = playerNewsAliases(
+      { id: 1, name: 'A.Smith', fullName: 'Adam Smith' },
+      [
+        { id: 1, name: 'A.Smith', fullName: 'Adam Smith' },
+        { id: 2, name: 'J.Smith', fullName: 'John Smith' },
+      ],
+    );
+    expect(aliases).not.toContain('Smith');
+  });
+});
+
+describe('verifySignals source identity', () => {
+  it('uses publisher domains instead of the shared Google News redirect host', () => {
+    const signals = verifySignals([
+      {
+        headline: 'Player ruled out', url: 'https://news.google.com/a', sourceUrl: 'https://bbc.co.uk',
+        publishedAt: '', source: 'BBC', tier: 'reliable', category: 'injury', severity: 'high',
+      },
+      {
+        headline: 'Player injury confirmed', url: 'https://news.google.com/b', sourceUrl: 'https://reuters.com',
+        publishedAt: '', source: 'Reuters', tier: 'reliable', category: 'injury', severity: 'high',
+      },
+    ]);
+    expect(signals.every((signal) => signal.verification === 'corroborated')).toBe(true);
+    expect(signals[0].corroboratingSourceCount).toBe(2);
+  });
+});
+
+describe('classifyHeadline', () => {
+  it('does not punish a confirmed return from injury', () => {
+    expect(classifyHeadline('Player returns to training after injury')).toEqual({
+      category: 'availability', severity: 'low',
+    });
+  });
+
+  it('recognizes an official outgoing loan move as transfer risk', () => {
+    expect(classifyHeadline('Player joins Championship club on loan')).toEqual({
+      category: 'transfer', severity: 'high',
+    });
   });
 });
 

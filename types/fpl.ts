@@ -184,6 +184,7 @@ export type ExternalNewsSignal = {
   url: string;
   publishedAt: string;
   source: string;
+  sourceUrl?: string;
   tier: 'official' | 'reliable' | 'secondary';
   category:
     | 'injury'
@@ -395,6 +396,7 @@ export type ModelPlayer = {
   roleAssessment?: PlayerRoleAssessment;
   externalNews?: ExternalNewsSignal[];
   newsCheckedAt?: string;
+  officialClubNewsCheckedAt?: string;
   apiFootball?: {
     matches: number;
     starts: number;

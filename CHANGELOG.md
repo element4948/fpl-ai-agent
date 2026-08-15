@@ -2,6 +2,8 @@
 
 ## 2026-08-15
 
+- Added one-per-club official-domain news searches for verified draft candidates, conservative player-name aliases, per-feed coverage, and correct publisher-domain corroboration.
+- Made confirmed/corroborated news update risk breakdown consistently with availability, minutes and projections.
 - Added quota-bounded API-Football international fixture/minutes enrichment using the verified player-identity gate.
 - Added recovery-time-based international fatigue risk without treating national-team minutes as proof of a Premier League starting role.
 - Exposed international fixture/player coverage in Model Readiness and the dashboard source status.

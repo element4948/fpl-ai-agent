@@ -3,10 +3,23 @@ import type { ExternalNewsSignal, ModelPlayer } from '@/types/fpl';
 const MAX_CANDIDATES_PER_POSITION = 6;
 const MAX_VERIFICATION_CANDIDATES = 48;
 
+const OFFICIAL_CLUB_DOMAINS: Record<string, string> = {
+  ARS: 'arsenal.com', AVL: 'avfc.co.uk', BOU: 'afcb.co.uk', BRE: 'brentfordfc.com',
+  BHA: 'brightonandhovealbion.com', BUR: 'burnleyfootballclub.com', CHE: 'chelseafc.com',
+  CRY: 'cpfc.co.uk', EVE: 'evertonfc.com', FUL: 'fulhamfc.com', LEE: 'leedsunited.com',
+  LIV: 'liverpoolfc.com', MCI: 'mancity.com', MUN: 'manutd.com', NEW: 'newcastleunited.com',
+  NFO: 'nottinghamforest.co.uk', SUN: 'safc.com', TOT: 'tottenhamhotspur.com',
+  WHU: 'whufc.com', WOL: 'wolves.co.uk',
+};
+
 export type ExternalNewsScan = {
   signals: Map<number, ExternalNewsSignal[]>;
   checkedIds: Set<number>;
   checkedAt: string;
+  officialClubCheckedIds: Set<number>;
+  officialClubFeedsChecked: number;
+  officialClubFeedsAttempted: number;
+  officialClubSignals: number;
   // False when the news feed itself failed (timeouts / rate limiting), so a
   // failed scan is not mistaken for "scanned, everyone is fit".
   ok: boolean;
@@ -54,6 +67,7 @@ function sourceTier(source: string, sourceUrl: string): ExternalNewsSignal['tier
       'manutd.com', 'nufc.co.uk', 'safc.com', 'tottenhamhotspur.com',
       'ccfc.co.uk', 'hullcitytigers.com', 'itfc.co.uk', 'leedsunited.com',
       'nottinghamforest.co.uk',
+      'newcastleunited.com',
       'whufc.com', 'wolves.co.uk', 'burnleyfootballclub.com',
       'lcfc.com', 'southamptonfc.com', 'wba.co.uk', 'watfordfc.com',
       'sufc.co.uk', 'swanseacity.com', 'thefa.com', 'uefa.com', 'fifa.com',
@@ -96,12 +110,15 @@ export function headlineMentionsName(headline: string, name: string): boolean {
   }
 }
 
-function classify(headline: string): Pick<ExternalNewsSignal, 'category' | 'severity'> {
+export function classifyHeadline(headline: string): Pick<ExternalNewsSignal, 'category' | 'severity'> {
   const text = headline.toLowerCase();
+  if (/back in training|returns? to training|returns? from injury|fit again|available for selection|declared fit/.test(text)) {
+    return { category: 'availability', severity: 'low' };
+  }
   if (/injur|ruled out|sidelined|misses|doubt/.test(text)) {
     return { category: 'injury', severity: /ruled out|sidelined|misses/.test(text) ? 'high' : 'medium' };
   }
-  if (/set to leave|expected to leave|agrees terms|transfer talks|wants exit/.test(text)) {
+  if (/set to leave|expected to leave|agrees terms|transfer talks|wants exit|leaves? (the )?club|joins? .+ on loan|loan move|completes? (a )?(move|transfer)/.test(text)) {
     return { category: 'transfer', severity: 'high' };
   }
   if (/dropped|left out|rotation|loses place|not first choice/.test(text)) {
@@ -136,15 +153,44 @@ function maximumAge(category: ExternalNewsSignal['category']) {
   return 7 * 24 * 60 * 60 * 1000;
 }
 
-function sourceKey(signal: Pick<ExternalNewsSignal, 'source' | 'url'>) {
+function sourceKey(signal: Pick<ExternalNewsSignal, 'source' | 'sourceUrl' | 'url'>) {
   try {
-    return new URL(signal.url).hostname.replace(/^www\./, '');
+    return new URL(signal.sourceUrl || signal.url).hostname.replace(/^www\./, '');
   } catch {
     return signal.source.trim().toLowerCase();
   }
 }
 
-function verifySignals(
+export function playerNewsAliases(
+  player: Pick<ModelPlayer, 'id' | 'name' | 'fullName'>,
+  teammates: Array<Pick<ModelPlayer, 'id' | 'name' | 'fullName'>> = [],
+) {
+  const aliases = new Set<string>();
+  if (player.name.trim().length >= 3) aliases.add(player.name.trim());
+  if (player.fullName?.trim()) aliases.add(player.fullName.trim());
+  const expandedDisplay = player.name.replace(/\./g, ' ').replace(/\s+/g, ' ').trim();
+  if (expandedDisplay.length >= 3) aliases.add(expandedDisplay);
+  const surname = player.fullName?.trim().split(/\s+/).at(-1);
+  if (surname && surname.length >= 4) {
+    const collisions = teammates.filter((candidate) =>
+      candidate.fullName?.trim().split(/\s+/).at(-1)?.toLowerCase() === surname.toLowerCase(),
+    );
+    if (collisions.length <= 1) aliases.add(surname);
+  }
+  return [...aliases];
+}
+
+function articleMentionsPlayer(
+  article: FeedArticle,
+  player: ModelPlayer,
+  teammates: ModelPlayer[],
+) {
+  return playerNewsAliases(player, teammates).some((alias) =>
+    headlineMentionsName(article.headline, alias),
+  );
+}
+
+export function verifySignals(
   signals: Omit<ExternalNewsSignal, 'verification' | 'corroboratingSourceCount'>[],
 ): ExternalNewsSignal[] {
   return signals.map((signal) => {
@@ -213,36 +259,72 @@ export async function getExternalNewsSignals(
   const candidates = [...players.filter((player) => preferred.has(player.id)), ...baseline]
     .filter((player, index, list) => list.findIndex((item) => item.id === player.id) === index)
     .slice(0, MAX_VERIFICATION_CANDIDATES);
-  const feedByPlayer = await Promise.all(
+  const playersByTeam = new Map<string, ModelPlayer[]>();
+  for (const player of players) {
+    playersByTeam.set(player.team, [...(playersByTeam.get(player.team) || []), player]);
+  }
+  const candidateTeams = [...new Set(candidates.map((player) => player.team))]
+    .filter((team) => Boolean(OFFICIAL_CLUB_DOMAINS[team]));
+  const [feedByPlayer, officialFeeds] = await Promise.all([
+    Promise.all(
     candidates.map(async (player) => ({
       player,
       feed: await fetchFeed(
-        `"${player.name}" "${player.team}" (injury OR transfer OR "team news" OR "press conference" OR "manager confirms" OR rotation OR "set to leave" OR friendly OR preseason OR "international duty" OR fatigue)`,
+        `"${player.fullName || player.name}" "${player.teamName || player.team}" (injury OR transfer OR "team news" OR "press conference" OR "manager confirms" OR rotation OR "set to leave" OR friendly OR preseason OR "international duty" OR fatigue)`,
       ),
     })),
-  );
+    ),
+    Promise.all(candidateTeams.map(async (team) => ({
+      team,
+      feed: await fetchFeed(
+        `site:${OFFICIAL_CLUB_DOMAINS[team]} (injury OR injured OR available OR fitness OR "team news" OR "press conference" OR transfer OR loan OR squad)`,
+      ),
+    }))),
+  ]);
   const now = Date.now();
   const result = new Map<number, ExternalNewsSignal[]>();
-  let okFeeds = 0;
+  const individuallyCheckedIds = new Set<number>();
+  const officialClubCheckedIds = new Set<number>();
+  const officialArticlesByPlayer = new Map<number, FeedArticle[]>();
+
+  for (const { team, feed } of officialFeeds) {
+    if (!feed.ok) continue;
+    const teammates = playersByTeam.get(team) || [];
+    const teamCandidates = candidates.filter((player) => player.team === team);
+    for (const player of teamCandidates) {
+      officialClubCheckedIds.add(player.id);
+      const matches = feed.articles.filter((article) =>
+        sourceTier(article.source, article.sourceUrl) === 'official' &&
+        articleMentionsPlayer(article, player, teammates),
+      );
+      if (matches.length) officialArticlesByPlayer.set(player.id, matches);
+    }
+  }
 
   for (const { player, feed } of feedByPlayer) {
-    if (feed.ok) okFeeds += 1;
-    const articles = feed.articles;
+    if (feed.ok) {
+      individuallyCheckedIds.add(player.id);
+    }
+    const articles = [...(officialArticlesByPlayer.get(player.id) || []), ...feed.articles]
+      .filter((article, index, list) => list.findIndex((candidate) =>
+        candidate.headline === article.headline && candidate.sourceUrl === article.sourceUrl,
+      ) === index);
     if (player.name.trim().length < 3) continue;
+    const teammates = playersByTeam.get(player.team) || [];
     const matching = articles
       .filter((article) => {
         const published = Date.parse(article.publishedAt);
-        const classification = classify(article.headline);
+        const classification = classifyHeadline(article.headline);
         return (
-          headlineMentionsName(article.headline, player.name) &&
+          articleMentionsPlayer(article, player, teammates) &&
           Number.isFinite(published) &&
           now - published <= maximumAge(classification.category)
         );
       })
-      .slice(0, 4)
+      .slice(0, 6)
       .map((article): Omit<ExternalNewsSignal, 'verification' | 'corroboratingSourceCount'> => {
         const tier = sourceTier(article.source, article.sourceUrl);
-        const classification = classify(article.headline);
+        const classification = classifyHeadline(article.headline);
         return {
           ...article,
           tier,
@@ -257,11 +339,17 @@ export async function getExternalNewsSignals(
     if (verified.length) result.set(player.id, verified);
   }
 
-  const ok = candidates.length === 0 ? true : okFeeds / candidates.length >= 0.5;
+  const checkedIds = new Set([...individuallyCheckedIds, ...officialClubCheckedIds]);
+  const ok = candidates.length === 0 ? true : checkedIds.size / candidates.length >= 0.5;
   return {
     signals: result,
-    // A failed scan must not be counted as "news verified" downstream.
-    checkedIds: ok ? new Set(candidates.map((player) => player.id)) : new Set<number>(),
+    // Per-player success prevents one failed feed from being misreported as a
+    // successful check merely because other parallel requests worked.
+    checkedIds: ok ? checkedIds : new Set<number>(),
+    officialClubCheckedIds: ok ? officialClubCheckedIds : new Set<number>(),
+    officialClubFeedsChecked: officialFeeds.filter(({ feed }) => feed.ok).length,
+    officialClubFeedsAttempted: officialFeeds.length,
+    officialClubSignals: [...result.values()].flat().filter((signal) => signal.tier === 'official').length,
     checkedAt: new Date().toISOString(),
     ok,
   };
@@ -274,6 +362,9 @@ export function applyExternalNewsSignals(
   return players.map((player) => {
     const externalNews = scan.signals.get(player.id) || [];
     const newsCheckedAt = scan.checkedIds.has(player.id) ? scan.checkedAt : undefined;
+    const officialClubNewsCheckedAt = scan.officialClubCheckedIds.has(player.id)
+      ? scan.checkedAt
+      : undefined;
     const trustedHigh = externalNews.some(
       (signal) => signal.severity === 'high' && (signal.verification === 'confirmed' || signal.verification === 'corroborated'),
     );
@@ -283,7 +374,9 @@ export function applyExternalNewsSignals(
     const singleReliableWarning = externalNews.some(
       (signal) => signal.tier === 'reliable' && signal.verification === 'single-source' && signal.severity !== 'low',
     );
-    if (!externalNews.length) return newsCheckedAt ? { ...player, newsCheckedAt } : player;
+    if (!externalNews.length) return newsCheckedAt
+      ? { ...player, newsCheckedAt, officialClubNewsCheckedAt }
+      : player;
 
     const projectionFactor = trustedHigh ? 0.45 : trustedMedium ? 0.72 : singleReliableWarning ? 0.9 : 1;
     // Keep every availability-dependent field consistent. Previously the
@@ -295,11 +388,20 @@ export function applyExternalNewsSignals(
     const expectedPoints = Number(
       (player.expectedPoints * projectionFactor).toFixed(2),
     );
+    const risk = trustedHigh
+      ? Math.max(player.risk, 62)
+      : trustedMedium
+        ? Math.max(player.risk, 42)
+        : singleReliableWarning
+          ? Math.max(player.risk, 28)
+          : player.risk;
+    const riskLevel = risk >= 60 ? 'high' as const : risk >= 30 ? 'medium' as const : 'low' as const;
 
     return {
       ...player,
       externalNews,
       newsCheckedAt,
+      officialClubNewsCheckedAt,
       expectedPoints,
       appearanceProbability,
       projection: {
@@ -331,13 +433,13 @@ export function applyExternalNewsSignals(
         : trustedMedium
           ? Math.min(player.predictedMinutes, 52)
           : player.predictedMinutes,
-      risk: trustedHigh
-        ? Math.max(player.risk, 62)
-        : trustedMedium
-          ? Math.max(player.risk, 42)
-          : singleReliableWarning
-            ? Math.max(player.risk, 28)
-            : player.risk,
+      risk,
+      riskBreakdown: player.riskBreakdown ? {
+        ...player.riskBreakdown,
+        news: Math.max(player.riskBreakdown.news, risk),
+        total: Math.max(player.riskBreakdown.total, risk),
+        level: riskLevel,
+      } : player.riskBreakdown,
     };
   });
 }

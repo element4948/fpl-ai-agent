@@ -7,6 +7,7 @@
 - API-Football availability depends on the key's plan and current-season coverage.
 - Structured international minutes cover only competitions and fixtures returned by the configured API-Football plan within the bounded recent window; missing coverage remains unknown rather than zero fatigue.
 - News matching/classification can miss aliases or ambiguous names. API-Football identity matching now rejects ambiguity, but transliteration/name changes can therefore leave valid evidence unmatched until an alias is added.
+- Official-club news uses bounded Google News RSS site queries rather than scraping club websites; indexing delays and clubs whose headlines omit the player's name can leave coverage incomplete.
 - FDR is a team-level difficulty signal and does not predict player minutes.
 - Expected Points is not calibrated against a multi-season automated backtest in this repository.
 - Beam search is bounded and can miss the mathematical global optimum.

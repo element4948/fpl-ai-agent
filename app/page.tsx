@@ -1362,6 +1362,15 @@ export default function Home() {
                                     : 'Key тохируулаагүй'}
                             </small>
                         </div>
+                        <div className={`engine-status ${boot?.newsVerification?.officialClubFeedsChecked ? 'good-engine' : ''}`}>
+                            <span>{boot?.newsVerification?.officialClubFeedsChecked ? '✓' : '△'}</span>
+                            <strong>Official Club News</strong>
+                            <small>
+                                {boot?.newsVerification
+                                    ? `${boot.newsVerification.officialClubFeedsChecked}/${boot.newsVerification.officialClubFeedsAttempted} клуб feed · ${boot.newsVerification.officialClubCheckedPlayers} тоглогч шалгасан · ${boot.newsVerification.officialClubSignals} official signal`
+                                    : 'Verified scan хүлээж байна'}
+                            </small>
+                        </div>
                         <div className="engine-facts">
                             <div><span>Players</span><b>{boot?.playerCount ?? '...'}</b></div>
                             <div><span>Teams</span><b>{boot?.teamCount ?? '...'}</b></div>
