@@ -203,6 +203,7 @@ export type ExternalNewsSignal = {
 export type ForecastPlayer = {
   id: number;
   name: string;
+  position: string;
   predicted: number;
 };
 
@@ -222,10 +223,34 @@ export type CalibrationActual = {
 export type CalibrationResult = {
   eventId: number;
   sampleSize: number;
+  sumPredicted: number;
+  sumActual: number;
   mae: number;
   bias: number;
   withinTwo: number;
+  perPosition: Record<string, CalibrationPositionResult>;
   evaluatedAt: string;
+};
+
+export type CalibrationPositionResult = {
+  sampleSize: number;
+  sumPredicted: number;
+  sumActual: number;
+  mae: number;
+  bias: number;
+  withinTwo: number;
+};
+
+export type CalibrationProfile = {
+  active: boolean;
+  events: number;
+  updatedAt: string;
+  positions: Record<string, {
+    active: boolean;
+    sampleSize: number;
+    rawMultiplier: number;
+    multiplier: number;
+  }>;
 };
 
 export type ModelReadiness = {
@@ -372,6 +397,11 @@ export type ModelPlayer = {
   ictIndex: number;
   expectedPoints: number;
   rawExpectedPoints: number;
+  calibration?: {
+    multiplier: number;
+    sampleSize: number;
+    events: number;
+  };
   appearanceProbability: number;
   defensiveContributionPoints: number;
   bonusPotential: number;

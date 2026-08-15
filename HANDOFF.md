@@ -67,6 +67,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-15 — Added shared KV forecast snapshots, Official FPL event-live evaluation and conservative position-level calibration correction after 3 events / 60 samples.
 - 2026-08-15 — Wired Official FPL recent-five starts/minutes/60+ rate/trend into role projections for a bounded shortlist and reduced overlapping API-Football role weight.
 - 2026-08-15 — Added one-per-club official news searches for shortlisted players, per-feed coverage, collision-safe aliases and correct independent-publisher corroboration.
 - 2026-08-15 — Added a bounded structured international-minutes scan, identity-safe joins, recovery-time fatigue adjustments, readiness/UI coverage and regression tests.

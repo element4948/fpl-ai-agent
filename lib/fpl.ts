@@ -49,6 +49,12 @@ export async function getFixtures() {
     return safeFetch<FplFixture[]>(`${FPL_BASE}/fixtures/`);
 }
 
+export async function getEventLive(eventId: number) {
+    return safeFetch<{ elements: Array<{ id: number; stats: { total_points: number } }> }>(
+        `${FPL_BASE}/event/${eventId}/live/`,
+    );
+}
+
 export async function getPlayerSummary(playerId: number) {
     return safeFetch<FplPlayerSummary>(`${FPL_BASE}/element-summary/${playerId}/`);
 }

@@ -1205,11 +1205,14 @@ export default function Home() {
     const primaryChip = decision?.chips?.[0] || chips[0];
     const captainPick = captain?.[0] || decision?.captain;
     const viceCaptainPick = captain?.[1] || decision?.viceCaptain;
-    const latestCalibration = calibrationResults.at(-1);
+    const measuredCalibration: CalibrationResult[] = boot?.serverCalibration?.results?.length
+        ? boot.serverCalibration.results
+        : calibrationResults;
+    const latestCalibration = measuredCalibration.at(-1);
     const readiness: ModelReadiness | undefined = boot?.readiness
         ? {
               ...boot.readiness,
-              calibration: Math.min(100, 10 + calibrationResults.length * 14),
+              calibration: Math.min(100, 10 + measuredCalibration.length * 14),
           }
         : undefined;
     const roadmap = analysis?.roadmap || decision?.roadmap || boot?.roadmap;
@@ -1458,10 +1461,17 @@ export default function Home() {
                                 : 'Calibration эхлэхэд live Gameweek-ийн нэг бүтэн forecast шаардлагатай.'}
                         </strong>
                         <span>
-                            {calibrationResults.length
-                                ? `${calibrationResults.length} Gameweek хэмжсэн · Bias ${latestCalibration?.bias ?? 0}`
+                            {measuredCalibration.length
+                                ? `${measuredCalibration.length} Gameweek хэмжсэн · Bias ${latestCalibration?.bias ?? 0}`
                                 : 'Таамгийг deadline-аас өмнө хадгалаад, Gameweek дууссаны дараа бодит оноотой автоматаар харьцуулна.'}
                         </span>
+                        {boot?.serverCalibration?.profile?.events ? (
+                            <span>
+                                Position correction: {Object.entries(boot.serverCalibration.profile.positions || {})
+                                    .map(([position, item]: [string, any]) => `${position} ×${item.multiplier}${item.active ? '' : ' (хүлээж байна)'}`)
+                                    .join(' · ')}
+                            </span>
+                        ) : null}
                     </div>
                 </Card>
 

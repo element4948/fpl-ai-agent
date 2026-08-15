@@ -12,8 +12,45 @@ import { splitTelegramMessage } from '@/lib/telegram';
 import { matchPlayerIdentity } from '@/lib/player-identity';
 import { calculateInternationalFatigueRisk } from '@/lib/api-football';
 import { applyRecentHistoryEvidence } from '@/lib/history-enrichment';
+import { applyCalibrationProfile, buildCalibrationProfile } from '@/lib/server-calibration';
 import type { FplPlayer } from '@/types/fpl';
 import { makePlayer, makeLegalSquad } from './helpers';
+
+describe('position calibration safety gates', () => {
+  const result = (eventId: number, sampleSize: number, predicted: number, actual: number) => ({
+    eventId,
+    sampleSize,
+    sumPredicted: predicted,
+    sumActual: actual,
+    mae: 1,
+    bias: 0,
+    withinTwo: 75,
+    perPosition: {
+      MID: { sampleSize, sumPredicted: predicted, sumActual: actual, mae: 1, bias: 0, withinTwo: 75 },
+    },
+    evaluatedAt: new Date(2026, 0, eventId).toISOString(),
+  });
+
+  it('does not correct projections from too little evidence', () => {
+    const profile = buildCalibrationProfile([result(1, 30, 120, 150), result(2, 30, 120, 150)]);
+    expect(profile.positions.MID.active).toBe(false);
+    expect(profile.positions.MID.multiplier).toBe(1);
+  });
+
+  it('applies a bounded, shrunk position correction after enough evidence', () => {
+    const profile = buildCalibrationProfile([
+      result(1, 25, 100, 140), result(2, 25, 100, 140), result(3, 25, 100, 140),
+    ]);
+    expect(profile.positions.MID.active).toBe(true);
+    expect(profile.positions.MID.multiplier).toBeGreaterThan(1);
+    expect(profile.positions.MID.multiplier).toBeLessThanOrEqual(1.12);
+    const mid = makePlayer({ position: 'MID', positionId: 3, expectedPoints: 5, price: 5 });
+    const defender = makePlayer({ id: 2, position: 'DEF', positionId: 2, expectedPoints: 5, price: 5 });
+    const calibrated = applyCalibrationProfile([mid, defender], profile);
+    expect(calibrated[0].expectedPoints).toBeGreaterThan(5);
+    expect(calibrated[1].expectedPoints).toBe(5);
+  });
+});
 
 function strongMid(id: number): ReturnType<typeof makePlayer> {
   return makePlayer({

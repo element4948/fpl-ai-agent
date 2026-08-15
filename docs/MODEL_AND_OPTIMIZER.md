@@ -20,6 +20,12 @@ Fixture is important but cannot rescue a player with poor appearance probability
 
 API-Football market odds are stored as corroborating evidence only. They are not yet added to Expected Points because doing so before calibration would double-count team strength already represented by FDR and projections.
 
+## Forecast calibration
+
+Before each deadline the verified dashboard stores the next-Gameweek forecast in the configured KV store. After a Gameweek is marked finished, the stored forecast is compared with Official FPL's event-live total points. MAE, bias and within-two-points accuracy are measured overall and by position.
+
+Calibration cannot alter recommendations from one noisy week. A position correction activates only after at least three measured Gameweeks and 60 matched player results. The observed actual/predicted ratio is shrunk toward 1.0 and hard-clamped to 0.88–1.12 before it scales current Expected Points and projection horizons. Missing KV configuration or live results leaves the base model unchanged.
+
 ## Starter and risk gates
 
 `lib/starter.ts` estimates starter confidence, predicted minutes, appearance probability, and starter label. `isReliableStarter` is the strict XI gate. Risk is never zero merely because evidence is missing.

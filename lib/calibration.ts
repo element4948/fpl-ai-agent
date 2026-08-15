@@ -38,6 +38,7 @@ export function saveForecast(
     players: players.map((player) => ({
       id: player.id,
       name: player.name,
+      position: player.position,
       predicted: player.projection?.next1 ?? player.expectedPoints,
     })),
   };
@@ -62,6 +63,9 @@ export function evaluateForecast(
   const comparisons = snapshot.players
     .filter((player) => actualMap.has(player.id))
     .map((player) => ({
+      position: player.position || 'UNKNOWN',
+      predicted: player.predicted,
+      actual: Number(actualMap.get(player.id)),
       error: player.predicted - Number(actualMap.get(player.id)),
     }));
   if (!comparisons.length) return existingResults;
@@ -69,6 +73,8 @@ export function evaluateForecast(
   const result: CalibrationResult = {
     eventId,
     sampleSize: comparisons.length,
+    sumPredicted: Number(comparisons.reduce((sum, item) => sum + item.predicted, 0).toFixed(2)),
+    sumActual: Number(comparisons.reduce((sum, item) => sum + item.actual, 0).toFixed(2)),
     mae: Number(
       (
         comparisons.reduce((sum, item) => sum + Math.abs(item.error), 0) /
@@ -85,6 +91,19 @@ export function evaluateForecast(
       (comparisons.filter((item) => Math.abs(item.error) <= 2).length /
         comparisons.length) *
         100,
+    ),
+    perPosition: Object.fromEntries(
+      [...new Set(comparisons.map((item) => item.position))].map((position) => {
+        const rows = comparisons.filter((item) => item.position === position);
+        return [position, {
+          sampleSize: rows.length,
+          sumPredicted: Number(rows.reduce((sum, item) => sum + item.predicted, 0).toFixed(2)),
+          sumActual: Number(rows.reduce((sum, item) => sum + item.actual, 0).toFixed(2)),
+          mae: Number((rows.reduce((sum, item) => sum + Math.abs(item.error), 0) / rows.length).toFixed(2)),
+          bias: Number((rows.reduce((sum, item) => sum + item.error, 0) / rows.length).toFixed(2)),
+          withinTwo: Math.round(rows.filter((item) => Math.abs(item.error) <= 2).length / rows.length * 100),
+        }];
+      }),
     ),
     evaluatedAt: new Date().toISOString(),
   };

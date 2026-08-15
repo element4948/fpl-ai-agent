@@ -10,7 +10,7 @@
 - News matching/classification can miss aliases or ambiguous names. API-Football identity matching now rejects ambiguity, but transliteration/name changes can therefore leave valid evidence unmatched until an alias is added.
 - Official-club news uses bounded Google News RSS site queries rather than scraping club websites; indexing delays and clubs whose headlines omit the player's name can leave coverage incomplete.
 - FDR is a team-level difficulty signal and does not predict player minutes.
-- Expected Points is not calibrated against a multi-season automated backtest in this repository.
+- Expected Points now has a rolling finished-Gameweek calibration loop, but it is not yet a multi-season production backtest. Position corrections remain inactive until at least three measured Gameweeks and 60 player comparisons exist for that position.
 - Beam search is bounded and can miss the mathematical global optimum.
 - FPL selling price can differ from current purchase price; transfer modeling is an approximation unless the exact entry selling price is available.
 
@@ -21,7 +21,7 @@
 - The system cannot read private pre-deadline picks from Official FPL.
 - It does not execute FPL actions.
 - Chip logic is advisory and not a full-season stochastic optimizer.
-- Cloud profile stores settings, not a complete historical database of every weekly squad/decision.
+- Cloud storage keeps settings plus bounded calibration forecasts/results; it is not a complete historical database of every weekly squad/decision.
 
 ## Engineering
 

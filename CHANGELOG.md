@@ -2,6 +2,7 @@
 
 ## 2026-08-15
 
+- Added a shared server-side forecast calibration loop using finished-Gameweek Official FPL live points, position-level MAE/bias tracking, and conservative sample-gated projection correction.
 - Added bounded Official FPL recent-five history enrichment for starter confidence, predicted minutes, role trend and draft eligibility, with API-Football overlap de-duplicated.
 - Added one-per-club official-domain news searches for verified draft candidates, conservative player-name aliases, per-feed coverage, and correct publisher-domain corroboration.
 - Made confirmed/corroborated news update risk breakdown consistently with availability, minutes and projections.

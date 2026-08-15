@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { unstable_cache } from 'next/cache';
-import { getBootstrap, getFixtures, nextEvent, toModelPlayers } from '@/lib/fpl';
+import { getBootstrap, getEventLive, getFixtures, nextEvent, toModelPlayers } from '@/lib/fpl';
 import { buildDraft } from '@/lib/rules';
 import { rankCaptainCandidates, topTargetsByPosition } from '@/lib/scoring';
 import { chipPlanner } from '@/lib/chips';
@@ -10,6 +10,7 @@ import { buildModelReadiness } from '@/lib/readiness';
 import { buildSeasonRoadmap } from '@/lib/season-roadmap';
 import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-football';
 import { applyRecentHistoryEvidence, getRecentHistoryEvidence } from '@/lib/history-enrichment';
+import { applyCalibrationProfile, refreshServerCalibration, saveServerForecast } from '@/lib/server-calibration';
 
 export const revalidate = 900;
 // The verified dashboard fans out to API-Football + news feeds; the default
@@ -40,13 +41,13 @@ export async function GET(request: Request) {
 
 const getFastDashboard = unstable_cache(
   () => buildDashboardPayload(true),
-  ['fpl-dashboard-fast-v21-recent-history'],
+  ['fpl-dashboard-fast-v22-calibration'],
   { revalidate: 300 },
 );
 
 const getVerifiedDashboard = unstable_cache(
   () => buildDashboardPayload(false),
-  ['fpl-dashboard-verified-v21-recent-history'],
+  ['fpl-dashboard-verified-v22-calibration'],
   { revalidate: 900 },
 );
 
@@ -85,7 +86,7 @@ async function buildDashboardPayload(fast: boolean) {
   const modes = fast
     ? (['Best'] as const)
     : (['Best','Alternative','Differential','Safe'] as const);
-  const players = newsScan ? applyExternalNewsSignals(statsPlayers, newsScan) : statsPlayers;
+  const evidencePlayers = newsScan ? applyExternalNewsSignals(statsPlayers, newsScan) : statsPlayers;
   const isOldGw38 = next?.name?.includes('38') && next?.deadline_time && new Date(next.deadline_time).getTime() < Date.now();
   const isPreSeason = completedGameweeks === 0 || !next || !next.deadline_time || !!isOldGw38;
   const lastFinishedEvent = [...boot.events]
@@ -95,12 +96,23 @@ async function buildDashboardPayload(fast: boolean) {
     (event) => event.is_current && !event.finished,
   );
   const calibrationEvent = liveUnfinishedEvent ? null : lastFinishedEvent;
+  const eventLive = !fast && calibrationEvent ? await getEventLive(calibrationEvent.id) : null;
+  const calibrationActuals = eventLive?.elements.map((player) => ({
+    id: player.id,
+    name: boot.elements.find((item) => item.id === player.id)?.web_name || String(player.id),
+    points: Number(player.stats.total_points || 0),
+  })) || [];
+  const serverCalibration = fast
+    ? { configured: false, results: [], profile: { active: false, events: 0, updatedAt: new Date().toISOString(), positions: {} } }
+    : await refreshServerCalibration(calibrationEvent?.id, calibrationActuals);
+  const players = applyCalibrationProfile(evidencePlayers, serverCalibration.profile);
   const topPlayers = [...players].sort((a,b) => (b.expectedPoints + b.valueScore - b.risk * 0.03) - (a.expectedPoints + a.valueScore - a.risk * 0.03)).slice(0, 40);
   // Always return usable Official-FPL drafts in the fast response. External
   // verification can replace them later, but a failed/slow enrichment request
   // must never leave the Draft Teams section empty.
   const drafts = modes.map((mode) => buildDraft(players, mode, fast ? 'fast' : 'full'));
   const roadmap = fast ? null : buildSeasonRoadmap(drafts[0]?.players || [], players);
+  if (!fast) await saveServerForecast(next?.id, next?.deadline_time, players);
   return {
     nextEvent: isPreSeason ? null : next,
     isPreSeason,
@@ -152,16 +164,13 @@ async function buildDashboardPayload(fast: boolean) {
     topTargets: topTargetsByPosition(players),
     captainShortlist: rankCaptainCandidates(players, 10),
     riskMonitor: buildRiskMonitor(players).slice(0, 30),
-    readiness: buildModelReadiness(players),
+    readiness: buildModelReadiness(players, serverCalibration.results),
+    serverCalibration,
     roadmap,
     calibration: calibrationEvent
       ? {
           eventId: calibrationEvent.id,
-          actuals: boot.elements.map((player) => ({
-            id: player.id,
-            name: player.web_name,
-            points: Number(player.event_points || 0),
-          })),
+          actuals: calibrationActuals,
         }
       : null,
     drafts,
