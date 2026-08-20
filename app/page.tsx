@@ -377,7 +377,7 @@ function DraftPlayerTile({ player, role, audit }: { player: ModelPlayer; role: '
 function PitchPlayerTile({ player }: { player: ModelPlayer }) {
     const starterTone =
         player.starterConfidence >= 75 ? 'draft-confidence-good' : player.starterConfidence >= 55 ? 'draft-confidence-medium' : 'draft-confidence-low';
-    const fixtures = player.fixture?.fixtures.slice(0, 3) || [];
+    const fixtures = player.fixture?.fixtures.slice(0, 5) || [];
     const warning = player.signals?.some((signal) => signal.severity === 'high') || player.starterConfidence < 55;
 
     return (
@@ -398,7 +398,7 @@ function PitchPlayerTile({ player }: { player: ModelPlayer }) {
                 <span><small>Risk</small><b>{player.risk}%</b></span>
             </div>
 
-            <div className="pitch-player-fixtures" aria-label="Дараагийн 3 тоглолт">
+            <div className="pitch-player-fixtures" aria-label="Дараагийн 5 тоглолт">
                 {fixtures.length ? fixtures.map((fixture, index) => (
                     <span
                         className={`fdr-bg-${Math.round(fixture.difficulty)}`}

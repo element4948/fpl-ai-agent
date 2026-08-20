@@ -67,7 +67,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
-- 2026-08-21 — Replaced dense, variable Starting XI cards with a uniform readable pitch-specific card; detailed evidence remains one click away.
+- 2026-08-21 — Replaced dense, variable Starting XI cards with a uniform readable pitch-specific card while retaining the full next-five fixture run; detailed evidence remains one click away.
 - 2026-08-21 — Used the owner's local screenshot to identify intrinsic grid-column overflow; constrained formation rows/cards to the pitch so Starting XI no longer shifts right over the bench.
 - 2026-08-21 — Corrected pitch row/marking orientation and added deduplicated 24h/6h/90m deadline reminders to the scheduled critical monitor.
 - 2026-08-21 — Added My Team-first monitoring, clustered critical news, a single deadline-decision contract/UI and response cache/latency telemetry.

@@ -18,7 +18,7 @@
 
 ## Unreleased
 
-- Rebuilt Starting XI pitch cards as a consistent compact view with readable name/price, three decision metrics, three fixtures, risk warning and one detail action; dense audit content remains available outside the pitch.
+- Rebuilt Starting XI pitch cards as a consistent compact view with readable name/price, three decision metrics, the full next-five fixture run, risk warning and one detail action; dense audit content remains available outside the pitch.
 - Corrected the Starting XI pitch order and center-line orientation; forwards now appear ahead of midfield, defence, and goalkeeper on every responsive layout.
 - Removed clipped fixed-height Starting XI cards and constrained every formation row to an explicit pitch column, preventing intrinsic-width overflow into the bench while keeping rows centered across desktop and mobile.
 - Scheduled a 30-minute critical-change monitor with KV-safe, decision-aware Telegram reminders at 24h, 6h, and 90m before the deadline.
