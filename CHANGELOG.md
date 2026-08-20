@@ -19,7 +19,7 @@
 ## Unreleased
 
 - Corrected the Starting XI pitch order and center-line orientation; forwards now appear ahead of midfield, defence, and goalkeeper on every responsive layout.
-- Removed clipped fixed-height Starting XI cards and centered every formation row using content-aware pitch sizing across desktop and mobile.
+- Removed clipped fixed-height Starting XI cards and constrained every formation row to an explicit pitch column, preventing intrinsic-width overflow into the bench while keeping rows centered across desktop and mobile.
 - Scheduled a 30-minute critical-change monitor with KV-safe, decision-aware Telegram reminders at 24h, 6h, and 90m before the deadline.
 - Added My Team-first monitoring across decision/Telegram flows, semantic news clustering with source counts, a compact deadline-decision contract/UI, bounded decision enrichment, and cache-age delivery telemetry.
 - Added bounded verified-provider latency, per-source timing/timeout status, a Best-squad-first critical-news brief, browser-side new-item detection, and conservative trusted-claim conflict resolution.

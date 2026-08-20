@@ -18,7 +18,7 @@
 
 - Branch: `main`
 - Last committed baseline before this session: `157c16a` (stale player-evidence guard).
-- Current change set: corrected Starting XI pitch order, centering and unclipped content plus scheduled deadline-window/critical-change Telegram monitoring on top of the My Team decision contract.
+- Current change set: corrected Starting XI pitch order/content and explicitly constrained formation rows so they center inside the pitch without overflowing into the bench; scheduled deadline-window/critical-change Telegram monitoring is also complete.
 - Verification in this workspace: `npm run typecheck`, all 70 tests, and `npm run build` pass. Browser visual QA was unavailable because no in-app/external browser binding was connected; desktop and mobile pitch rules were both inspected directly.
 - Working tree should be clean after the current scoped commit. Local commits are not pushed unless the owner asks.
 
@@ -67,7 +67,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
-- 2026-08-21 — Removed fixed-height clipping from Starting XI cards and made every formation line content-sized and centered on desktop/mobile.
+- 2026-08-21 — Used the owner's local screenshot to identify intrinsic grid-column overflow; constrained formation rows/cards to the pitch so Starting XI no longer shifts right over the bench.
 - 2026-08-21 — Corrected pitch row/marking orientation and added deduplicated 24h/6h/90m deadline reminders to the scheduled critical monitor.
 - 2026-08-21 — Added My Team-first monitoring, clustered critical news, a single deadline-decision contract/UI and response cache/latency telemetry.
 - 2026-08-20 — Added provider time budgets/timing, Best-squad-first critical updates, cached new-item detection and conservative injury/transfer contradiction resolution.
