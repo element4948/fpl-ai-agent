@@ -18,6 +18,8 @@
 
 ## Unreleased
 
+- Corrected the Starting XI pitch order and center-line orientation; forwards now appear ahead of midfield, defence, and goalkeeper on every responsive layout.
+- Scheduled a 30-minute critical-change monitor with KV-safe, decision-aware Telegram reminders at 24h, 6h, and 90m before the deadline.
 - Added My Team-first monitoring across decision/Telegram flows, semantic news clustering with source counts, a compact deadline-decision contract/UI, bounded decision enrichment, and cache-age delivery telemetry.
 - Added bounded verified-provider latency, per-source timing/timeout status, a Best-squad-first critical-news brief, browser-side new-item detection, and conservative trusted-claim conflict resolution.
 - Hardened official-news hostname verification, changed corroboration from category-level to semantic claim-level, and separated unrelated headlines from availability evidence.

@@ -32,6 +32,7 @@ League standings ─────────────────────
 - `league`: reads the first standings page and returns managers above the owner plus a basic gap strategy.
 - `player/:id`: detailed history, upcoming fixtures, external evidence.
 - `profile`/`session`: optional single-owner cloud settings.
+- `notify/urgent`: 30-minute change monitor for deduplicated critical news plus 24h/6h/90m deadline decision reminders. Reminder keys include the decision signature, so unchanged advice is not resent.
 
 ## Domain pipeline
 

@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server';
-import { currentEvent, getBootstrap, getEntryPicks, getFixtures, nextEvent, toModelPlayers } from '@/lib/fpl';
-import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external-news';
-import { buildSquadAlerts } from '@/lib/squad-alerts';
+import { alertKey, alertStoreConfigured, markAlertSent, wasAlertSent } from '@/lib/alert-store';
+import { buildDeadlineAlert, deadlineWindow } from '@/lib/deadline-alert';
+import { gatherDigest } from '@/lib/notify-core';
 import { sendTelegramMessage, telegramConfigured, telegramStatus } from '@/lib/telegram';
-import { alertKey, markAlertSent, wasAlertSent } from '@/lib/alert-store';
-import type { ModelPlayer } from '@/types/fpl';
 
-// Urgent tier: run frequently (e.g. every 30 min via GitHub Actions) and push
-// ONLY new high-severity items (confirmed injuries / ruled out / suspensions /
-// confirmed transfers) the moment they appear. KV dedup stops repeats.
+// Frequent change monitor: sends newly discovered high-severity news and
+// deduplicated 24h / 6h / 90m decision reminders. KV is required for deadline
+// reminders so a missing store can never spam the owner on every cron run.
 export const maxDuration = 60;
 
 export async function GET(request: Request) {
@@ -20,49 +18,62 @@ export async function GET(request: Request) {
         return NextResponse.json({ ok: false, skipped: 'telegram-not-configured', have: telegramStatus() });
     }
 
-    const [boot, fixtures] = await Promise.all([getBootstrap(), getFixtures()]);
-    if (!boot) return NextResponse.json({ error: 'FPL API unavailable' });
+    const data = await gatherDigest();
+    if (!data.ok) return NextResponse.json({ error: data.reason || 'FPL API unavailable' });
 
-    const next = nextEvent(boot.events);
-    const completed = boot.events.filter((e) => e.finished).length;
-    const players = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], next?.id, completed);
-
-    // Focus = the owner's squad in-season, else a watchlist of top players.
-    const entryId = process.env.FPL_ENTRY_ID;
-    const event = currentEvent(boot.events);
-    const picks = entryId && event?.id ? await getEntryPicks(entryId, event.id) : null;
-    const pickIds = picks?.picks?.map((p) => p.element) || [];
-    const relevance = (p: ModelPlayer) => p.expectedPoints + p.valueScore * 0.4 + p.ownership * 0.03;
-    const focusIds = pickIds.length >= 11
-        ? pickIds
-        : [...players].sort((a, b) => relevance(b) - relevance(a)).slice(0, 24).map((p) => p.id);
-
-    const focus = players.filter((p) => focusIds.includes(p.id));
-    const enriched = applyExternalNewsSignals(focus, await getExternalNewsSignals(focus, focusIds));
-
-    // Only high-severity items count as urgent.
-    const urgent = buildSquadAlerts(enriched).filter((a) => a.severity === 'high');
-
-    // Skip anything already sent (KV dedup). Collect genuinely new ones.
-    const fresh: typeof urgent = [];
-    for (const alert of urgent) {
+    const highAlerts = data.alerts.filter((alert) => alert.severity === 'high');
+    const freshAlerts = [] as typeof highAlerts;
+    const sentKeys: string[] = [];
+    for (const alert of highAlerts) {
         const key = alertKey(alert.playerId, alert.message);
         if (await wasAlertSent(key)) continue;
-        fresh.push(alert);
+        freshAlerts.push(alert);
+        sentKeys.push(key);
     }
 
-    if (!fresh.length) {
-        return NextResponse.json({ ok: true, sent: 0 });
+    const blocks: string[] = [];
+    if (freshAlerts.length) {
+        const lines = freshAlerts.slice(0, 15).map((alert) => `🔴 ${alert.name} (${alert.team}): ${alert.message}`);
+        blocks.push(`🚨 Яаралтай FPL мэдэгдэл\n\n${lines.join('\n')}`);
     }
 
-    const lines = fresh.slice(0, 15).map((a) => `🔴 ${a.name} (${a.team}): ${a.message}`);
-    const message = `🚨 Яаралтай FPL мэдэгдэл\n\n${lines.join('\n')}`;
-    const result = await sendTelegramMessage(message);
+    const window = deadlineWindow(data.deadlineIso, Date.now());
+    let deadlineIncluded = false;
+    if (window && alertStoreConfigured()) {
+        const reminder = buildDeadlineAlert({
+            eventName: data.eventName,
+            window,
+            captain: data.captain,
+            vice: data.vice,
+            transfer: data.transfer,
+            chip: data.chip,
+            highRiskCount: highAlerts.length,
+        });
+        if (!(await wasAlertSent(reminder.key))) {
+            blocks.push(reminder.message);
+            sentKeys.push(reminder.key);
+            deadlineIncluded = true;
+        }
+    }
 
-    // Only mark as sent if delivery succeeded, so a failed send retries next run.
+    if (!blocks.length) {
+        return NextResponse.json({
+            ok: true,
+            sent: 0,
+            deadlineWindow: window,
+            deadlineSkipped: Boolean(window && !alertStoreConfigured()),
+        });
+    }
+
+    const result = await sendTelegramMessage(blocks.join('\n\n'));
     if (result.ok) {
-        for (const alert of fresh) await markAlertSent(alertKey(alert.playerId, alert.message));
+        for (const key of sentKeys) await markAlertSent(key);
     }
 
-    return NextResponse.json({ ok: result.ok, sent: result.ok ? fresh.length : 0, ...(result.error ? { error: result.error } : {}) });
+    return NextResponse.json({
+        ok: result.ok,
+        sent: result.ok ? freshAlerts.length : 0,
+        deadlineReminder: result.ok && deadlineIncluded,
+        ...(result.error ? { error: result.error } : {}),
+    });
 }

@@ -569,6 +569,7 @@ function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUs
     const remainingBudget = Number(Math.max(0, 100 - totalCost).toFixed(1));
     const playerCount = draft.players?.length || 0;
     const positions = ['GKP', 'DEF', 'MID', 'FWD'];
+    const pitchPositions = ['FWD', 'MID', 'DEF', 'GKP'];
     const finalReady = draft.validation.valid && draft.trust?.status === 'verified';
     const positionAudit = positions.map((position) => {
         const players = (draft.players || []).filter((player: ModelPlayer) => player.position === position);
@@ -755,7 +756,7 @@ function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUs
                         </div>
 
                         <div className="football-pitch">
-                            {positions.map((position) => {
+                            {pitchPositions.map((position) => {
                                 const players = (draft.startingXI || []).filter((player: ModelPlayer) => player.position === position);
                                 if (!players.length) return null;
                                 return (

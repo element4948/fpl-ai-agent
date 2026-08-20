@@ -57,6 +57,8 @@ Request `/api/bootstrap` and repeat for Best, Alternative, Differential, and Saf
 23. Deadline decision: one response contains captain/vice, transfer-or-hold, chip, 11-player legal XI, four-player bench, critical risks and readiness.
 24. News clustering/priority: equivalent claims collapse to the strongest source with source count; My Team precedes transfer targets and general Best-draft news.
 25. Recent minutes: five strong starts raise minutes confidence, repeated low-minute appearances lower it, empty/pre-season history has no effect, and API-Football does not reapply the same current-match role at full weight.
+26. Starting XI pitch: rows render FWD, MID, DEF, GKP from top to bottom and the pitch center line runs horizontally on desktop and mobile.
+27. Deadline reminders: 24h/6h/90m windows select correctly, expired deadlines do not send, and an unchanged decision produces the same dedup key.
 
 ## Transfer checks
 

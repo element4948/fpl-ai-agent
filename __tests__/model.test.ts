@@ -18,6 +18,7 @@ import { makePlayer, makeLegalSquad } from './helpers';
 import { applyDataFreshnessGuard, freshnessStatus, hasFreshRoleEvidence } from '@/lib/data-freshness';
 import { withTimeBudget } from '@/lib/provider-budget';
 import { buildDecision } from '@/lib/decision';
+import { buildDeadlineAlert, deadlineWindow } from '@/lib/deadline-alert';
 
 describe('data freshness guard', () => {
   const now = new Date('2026-08-15T09:00:00Z');
@@ -671,6 +672,33 @@ describe('digest formatting', () => {
     expect(msg).toContain('X → Y');
     expect(msg).toContain('Friends');
     expect(msg).not.toContain('баталгаажаагүй');
+  });
+});
+
+describe('deadline reminders', () => {
+  const deadline = new Date('2026-08-22T12:00:00Z').toISOString();
+
+  it('selects the nearest configured reminder window and ignores expired deadlines', () => {
+    expect(deadlineWindow(deadline, Date.parse('2026-08-21T13:00:00Z'))).toBe('24h');
+    expect(deadlineWindow(deadline, Date.parse('2026-08-22T07:00:00Z'))).toBe('6h');
+    expect(deadlineWindow(deadline, Date.parse('2026-08-22T11:00:00Z'))).toBe('90m');
+    expect(deadlineWindow(deadline, Date.parse('2026-08-22T12:00:01Z'))).toBeNull();
+  });
+
+  it('deduplicates an unchanged decision but changes key when the decision changes', () => {
+    const base = {
+      eventName: 'Gameweek 1', window: '6h' as const,
+      captain: { name: 'Salah', team: 'LIV', points: 7 },
+      vice: { name: 'Palmer', team: 'CHE', points: 6 },
+      transfer: { label: 'hold', moves: [], netGain: 0 },
+      chip: { chip: 'Wildcard', action: 'Hold', confidence: 80, reason: 'No edge' },
+      highRiskCount: 0,
+    };
+    const first = buildDeadlineAlert(base);
+    expect(buildDeadlineAlert(base).key).toBe(first.key);
+    expect(buildDeadlineAlert({ ...base, highRiskCount: 1 }).key).not.toBe(first.key);
+    expect(first.message).toContain('Captain: Salah');
+    expect(first.message).toContain('Transfer: Hold');
   });
 });
 
