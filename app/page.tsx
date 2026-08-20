@@ -374,6 +374,48 @@ function DraftPlayerTile({ player, role, audit }: { player: ModelPlayer; role: '
     );
 }
 
+function PitchPlayerTile({ player }: { player: ModelPlayer }) {
+    const starterTone =
+        player.starterConfidence >= 75 ? 'draft-confidence-good' : player.starterConfidence >= 55 ? 'draft-confidence-medium' : 'draft-confidence-low';
+    const fixtures = player.fixture?.fixtures.slice(0, 3) || [];
+    const warning = player.signals?.some((signal) => signal.severity === 'high') || player.starterConfidence < 55;
+
+    return (
+        <article className={`pitch-player-card ${starterTone}`} aria-label={`${player.name}, ${player.team}, ${player.position}`}>
+            <header>
+                <div>
+                    <strong title={player.name}>{player.name}</strong>
+                    <span>{player.team} · {player.position}</span>
+                </div>
+                <b>£{player.price.toFixed(1)}m</b>
+            </header>
+
+            {warning ? <div className="pitch-player-warning">! Гарааг дахин шалга</div> : null}
+
+            <div className="pitch-player-metrics">
+                <span><small>xP</small><b>{player.expectedPoints.toFixed(1)}</b></span>
+                <span><small>Starter</small><b>{player.starterConfidence}%</b></span>
+                <span><small>Risk</small><b>{player.risk}%</b></span>
+            </div>
+
+            <div className="pitch-player-fixtures" aria-label="Дараагийн 3 тоглолт">
+                {fixtures.length ? fixtures.map((fixture, index) => (
+                    <span
+                        className={`fdr-bg-${Math.round(fixture.difficulty)}`}
+                        title={`${fixture.opponentName} · ${fixture.isHome ? 'талбайдаа' : 'айлд'} · FDR ${fixture.difficulty}`}
+                        key={`${fixture.opponent}-${fixture.event}-${index}`}
+                    >
+                        <b>{fixture.opponentName}</b>
+                        <small>{fixture.isHome ? 'H' : 'A'} · {fixture.difficulty}</small>
+                    </span>
+                )) : <em>Fixture тодорхойгүй</em>}
+            </div>
+
+            <PlayerDetailButton playerId={player.id} />
+        </article>
+    );
+}
+
 function TargetRow({ player, rank }: { player: ModelPlayer; rank: number }) {
     const starterTone = player.starterConfidence >= 75 ? 'green' : player.starterConfidence < 55 ? 'red' : '';
 
@@ -762,7 +804,7 @@ function DraftCard({ draft, lang, onUse }: { draft: Any; lang: 'mn' | 'en'; onUs
                                 return (
                                     <div className={`pitch-line pitch-${position.toLowerCase()}`} key={position}>
                                         {players.map((player: ModelPlayer) => (
-                                            <DraftPlayerTile player={player} role="starter" audit={draft.selectionAudit?.[player.id]} key={player.id} />
+                                            <PitchPlayerTile player={player} key={player.id} />
                                         ))}
                                     </div>
                                 );
