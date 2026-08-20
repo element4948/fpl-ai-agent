@@ -18,6 +18,7 @@
 
 ## Unreleased
 
+- Added bounded verified-provider latency, per-source timing/timeout status, a Best-squad-first critical-news brief, browser-side new-item detection, and conservative trusted-claim conflict resolution.
 - Hardened official-news hostname verification, changed corroboration from category-level to semantic claim-level, and separated unrelated headlines from availability evidence.
 - Kept legal squad validation separate from evidence trust and made verified dashboard payloads explicitly degraded while draft evidence remains incomplete.
 - Added provider-ID, current-team and full/display-name identity verification for API-Football evidence; ambiguous same-team matches are rejected before they can alter projections.

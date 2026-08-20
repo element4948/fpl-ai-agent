@@ -18,8 +18,8 @@
 
 - Branch: `main`
 - Last committed baseline before this session: `157c16a` (stale player-evidence guard).
-- Current change set: exact official-news domains, semantic claim corroboration, unrelated-news filtering, legal/trust separation and dashboard cache v26.
-- Verification in this workspace: `npm run typecheck`, `npm run test` (61 tests), and `npm run build` succeed. Fast live bootstrap returns a legal 15-player draft separately marked evidence-insufficient; the full enrichment route returned HTTP 200 but its large response could not be captured reliably by the local shell after the 104-second provider scan.
+- Current change set: bounded verified-provider latency, critical-news/new-item summary, trusted-claim conflict resolution and dashboard/server cache v27.
+- Verification in this workspace: `npm run typecheck`, all 64 tests, and `npm run build` pass. The production server starts successfully on port 3002; cross-session localhost curl did not reach the server in this sandbox, so re-check cold `/api/bootstrap` timing in deployment while `providerTimings` reports each budget/timeout.
 - Working tree should be clean after the current scoped commit. Local commits are not pushed unless the owner asks.
 
 ## In progress / not finished
@@ -67,6 +67,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-20 — Added provider time budgets/timing, Best-squad-first critical updates, cached new-item detection and conservative injury/transfer contradiction resolution.
 - 2026-08-20 — Hardened official-news domains and claim corroboration; separated legal validation from evidence trust and exposed limited verified drafts as degraded.
 - 2026-08-15 — Added Fresh/Aging/Stale/Missing source tracking; expired uncorroborated first-choice evidence can no longer boost starter minutes, xP or Draft XI eligibility.
 - 2026-08-15 — Added live calibration safety states, baseline-vs-calibrated MAE tracking and automatic rollback on measured degradation.

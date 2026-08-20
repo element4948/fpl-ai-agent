@@ -1,4 +1,4 @@
-import type { ExternalNewsSignal, ModelPlayer } from '@/types/fpl';
+import type { ExternalNewsSignal, ModelPlayer, NewsConflict } from '@/types/fpl';
 
 const MAX_CANDIDATES_PER_POSITION = 6;
 const MAX_VERIFICATION_CANDIDATES = 48;
@@ -20,6 +20,7 @@ export type ExternalNewsScan = {
   officialClubFeedsChecked: number;
   officialClubFeedsAttempted: number;
   officialClubSignals: number;
+  conflicts: NewsConflict[];
   // False when the news feed itself failed (timeouts / rate limiting), so a
   // failed scan is not mistaken for "scanned, everyone is fit".
   ok: boolean;
@@ -128,6 +129,9 @@ export function headlineMentionsName(headline: string, name: string): boolean {
 
 export function classifyHeadline(headline: string): Pick<ExternalNewsSignal, 'category' | 'severity'> {
   const text = headline.toLowerCase();
+  if (/set to stay|expected to stay|will stay|stays? at|not for sale|rules out (a )?(move|transfer)|move ruled out/.test(text)) {
+    return { category: 'transfer', severity: 'low' };
+  }
   if (/back in training|returns? to training|returns? from injury|fit again|available for selection|declared fit/.test(text)) {
     return { category: 'availability', severity: 'low' };
   }
@@ -186,6 +190,7 @@ function claimKey(signal: Pick<ExternalNewsSignal, 'headline' | 'category' | 'se
     return `injury:${signal.severity}`;
   }
   if (signal.category === 'transfer') {
+    if (/set to stay|expected to stay|will stay|stays? at|not for sale|rules out (a )?(move|transfer)|move ruled out/.test(text)) return 'transfer:stay';
     if (/completes? (a )?(move|transfer)|joins? .+ on loan|loan move|leaves? (the )?club/.test(text)) return 'transfer:move';
     if (/agrees terms|set to leave|expected to leave|wants exit/.test(text)) return 'transfer:exit';
     if (/transfer talks/.test(text)) return 'transfer:talks';
@@ -198,6 +203,69 @@ function claimKey(signal: Pick<ExternalNewsSignal, 'headline' | 'category' | 'se
   if (signal.category === 'international') return `international:${signal.severity}`;
   if (signal.category === 'friendly') return `friendly:${signal.severity}`;
   return `other:${text.replace(/[^a-z0-9]+/g, ' ').trim()}`;
+}
+
+function authorityScore(signal: ExternalNewsSignal) {
+  return signal.tier === 'official' ? 3 : signal.tier === 'reliable' ? 2 : 1;
+}
+
+function isTrustedForConflict(signal: ExternalNewsSignal) {
+  return signal.verification === 'confirmed' ||
+    signal.verification === 'corroborated' ||
+    (signal.tier === 'reliable' && signal.verification === 'single-source');
+}
+
+function preferredSignal(signals: ExternalNewsSignal[]) {
+  return [...signals].sort((a, b) =>
+    authorityScore(b) - authorityScore(a) ||
+    (Date.parse(b.publishedAt) || 0) - (Date.parse(a.publishedAt) || 0),
+  )[0];
+}
+
+export function resolveSignalConflicts(
+  player: Pick<ModelPlayer, 'id' | 'name'>,
+  signals: ExternalNewsSignal[],
+): { signals: ExternalNewsSignal[]; conflicts: NewsConflict[] } {
+  const active = new Set(signals);
+  const conflicts: NewsConflict[] = [];
+  const pairs: Array<{
+    topic: NewsConflict['topic'];
+    positive: (signal: ExternalNewsSignal) => boolean;
+    negative: (signal: ExternalNewsSignal) => boolean;
+  }> = [
+    {
+      topic: 'availability',
+      positive: (signal) => signal.category === 'availability',
+      negative: (signal) => signal.category === 'injury' && signal.severity !== 'low',
+    },
+    {
+      topic: 'transfer',
+      positive: (signal) => claimKey(signal) === 'transfer:stay',
+      negative: (signal) => signal.category === 'transfer' && signal.severity === 'high',
+    },
+  ];
+  for (const pair of pairs) {
+    const positive = signals.filter((signal) => pair.positive(signal) && isTrustedForConflict(signal));
+    const negative = signals.filter((signal) => pair.negative(signal) && isTrustedForConflict(signal));
+    if (!positive.length || !negative.length) continue;
+    const positiveBest = preferredSignal(positive);
+    const negativeBest = preferredSignal(negative);
+    const winner = preferredSignal([positiveBest, negativeBest]);
+    const losingSide = winner === positiveBest ? negative : positive;
+    for (const loser of losingSide) active.delete(loser);
+    const superseded = preferredSignal(losingSide);
+    conflicts.push({
+      playerId: player.id,
+      playerName: player.name,
+      topic: pair.topic,
+      resolution: 'authoritative-signal',
+      activeHeadline: winner.headline,
+      activeSource: winner.source,
+      supersededHeadline: superseded.headline,
+      supersededSource: superseded.source,
+    });
+  }
+  return { signals: signals.filter((signal) => active.has(signal)), conflicts };
 }
 
 export function playerNewsAliases(
@@ -325,6 +393,7 @@ export async function getExternalNewsSignals(
   const individuallyCheckedIds = new Set<number>();
   const officialClubCheckedIds = new Set<number>();
   const officialArticlesByPlayer = new Map<number, FeedArticle[]>();
+  const conflicts: NewsConflict[] = [];
 
   for (const { team, feed } of officialFeeds) {
     if (!feed.ok) continue;
@@ -375,7 +444,9 @@ export async function getExternalNewsSignals(
         };
       });
     const verified = verifySignals(matching);
-    if (verified.length) result.set(player.id, verified);
+    const resolved = resolveSignalConflicts(player, verified);
+    conflicts.push(...resolved.conflicts);
+    if (resolved.signals.length) result.set(player.id, resolved.signals);
   }
 
   const checkedIds = new Set([...individuallyCheckedIds, ...officialClubCheckedIds]);
@@ -389,6 +460,7 @@ export async function getExternalNewsSignals(
     officialClubFeedsChecked: officialFeeds.filter(({ feed }) => feed.ok).length,
     officialClubFeedsAttempted: officialFeeds.length,
     officialClubSignals: [...result.values()].flat().filter((signal) => signal.tier === 'official').length,
+    conflicts,
     checkedAt: new Date().toISOString(),
     ok,
   };

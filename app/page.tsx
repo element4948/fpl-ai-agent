@@ -914,6 +914,16 @@ export default function Home() {
                 const verifiedResponse = await fetch('/api/bootstrap');
                 const verifiedData = await verifiedResponse.json();
                 if (cancelled) return;
+                const previouslySeenNews = new Set(
+                    (cached?.newsBrief?.updates || []).map((item: Any) => `${item.playerId}:${item.url}:${item.headline}`),
+                );
+                if (verifiedData.newsBrief?.updates) {
+                    verifiedData.newsBrief.updates = verifiedData.newsBrief.updates.map((item: Any) => ({
+                        ...item,
+                        isNew: Boolean(cached) && !previouslySeenNews.has(`${item.playerId}:${item.url}:${item.headline}`),
+                    }));
+                    verifiedData.newsBrief.newCount = verifiedData.newsBrief.updates.filter((item: Any) => item.isNew).length;
+                }
                 setBoot(verifiedData);
                 writeDashboardCache(verifiedData);
 
@@ -1276,6 +1286,37 @@ export default function Home() {
                     </div>
                 ) : null}
 
+                {boot?.newsBrief?.updates?.length || boot?.newsBrief?.conflicts?.length ? (
+                    <Card
+                        title="Critical Updates (чухал шинэ мэдээлэл)"
+                        subtitle={`${boot.newsBrief.newCount || 0} шинэ · ${boot.newsBrief.criticalCount || 0} critical · ${boot.newsBrief.conflicts?.length || 0} зөрчил шийдсэн`}
+                        helpHref="/docs#attention"
+                    >
+                        <div className="rule-checklist">
+                            {(boot.newsBrief.updates || []).slice(0, 6).map((item: Any) => (
+                                <div key={`${item.playerId}:${item.url}:${item.headline}`}>
+                                    <span>{item.severity === 'high' ? '!' : item.severity === 'medium' ? '△' : '✓'}</span>
+                                    <p>
+                                        <b>{item.isNew ? 'NEW · ' : ''}{item.playerName}{item.inPrimarySquad ? ' · Best squad' : ''}</b>
+                                        <small>{item.headline} · {item.source} · {item.verification}</small>
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                        {boot.newsBrief.conflicts?.length ? (
+                            <details className="decision-details">
+                                <summary>Зөрчилтэй мэдээний шийдвэр</summary>
+                                {boot.newsBrief.conflicts.map((conflict: Any) => (
+                                    <p className="engine-footnote" key={`${conflict.playerId}:${conflict.topic}`}>
+                                        <b>{conflict.playerName}:</b> {conflict.activeHeadline} ({conflict.activeSource}) идэвхтэй;
+                                        өмнөх “{conflict.supersededHeadline}” ({conflict.supersededSource}) signal-ийг penalty-д ашиглаагүй.
+                                    </p>
+                                ))}
+                            </details>
+                        ) : null}
+                    </Card>
+                ) : null}
+
                 <Card id="decision" title={t.thisWeekDecision} subtitle={t.decisionSub} helpHref="/docs#decision">
                     <div className="decision-status-line">
                         <span className={`decision-dot ${loading ? '' : decision?.actionPlan?.decisionStatus === 'ready' ? 'ready' : decisionError ? 'error' : ''}`} />
@@ -1392,6 +1433,12 @@ export default function Home() {
                             <div><span>Players</span><b>{boot?.playerCount ?? '...'}</b></div>
                             <div><span>Teams</span><b>{boot?.teamCount ?? '...'}</b></div>
                             <div><span>Fixtures</span><b>{fixtureStatus?.fixtureCount ?? boot?.fixtureCount ?? '...'}</b></div>
+                            {boot?.providerTimings ? (
+                                <div>
+                                    <span>Verified scan</span>
+                                    <b>{(boot.providerTimings.totalDurationMs / 1000).toFixed(1)}s{boot.providerTimings.apiFootball?.timedOut ? ' · API-F timeout' : ''}</b>
+                                </div>
+                            ) : null}
                         </div>
                         <p className="engine-footnote">Player, team, price, fixture болон status мэдээлэл 15 минутын cache ашиглана.</p>
                     </Card>

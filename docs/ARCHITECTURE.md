@@ -50,6 +50,7 @@ League standings ─────────────────────
 - Official FPL fetches and dashboard payloads use Next caching.
 - Fast dashboard: five-minute server cache plus stale-while-revalidate.
 - Verified dashboard: fifteen-minute server cache plus stale-while-revalidate.
+- Optional verified providers have per-source time budgets. A slow API-Football/news/history adapter returns an explicit unavailable/partial state instead of holding the main recommendation indefinitely.
 - Cache keys include a manual version suffix. Bump both fast and verified keys after model/schema changes.
 - The frontend intentionally shows fast data first, then requests verified data. Never allow a failed enrichment request to blank the draft section.
 

@@ -217,6 +217,17 @@ export type ExternalNewsSignal = {
   corroboratingSourceCount: number;
 };
 
+export type NewsConflict = {
+  playerId: number;
+  playerName: string;
+  topic: 'availability' | 'transfer';
+  resolution: 'authoritative-signal';
+  activeHeadline: string;
+  activeSource: string;
+  supersededHeadline: string;
+  supersededSource: string;
+};
+
 export type ForecastPlayer = {
   id: number;
   name: string;

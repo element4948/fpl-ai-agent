@@ -12,6 +12,7 @@ import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-foot
 import { applyRecentHistoryEvidence, getRecentHistoryEvidence } from '@/lib/history-enrichment';
 import { applyCalibrationProfile, refreshServerCalibration, saveServerForecast } from '@/lib/server-calibration';
 import { applyDataFreshnessGuard } from '@/lib/data-freshness';
+import type { ExternalNewsSignal, ModelPlayer } from '@/types/fpl';
 
 export const revalidate = 900;
 // The verified dashboard fans out to API-Football + news feeds; the default
@@ -42,13 +43,13 @@ export async function GET(request: Request) {
 
 const getFastDashboard = unstable_cache(
   () => buildDashboardPayload(true),
-  ['fpl-dashboard-fast-v26-news-trust'],
+  ['fpl-dashboard-fast-v27-critical-news'],
   { revalidate: 300 },
 );
 
 const getVerifiedDashboard = unstable_cache(
   () => buildDashboardPayload(false),
-  ['fpl-dashboard-verified-v26-news-trust'],
+  ['fpl-dashboard-verified-v27-critical-news'],
   { revalidate: 900 },
 );
 
@@ -90,6 +91,38 @@ async function buildDashboardPayload(fast: boolean) {
   // The fast response makes the page usable immediately. The client then asks
   // for the fully verified version in the background.
   const candidateIds = finalCandidateIdsFor(basePlayers);
+  const providerStartedAt = Date.now();
+  const providerTimings: Record<string, { durationMs: number; timedOut: boolean }> = {};
+  const timed = async <T>(name: string, promise: Promise<T>, fallback: T, timeoutMs: number) => {
+    const startedAt = Date.now();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<{ value: T; timedOut: boolean }>((resolve) => {
+      timeout = setTimeout(() => resolve({ value: fallback, timedOut: true }), timeoutMs);
+    });
+    const result = await Promise.race([
+      promise.then((value) => ({ value, timedOut: false })),
+      timeoutPromise,
+    ]);
+    if (timeout) clearTimeout(timeout);
+    providerTimings[name] = { durationMs: Date.now() - startedAt, timedOut: result.timedOut };
+    return result.value;
+  };
+  const apiFootballFallback = {
+    enabled: true, matchedPlayers: 0, fixturesChecked: 0,
+    friendlyFixturesChecked: 0, oddsFixturesChecked: 0, oddsTeamsMatched: 0,
+    identityMatched: 0, identityAmbiguous: 0, identityUnmatched: 0,
+    internationalFixturesChecked: 0, internationalPlayersMatched: 0,
+    evidence: new Map<number, never>(), error: 'API-Football verification exceeded the 12-second dashboard budget.',
+  };
+  const newsFallback = {
+    signals: new Map(), checkedIds: new Set<number>(), checkedAt: new Date().toISOString(),
+    officialClubCheckedIds: new Set<number>(), officialClubFeedsChecked: 0,
+    officialClubFeedsAttempted: 0, officialClubSignals: 0, conflicts: [], ok: false,
+  };
+  const historyFallback = {
+    analyses: new Map(), checkedIds: new Set<number>(), checkedAt: new Date().toISOString(),
+    requestedPlayers: 0, successfulPlayers: 0, ok: false,
+  };
   const [apiFootballScan, newsScan, historyScan] = fast
     ? [
         {
@@ -106,9 +139,9 @@ async function buildDashboardPayload(fast: boolean) {
         },
       ] as const
     : await Promise.all([
-        getApiFootballEvidence(basePlayers),
-        getExternalNewsSignals(basePlayers, candidateIds),
-        getRecentHistoryEvidence(basePlayers, candidateIds),
+        timed('apiFootball', getApiFootballEvidence(basePlayers), apiFootballFallback, 12_000),
+        timed('news', getExternalNewsSignals(basePlayers, candidateIds), newsFallback, 8_000),
+        timed('history', getRecentHistoryEvidence(basePlayers, candidateIds), historyFallback, 10_000),
       ]);
   const historyPlayers = applyRecentHistoryEvidence(basePlayers, historyScan);
   const statsPlayers = applyApiFootballEvidence(historyPlayers, apiFootballScan);
@@ -131,8 +164,14 @@ async function buildDashboardPayload(fast: boolean) {
   // verification can replace them later, but a failed/slow enrichment request
   // must never leave the Draft Teams section empty.
   const drafts = modes.map((mode) => buildDraft(players, mode, fast ? 'fast' : 'full'));
+  const newsBrief = buildCriticalNewsBrief(players, drafts[0]?.players || [], newsScan?.conflicts || []);
   const roadmap = fast ? null : buildSeasonRoadmap(drafts[0]?.players || [], players);
-  if (!fast) await saveServerForecast(next?.id, next?.deadline_time, players);
+  if (!fast) await timed(
+    'forecastStorage',
+    saveServerForecast(next?.id, next?.deadline_time, players),
+    undefined,
+    2_000,
+  );
   return {
     nextEvent: isPreSeason ? null : next,
     isPreSeason,
@@ -143,6 +182,10 @@ async function buildDashboardPayload(fast: boolean) {
     fixtureSource: 'Official FPL fixtures API',
     fixtureUpdatedAt: new Date().toISOString(),
     generatedAt,
+    providerTimings: fast ? null : {
+      totalDurationMs: Date.now() - providerStartedAt,
+      ...providerTimings,
+    },
     freshness: {
       fresh: players.filter((player) => player.dataFreshness?.status === 'fresh').length,
       aging: players.filter((player) => player.dataFreshness?.status === 'aging').length,
@@ -171,7 +214,9 @@ async function buildDashboardPayload(fast: boolean) {
       officialClubFeedsAttempted: newsScan.officialClubFeedsAttempted,
       officialClubSignals: newsScan.officialClubSignals,
       checkedAt: newsScan.checkedAt,
+      conflictsResolved: newsScan.conflicts.length,
     } : null,
+    newsBrief,
     historyVerification: {
       ok: historyScan.ok,
       requestedPlayers: historyScan.requestedPlayers,
@@ -208,6 +253,42 @@ async function buildDashboardPayload(fast: boolean) {
       isPreSeason,
       ...(roadmap ? { roadmap } : {}),
     }),
+  };
+}
+
+function buildCriticalNewsBrief(
+  players: ModelPlayer[],
+  primarySquad: ModelPlayer[],
+  conflicts: Array<{ playerId: number; playerName: string; topic: string; activeHeadline: string; activeSource: string; supersededHeadline: string; supersededSource: string }>,
+) {
+  const squadIds = new Set(primarySquad.map((player) => player.id));
+  const priority = (signal: ExternalNewsSignal) =>
+    (signal.severity === 'high' ? 100 : signal.severity === 'medium' ? 60 : 10) +
+    (signal.verification === 'confirmed' ? 35 : signal.verification === 'corroborated' ? 25 : signal.verification === 'single-source' ? 10 : 0) +
+    (signal.category === 'press-conference' ? 8 : 0);
+  const updates = players.flatMap((player) => (player.externalNews || [])
+    .filter((signal) => signal.category !== 'other' && (
+      signal.severity !== 'low' || signal.verification === 'confirmed' || signal.verification === 'corroborated'
+    ))
+    .map((signal) => ({
+      playerId: player.id,
+      playerName: player.name,
+      inPrimarySquad: squadIds.has(player.id),
+      category: signal.category,
+      severity: signal.severity,
+      verification: signal.verification,
+      headline: signal.headline,
+      source: signal.source,
+      url: signal.url,
+      publishedAt: signal.publishedAt,
+      priority: priority(signal) + (squadIds.has(player.id) ? 40 : 0),
+    })))
+    .sort((a, b) => b.priority - a.priority || (Date.parse(b.publishedAt) || 0) - (Date.parse(a.publishedAt) || 0))
+    .slice(0, 8);
+  return {
+    criticalCount: updates.filter((item) => item.severity === 'high' || item.severity === 'medium').length,
+    updates,
+    conflicts: conflicts.slice(0, 5),
   };
 }
 

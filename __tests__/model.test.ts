@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeTeamStrength, fixtureAttackMultiplier, cleanSheetProbabilityFrom } from '@/lib/fpl';
-import { classifyHeadline, headlineMentionsName, playerNewsAliases, sourceTier, verifySignals } from '@/lib/external-news';
+import { classifyHeadline, headlineMentionsName, playerNewsAliases, resolveSignalConflicts, sourceTier, verifySignals } from '@/lib/external-news';
 import { validateSquad } from '@/lib/rules';
 import { captainScore } from '@/lib/scoring';
 import { suggestSafeTransfers, buildTransferPlans } from '@/lib/transfers';
@@ -314,6 +314,49 @@ describe('classifyHeadline', () => {
     expect(classifyHeadline('Player discusses his favourite stadium')).toEqual({
       category: 'other', severity: 'low',
     });
+  });
+
+  it('recognizes a confirmed stay as a transfer counter-signal', () => {
+    expect(classifyHeadline('Manager confirms Player will stay at the club')).toEqual({
+      category: 'transfer', severity: 'low',
+    });
+  });
+});
+
+describe('resolveSignalConflicts', () => {
+  it('lets a newer official return supersede an older reliable injury warning', () => {
+    const resolved = resolveSignalConflicts({ id: 1, name: 'Player' }, [
+      {
+        headline: 'Player ruled out', url: 'https://bbc.co.uk/old', sourceUrl: 'https://bbc.co.uk',
+        publishedAt: '2026-08-18T10:00:00Z', source: 'BBC', tier: 'reliable', category: 'injury', severity: 'high',
+        verification: 'single-source', corroboratingSourceCount: 1,
+      },
+      {
+        headline: 'Player returns to training', url: 'https://club.test/new', sourceUrl: 'https://mancity.com',
+        publishedAt: '2026-08-20T10:00:00Z', source: 'Manchester City', tier: 'official', category: 'availability', severity: 'low',
+        verification: 'confirmed', corroboratingSourceCount: 1,
+      },
+    ]);
+    expect(resolved.signals.map((signal) => signal.category)).toEqual(['availability']);
+    expect(resolved.conflicts).toHaveLength(1);
+    expect(resolved.conflicts[0].activeSource).toBe('Manchester City');
+  });
+
+  it('does not let an unverified secondary return erase a trusted injury warning', () => {
+    const resolved = resolveSignalConflicts({ id: 1, name: 'Player' }, [
+      {
+        headline: 'Player ruled out', url: 'https://bbc.co.uk/injury', sourceUrl: 'https://bbc.co.uk',
+        publishedAt: '2026-08-19T10:00:00Z', source: 'BBC', tier: 'reliable', category: 'injury', severity: 'high',
+        verification: 'single-source', corroboratingSourceCount: 1,
+      },
+      {
+        headline: 'Player returns to training', url: 'https://rumour.test/return', sourceUrl: 'https://rumour.test',
+        publishedAt: '2026-08-20T10:00:00Z', source: 'Rumour', tier: 'secondary', category: 'availability', severity: 'low',
+        verification: 'unverified', corroboratingSourceCount: 0,
+      },
+    ]);
+    expect(resolved.signals).toHaveLength(2);
+    expect(resolved.conflicts).toHaveLength(0);
   });
 });
 

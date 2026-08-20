@@ -52,7 +52,9 @@ Request `/api/bootstrap` and repeat for Best, Alternative, Differential, and Saf
 18. International minutes: only identity-verified provider IDs receive minutes; recent heavy workload increases fatigue risk, older/light workload decays, and the signal never raises club starter confidence.
 19. Official-club news: team-domain feeds are matched by full/display/unique-surname aliases; same-team surname collisions are rejected; Google redirect URLs do not collapse two publisher domains into one source.
 20. News source trust: lookalike publisher domains never become official through substring matching, unrelated headlines remain `other`, and different claims in one category do not corroborate each other.
-21. Recent minutes: five strong starts raise minutes confidence, repeated low-minute appearances lower it, empty/pre-season history has no effect, and API-Football does not reapply the same current-match role at full weight.
+21. News contradictions: a newer official return/stay can supersede an older warning, while an unverified secondary claim cannot erase a trusted injury/transfer warning.
+22. Provider latency: optional verified adapters respect their dashboard time budgets, expose timeout/timing state, and never remove the Official-FPL draft.
+23. Recent minutes: five strong starts raise minutes confidence, repeated low-minute appearances lower it, empty/pre-season history has no effect, and API-Football does not reapply the same current-match role at full weight.
 
 ## Transfer checks
 

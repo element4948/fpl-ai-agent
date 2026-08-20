@@ -30,6 +30,7 @@
 - Google News redirect URLs are not treated as independent publishers; corroboration counts the article publisher domain from the RSS source metadata.
 - Official publishers require an exact configured hostname or subdomain boundary; lookalike domains containing an official club domain as a substring remain secondary.
 - Multi-source corroboration requires the same semantic claim (for example ruled out versus merely doubtful), not only the same broad news category. Unclassified headlines remain `other` context and never masquerade as availability evidence.
+- When trusted availability/transfer claims conflict, the highest-authority and then newest published claim remains active; the superseded claim stays visible in the conflict summary but no longer applies a projection penalty. Unverified secondary claims never erase trusted warnings.
 - A high-severity external warning blocks a pick only when confirmed or corroborated according to source verification logic.
 - Source count is displayed as coverage, not added repeatedly to the player score.
 - API-Football previous-season statistics may provide a prior but cannot alone prove a current starting role.
@@ -37,6 +38,7 @@
 - Recent international minutes are joined only through an API player ID already verified by that identity gate. They can add a small, recovery-time-based fatigue penalty, but they never prove or disprove the player's Premier League starting role.
 - Current-team mismatch, transfer uncertainty, or season-plan failure must remain visible in evidence/trust output.
 - Model Readiness reports each configured source as available, partial, or missing and exposes critical gaps. A configured adapter is not counted as successful unless the current response contains usable evidence.
+- The dashboard critical-news brief prioritizes Best-squad players, medium/high severity, official confirmation and corroboration. The browser compares it with the last verified cache and marks newly observed items.
 
 ## API-Football season selection
 

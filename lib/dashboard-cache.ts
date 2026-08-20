@@ -3,7 +3,7 @@ import type { UserSettings } from '@/types/fpl';
 // Client-side caches for the dashboard and weekly decision. Separated from the
 // page component so persistence logic is testable and not entangled with UI.
 
-const DASHBOARD_CACHE_KEY = 'fpl-ai-dashboard-cache-v6';
+const DASHBOARD_CACHE_KEY = 'fpl-ai-dashboard-cache-v7';
 const DASHBOARD_CACHE_MAX_AGE = 6 * 60 * 60 * 1000;
 const DECISION_CACHE_KEY = 'fpl-ai-decision-cache-v1';
 const DECISION_CACHE_MAX_AGE = 30 * 60 * 1000;
