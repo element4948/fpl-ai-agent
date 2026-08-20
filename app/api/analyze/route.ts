@@ -12,6 +12,7 @@ import { buildSeasonRoadmap } from '@/lib/season-roadmap';
 import { buildDraftTrust } from '@/lib/evidence';
 import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-football';
 import { applyRecentHistoryEvidence, getRecentHistoryEvidence } from '@/lib/history-enrichment';
+import { withTimeBudget } from '@/lib/provider-budget';
 
 // External enrichment (API-Football + news) can exceed the default 10s timeout.
 export const maxDuration = 60;
@@ -124,11 +125,29 @@ export async function POST(req: Request) {
         boot.events.filter((item) => item.finished).length,
     );
     const squadIds = picks.picks.map((pick) => pick.element);
-    const [apiFootballScan, newsScan, historyScan] = await Promise.all([
-        getApiFootballEvidence(basePlayers),
-        getExternalNewsSignals(basePlayers, squadIds),
-        getRecentHistoryEvidence(basePlayers, squadIds),
+    const apiFallback = {
+        enabled: true, matchedPlayers: 0, fixturesChecked: 0, friendlyFixturesChecked: 0,
+        oddsFixturesChecked: 0, oddsTeamsMatched: 0, identityMatched: 0, identityAmbiguous: 0,
+        identityUnmatched: 0, internationalFixturesChecked: 0, internationalPlayersMatched: 0,
+        evidence: new Map<number, never>(), error: 'API-Football exceeded the 12-second analysis budget.',
+    };
+    const newsFallback = {
+        signals: new Map(), checkedIds: new Set<number>(), checkedAt: new Date().toISOString(),
+        officialClubCheckedIds: new Set<number>(), officialClubFeedsChecked: 0,
+        officialClubFeedsAttempted: 0, officialClubSignals: 0, conflicts: [], ok: false,
+    };
+    const historyFallback = {
+        analyses: new Map(), checkedIds: new Set<number>(), checkedAt: new Date().toISOString(),
+        requestedPlayers: 0, successfulPlayers: 0, ok: false,
+    };
+    const [apiResult, newsResult, historyResult] = await Promise.all([
+        withTimeBudget(getApiFootballEvidence(basePlayers), apiFallback, 12_000),
+        withTimeBudget(getExternalNewsSignals(basePlayers, squadIds), newsFallback, 8_000),
+        withTimeBudget(getRecentHistoryEvidence(basePlayers, squadIds), historyFallback, 10_000),
     ]);
+    const apiFootballScan = apiResult.value;
+    const newsScan = newsResult.value;
+    const historyScan = historyResult.value;
     const historyPlayers = applyRecentHistoryEvidence(basePlayers, historyScan);
     const statsPlayers = applyApiFootballEvidence(historyPlayers, apiFootballScan);
     const allPlayers = applyExternalNewsSignals(statsPlayers, newsScan);
@@ -227,6 +246,11 @@ export async function POST(req: Request) {
             requestedPlayers: historyScan.requestedPlayers,
             successfulPlayers: historyScan.successfulPlayers,
             checkedAt: historyScan.checkedAt,
+        },
+        providerTimings: {
+            apiFootball: apiResult.timing,
+            news: newsResult.timing,
+            history: historyResult.timing,
         },
 
         captainShortlist: captains,

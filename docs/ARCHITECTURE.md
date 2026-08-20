@@ -28,6 +28,7 @@ League standings ─────────────────────
 - `bootstrap`: dashboard payload. Fast mode omits external verification and builds only Best. Full mode enriches candidates and builds Best/Alternative/Differential/Safe.
 - `analyze`: loads a public entry and its current/last public picks, enriches the selected players, then validates and recommends lineup/transfers.
 - `decision`: builds the weekly action summary from a live squad, saved planned squad, or model draft.
+- Decision responses also return one deadline contract containing captain/vice, transfer-or-hold, chip posture, legal XI/bench, critical squad risks and final-check readiness.
 - `league`: reads the first standings page and returns managers above the owner plus a basic gap strategy.
 - `player/:id`: detailed history, upcoming fixtures, external evidence.
 - `profile`/`session`: optional single-owner cloud settings.

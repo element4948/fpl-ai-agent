@@ -215,6 +215,8 @@ export type ExternalNewsSignal = {
   severity: 'low' | 'medium' | 'high';
   verification: 'confirmed' | 'corroborated' | 'single-source' | 'unverified';
   corroboratingSourceCount: number;
+  clusteredSourceCount?: number;
+  clusteredSources?: string[];
 };
 
 export type NewsConflict = {

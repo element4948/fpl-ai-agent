@@ -78,12 +78,17 @@ export async function gatherDigest(): Promise<DigestData> {
     const hasSquad = pickIds.length >= 11;
 
     const relevance = (p: ModelPlayer) => p.expectedPoints + p.valueScore * 0.4 + p.ownership * 0.03;
+    const targetIds = [...players]
+        .filter((player) => !pickIds.includes(player.id) && isReliableStarter(player))
+        .sort((a, b) => relevance(b) - relevance(a))
+        .slice(0, 12)
+        .map((player) => player.id);
     const focusIds = hasSquad
-        ? pickIds
+        ? [...pickIds, ...targetIds]
         : [...players].sort((a, b) => relevance(b) - relevance(a)).slice(0, 24).map((p) => p.id);
 
     const teamValue = Number((picks?.entry_history?.value || 0) / 10);
-    const marketSum = focusIds.reduce((sum, id) => sum + (players.find((p) => p.id === id)?.price || 0), 0);
+    const marketSum = pickIds.reduce((sum, id) => sum + (players.find((p) => p.id === id)?.price || 0), 0);
     const sellRatio = hasSquad && marketSum > 0 && teamValue > 0 ? Math.min(1, teamValue / marketSum) : 1;
     const bank = Number((picks?.entry_history?.bank || 0) / 10);
 
@@ -92,6 +97,9 @@ export async function gatherDigest(): Promise<DigestData> {
         .map((player) => ({ ...player, sellingPrice: Number((player.price * sellRatio).toFixed(1)) }));
 
     const enriched = applyExternalNewsSignals(focus, await getExternalNewsSignals(focus, focusIds));
+    const enrichedMap = new Map(enriched.map((player) => [player.id, player]));
+    const squadFocus = hasSquad ? enriched.filter((player) => pickIds.includes(player.id)) : enriched;
+    const allPlayersWithEvidence = players.map((player) => enrichedMap.get(player.id) || player);
 
     const entry: EntrySummary = entryData
         ? {
@@ -102,11 +110,17 @@ export async function gatherDigest(): Promise<DigestData> {
           }
         : null;
 
-    const alerts = buildSquadAlerts(enriched);
+    const squadAlerts = buildSquadAlerts(squadFocus);
+    const targetAlerts = hasSquad
+        ? buildSquadAlerts(enriched.filter((player) => targetIds.includes(player.id)))
+            .filter((alert) => alert.severity !== 'low')
+            .map((alert) => ({ ...alert, message: `Transfer target · ${alert.message}` }))
+        : [];
+    const alerts = [...squadAlerts, ...targetAlerts];
     const reports = buildSquadReports(enriched);
 
-    const captainRanked = rankCaptainCandidates(enriched, 3);
-    const captainFallback = [...enriched].filter((p) => p.position !== 'GKP').sort((a, b) => b.expectedPoints - a.expectedPoints);
+    const captainRanked = rankCaptainCandidates(squadFocus, 3);
+    const captainFallback = [...squadFocus].filter((p) => p.position !== 'GKP').sort((a, b) => b.expectedPoints - a.expectedPoints);
     const capList = captainRanked.length ? captainRanked : captainFallback;
     const captain: CaptainPick = capList[0] ? { name: capList[0].name, team: capList[0].team, points: capList[0].expectedPoints } : null;
     const vice: CaptainPick = capList[1] ? { name: capList[1].name, team: capList[1].team, points: capList[1].expectedPoints } : null;
@@ -131,7 +145,7 @@ export async function gatherDigest(): Promise<DigestData> {
           }
         : null;
 
-    const roadmap = hasSquad ? buildSeasonRoadmap(enriched, players) : undefined;
+    const roadmap = hasSquad ? buildSeasonRoadmap(squadFocus, allPlayersWithEvidence) : undefined;
     const chipOptions = chipPlanner({
         hasEntry: hasSquad,
         isPreSeason: completed === 0,
@@ -149,7 +163,7 @@ export async function gatherDigest(): Promise<DigestData> {
 
     let transfer: TransferPick = null;
     if (hasSquad) {
-        const plans = buildTransferPlans(enriched, players, bank, 1);
+        const plans = buildTransferPlans(squadFocus, allPlayersWithEvidence, bank, 1);
         const recommended = plans.find((plan) => plan.recommended) || plans[0] || null;
         transfer = recommended
             ? {
@@ -197,7 +211,7 @@ export async function gatherDigest(): Promise<DigestData> {
         fixtures: Boolean(fixtures?.length),
         squad: hasSquad,
         externalChecked: enriched.filter((player) => Boolean(player.newsCheckedAt)).length,
-        externalTarget: enriched.length,
+        externalTarget: focusIds.length,
         league: !leagueId ? 'not-configured' : league ? 'available' : 'unavailable',
     };
 

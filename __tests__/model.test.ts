@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeTeamStrength, fixtureAttackMultiplier, cleanSheetProbabilityFrom } from '@/lib/fpl';
-import { classifyHeadline, headlineMentionsName, playerNewsAliases, resolveSignalConflicts, sourceTier, verifySignals } from '@/lib/external-news';
+import { classifyHeadline, clusterNewsSignals, headlineMentionsName, playerNewsAliases, resolveSignalConflicts, sourceTier, verifySignals } from '@/lib/external-news';
 import { validateSquad } from '@/lib/rules';
 import { captainScore } from '@/lib/scoring';
 import { suggestSafeTransfers, buildTransferPlans } from '@/lib/transfers';
@@ -16,6 +16,8 @@ import { applyCalibrationProfile, buildCalibrationProfile, evaluateSnapshot } fr
 import type { FplPlayer } from '@/types/fpl';
 import { makePlayer, makeLegalSquad } from './helpers';
 import { applyDataFreshnessGuard, freshnessStatus, hasFreshRoleEvidence } from '@/lib/data-freshness';
+import { withTimeBudget } from '@/lib/provider-budget';
+import { buildDecision } from '@/lib/decision';
 
 describe('data freshness guard', () => {
   const now = new Date('2026-08-15T09:00:00Z');
@@ -80,6 +82,35 @@ describe('data freshness guard', () => {
       officialCheckedAt: now.toISOString(), fixturesAvailable: true, verified: true, now,
     })[0];
     expect(guarded.dataFreshness?.sources.find((item) => item.id === 'api-football')?.status).toBe('aging');
+  });
+});
+
+describe('provider time budget', () => {
+  it('returns the fallback and timeout telemetry for a slow optional provider', async () => {
+    const result = await withTimeBudget(
+      new Promise<string>((resolve) => setTimeout(() => resolve('late'), 30)),
+      'fallback',
+      5,
+    );
+    expect(result.value).toBe('fallback');
+    expect(result.timing.timedOut).toBe(true);
+  });
+
+  it('returns a fast provider result without a timeout flag', async () => {
+    const result = await withTimeBudget(Promise.resolve('ready'), 'fallback', 50);
+    expect(result.value).toBe('ready');
+    expect(result.timing.timedOut).toBe(false);
+  });
+});
+
+describe('deadline decision', () => {
+  it('returns one compact captain, transfer, lineup, bench and risk contract', () => {
+    const squad = makeLegalSquad();
+    const decision = buildDecision({ allPlayers: squad, squad, bank: 0, freeTransfers: 1, isPreSeason: false });
+    expect(decision.deadlineDecision.captain?.name).toBeTruthy();
+    expect(decision.deadlineDecision.transfer.action).toMatch(/transfer|hold/);
+    expect(decision.deadlineDecision.startingXI).toHaveLength(11);
+    expect(decision.deadlineDecision.bench).toHaveLength(4);
   });
 });
 
@@ -357,6 +388,25 @@ describe('resolveSignalConflicts', () => {
     ]);
     expect(resolved.signals).toHaveLength(2);
     expect(resolved.conflicts).toHaveLength(0);
+  });
+});
+
+describe('clusterNewsSignals', () => {
+  it('collapses the same semantic claim and keeps the strongest source', () => {
+    const clustered = clusterNewsSignals(verifySignals([
+      {
+        headline: 'Player ruled out this weekend', url: 'https://bbc.co.uk/a', sourceUrl: 'https://bbc.co.uk',
+        publishedAt: '2026-08-20T08:00:00Z', source: 'BBC', tier: 'reliable', category: 'injury', severity: 'high',
+      },
+      {
+        headline: 'Player ruled out by manager', url: 'https://club.test/b', sourceUrl: 'https://mancity.com',
+        publishedAt: '2026-08-20T09:00:00Z', source: 'Manchester City', tier: 'official', category: 'injury', severity: 'high',
+      },
+    ]));
+    expect(clustered).toHaveLength(1);
+    expect(clustered[0].source).toBe('Manchester City');
+    expect(clustered[0].clusteredSourceCount).toBe(2);
+    expect(clustered[0].clusteredSources).toEqual(expect.arrayContaining(['BBC', 'Manchester City']));
   });
 });
 

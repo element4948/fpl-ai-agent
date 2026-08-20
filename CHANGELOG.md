@@ -18,6 +18,7 @@
 
 ## Unreleased
 
+- Added My Team-first monitoring across decision/Telegram flows, semantic news clustering with source counts, a compact deadline-decision contract/UI, bounded decision enrichment, and cache-age delivery telemetry.
 - Added bounded verified-provider latency, per-source timing/timeout status, a Best-squad-first critical-news brief, browser-side new-item detection, and conservative trusted-claim conflict resolution.
 - Hardened official-news hostname verification, changed corroboration from category-level to semantic claim-level, and separated unrelated headlines from availability evidence.
 - Kept legal squad validation separate from evidence trust and made verified dashboard payloads explicitly degraded while draft evidence remains incomplete.

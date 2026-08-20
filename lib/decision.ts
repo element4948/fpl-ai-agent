@@ -8,6 +8,7 @@ import { rankCaptainCandidates } from './scoring';
 import { buildTransferPlans, suggestSafeTransfers } from './transfers';
 import { buildSeasonRoadmap } from './season-roadmap';
 import { buildDraft } from './rules';
+import { selectBestLineup } from './lineup';
 
 export type DecisionInput = {
   allPlayers: ModelPlayer[];
@@ -100,6 +101,31 @@ export function buildDecision(input: DecisionInput) {
     gap: input.leagueGap || 0,
     roadmap,
   });
+  const lineup = enrichedSquad?.length === 15 ? selectBestLineup(enrichedSquad, 'Best') : null;
+  const recommendedTransferPlan = transferPlans.find((plan) => plan.recommended) || null;
+  const criticalRisks = (enrichedSquad || [])
+    .flatMap((player) => {
+      const trustedNews = (player.externalNews || []).filter((signal) =>
+        signal.severity !== 'low' &&
+        (signal.verification === 'confirmed' || signal.verification === 'corroborated' || signal.verification === 'single-source'),
+      );
+      if (trustedNews.length) {
+        return trustedNews.map((signal) => ({
+          playerId: player.id,
+          playerName: player.name,
+          severity: signal.severity,
+          reason: signal.headline,
+          source: signal.source,
+        }));
+      }
+      if (player.status && player.status !== 'a') {
+        return [{ playerId: player.id, playerName: player.name, severity: 'high' as const, reason: player.news || 'Official FPL availability warning', source: 'Official FPL' }];
+      }
+      return [];
+    })
+    .sort((a, b) => (a.severity === 'high' ? 0 : 1) - (b.severity === 'high' ? 0 : 1))
+    .slice(0, 5);
+  const primaryChip = chips.find((chip) => chip.action !== 'Hold') || chips[0] || null;
 
   return {
     strategy,
@@ -117,6 +143,23 @@ export function buildDecision(input: DecisionInput) {
     roadmap,
     topDecisionPlayers: candidates.slice(0, 12),
     summary: buildSummary(action, !!transfer, !!input.isPreSeason),
+    deadlineDecision: {
+      status: actionPlan.decisionStatus,
+      captain: captain ? { id: captain.id, name: captain.name } : null,
+      viceCaptain: viceCaptain ? { id: viceCaptain.id, name: viceCaptain.name } : null,
+      transfer: recommendedTransferPlan?.moves?.length
+        ? { action: 'transfer', label: recommendedTransferPlan.label, moves: recommendedTransferPlan.moves, netGain: recommendedTransferPlan.netGain }
+        : { action: 'hold', label: 'Hold transfer', moves: [], netGain: 0 },
+      chip: primaryChip ? { chip: primaryChip.chip, action: primaryChip.action, reason: primaryChip.reason } : null,
+      formation: lineup?.formation || null,
+      startingXI: lineup?.startingXI.map((player) => ({ id: player.id, name: player.name, position: player.position })) || [],
+      bench: lineup?.bench.map((player) => ({ id: player.id, name: player.name, position: player.position })) || [],
+      criticalRisks,
+      checkBeforeDeadline: actionPlan.checkBeforeDeadline,
+      finalReady: actionPlan.decisionStatus !== 'wait' && Boolean(captain) &&
+        (!enrichedSquad?.length || lineup?.startingXI.length === 11) &&
+        criticalRisks.every((risk) => risk.severity !== 'high'),
+    },
   };
 }
 

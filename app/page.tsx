@@ -1047,6 +1047,17 @@ export default function Home() {
             if (!data || data.error || !data.actionPlan) {
                 setDecisionError(data?.error || 'no-decision');
             } else {
+                const previousDecision = readDecisionCache(activeSettings);
+                const previousNews = new Set(
+                    (previousDecision?.newsBrief?.updates || []).map((item: Any) => `${item.playerId}:${item.url}:${item.headline}`),
+                );
+                if (data.newsBrief?.updates) {
+                    data.newsBrief.updates = data.newsBrief.updates.map((item: Any) => ({
+                        ...item,
+                        isNew: Boolean(previousDecision) && !previousNews.has(`${item.playerId}:${item.url}:${item.headline}`),
+                    }));
+                    data.newsBrief.newCount = data.newsBrief.updates.filter((item: Any) => item.isNew).length;
+                }
                 setDecision(data);
                 setDecisionError(null);
                 writeDecisionCache(activeSettings, data);
@@ -1230,6 +1241,14 @@ export default function Home() {
           }
         : undefined;
     const roadmap = analysis?.roadmap || decision?.roadmap || boot?.roadmap;
+    const activeNewsBrief = decision?.newsBrief && (decision.newsBrief.updates?.length || decision.newsBrief.conflicts?.length)
+        ? decision.newsBrief
+        : boot?.newsBrief;
+    const newNewsKeys = new Set(
+        (boot?.newsBrief?.updates || [])
+            .filter((item: Any) => item.isNew)
+            .map((item: Any) => `${item.playerId}:${item.url}:${item.headline}`),
+    );
 
     return (
         <>
@@ -1286,27 +1305,27 @@ export default function Home() {
                     </div>
                 ) : null}
 
-                {boot?.newsBrief?.updates?.length || boot?.newsBrief?.conflicts?.length ? (
+                {activeNewsBrief?.updates?.length || activeNewsBrief?.conflicts?.length ? (
                     <Card
                         title="Critical Updates (чухал шинэ мэдээлэл)"
-                        subtitle={`${boot.newsBrief.newCount || 0} шинэ · ${boot.newsBrief.criticalCount || 0} critical · ${boot.newsBrief.conflicts?.length || 0} зөрчил шийдсэн`}
+                        subtitle={`${activeNewsBrief.newCount || 0} шинэ · ${activeNewsBrief.criticalCount || 0} critical · ${activeNewsBrief.conflicts?.length || 0} зөрчил шийдсэн`}
                         helpHref="/docs#attention"
                     >
                         <div className="rule-checklist">
-                            {(boot.newsBrief.updates || []).slice(0, 6).map((item: Any) => (
+                            {(activeNewsBrief.updates || []).slice(0, 6).map((item: Any) => (
                                 <div key={`${item.playerId}:${item.url}:${item.headline}`}>
                                     <span>{item.severity === 'high' ? '!' : item.severity === 'medium' ? '△' : '✓'}</span>
                                     <p>
-                                        <b>{item.isNew ? 'NEW · ' : ''}{item.playerName}{item.inPrimarySquad ? ' · Best squad' : ''}</b>
-                                        <small>{item.headline} · {item.source} · {item.verification}</small>
+                                        <b>{item.isNew || newNewsKeys.has(`${item.playerId}:${item.url}:${item.headline}`) ? 'NEW · ' : ''}{item.playerName}{item.inPrioritySquad ? ' · My Team' : ''}</b>
+                                        <small>{item.headline} · {item.sourceCount > 1 ? `${item.sourceCount} sources` : item.source} · {item.verification}</small>
                                     </p>
                                 </div>
                             ))}
                         </div>
-                        {boot.newsBrief.conflicts?.length ? (
+                        {activeNewsBrief.conflicts?.length ? (
                             <details className="decision-details">
                                 <summary>Зөрчилтэй мэдээний шийдвэр</summary>
-                                {boot.newsBrief.conflicts.map((conflict: Any) => (
+                                {activeNewsBrief.conflicts.map((conflict: Any) => (
                                     <p className="engine-footnote" key={`${conflict.playerId}:${conflict.topic}`}>
                                         <b>{conflict.playerName}:</b> {conflict.activeHeadline} ({conflict.activeSource}) идэвхтэй;
                                         өмнөх “{conflict.supersededHeadline}” ({conflict.supersededSource}) signal-ийг penalty-д ашиглаагүй.
@@ -1331,6 +1350,31 @@ export default function Home() {
                         </strong>
                         <span>{decision?.actionPlan ? decisionStrategyLabel(decision.strategy, lang) : '—'}</span>
                     </div>
+
+                    {decision?.deadlineDecision ? (
+                        <div className="notice draft-algorithm-summary">
+                            <b>Deadline шийдвэр:</b>{' '}
+                            © {decision.deadlineDecision.captain?.name || '—'} · Vice {decision.deadlineDecision.viceCaptain?.name || '—'} ·{' '}
+                            {decision.deadlineDecision.transfer?.action === 'transfer'
+                                ? decision.deadlineDecision.transfer.moves.map((move: Any) => `${move.out} → ${move.in}`).join(', ')
+                                : 'Transfer hold'} ·{' '}
+                            {decision.deadlineDecision.chip ? `${decision.deadlineDecision.chip.chip}: ${decision.deadlineDecision.chip.action}` : 'Chip hold'}
+                            <br />
+                            <span className={decision.deadlineDecision.finalReady ? 'good' : 'yellow'}>
+                                {decision.deadlineDecision.finalReady ? '✓ Final check ready' : '△ Deadline-ийн өмнө дахин шалгана'}
+                            </span>
+                            {decision.deadlineDecision.criticalRisks?.length ? (
+                                <span> · {decision.deadlineDecision.criticalRisks.map((risk: Any) => `${risk.playerName}: ${risk.reason}`).join(' · ')}</span>
+                            ) : null}
+                            {decision.deadlineDecision.startingXI?.length ? (
+                                <details className="decision-details">
+                                    <summary>{decision.deadlineDecision.formation} · Starting XI ба bench</summary>
+                                    <p>XI: {decision.deadlineDecision.startingXI.map((player: Any) => player.name).join(', ')}</p>
+                                    <p>Bench: {decision.deadlineDecision.bench.map((player: Any) => player.name).join(', ')}</p>
+                                </details>
+                            ) : null}
+                        </div>
+                    ) : null}
 
                     <div className="decision-glance-grid">
                         <div className="decision-glance primary">

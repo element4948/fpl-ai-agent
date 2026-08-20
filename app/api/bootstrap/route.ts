@@ -12,7 +12,8 @@ import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-foot
 import { applyRecentHistoryEvidence, getRecentHistoryEvidence } from '@/lib/history-enrichment';
 import { applyCalibrationProfile, refreshServerCalibration, saveServerForecast } from '@/lib/server-calibration';
 import { applyDataFreshnessGuard } from '@/lib/data-freshness';
-import type { ExternalNewsSignal, ModelPlayer } from '@/types/fpl';
+import { buildCriticalNewsBrief } from '@/lib/news-brief';
+import { withTimeBudget } from '@/lib/provider-budget';
 
 export const revalidate = 900;
 // The verified dashboard fans out to API-Football + news feeds; the default
@@ -23,8 +24,18 @@ export async function GET(request: Request) {
   const fast = new URL(request.url).searchParams.get('fast') === '1';
   try {
     const payload = fast ? await getFastDashboard() : await getVerifiedDashboard();
-    return NextResponse.json(payload, {
+    const payloadAgeMs = Math.max(0, Date.now() - Date.parse(payload.generatedAt));
+    return NextResponse.json({
+      ...payload,
+      delivery: {
+        mode: fast ? 'fast' : 'verified',
+        payloadAgeMs,
+        cacheHitLikely: payloadAgeMs >= 1_000,
+      },
+    }, {
       headers: {
+        'X-FPL-Payload-Age-Ms': String(payloadAgeMs),
+        'X-FPL-Cache-Hit-Likely': String(payloadAgeMs >= 1_000),
         'Cache-Control': fast
           ? 'public, s-maxage=300, stale-while-revalidate=1800'
           : 'public, s-maxage=900, stale-while-revalidate=3600',
@@ -43,13 +54,13 @@ export async function GET(request: Request) {
 
 const getFastDashboard = unstable_cache(
   () => buildDashboardPayload(true),
-  ['fpl-dashboard-fast-v27-critical-news'],
+  ['fpl-dashboard-fast-v28-deadline-monitor'],
   { revalidate: 300 },
 );
 
 const getVerifiedDashboard = unstable_cache(
   () => buildDashboardPayload(false),
-  ['fpl-dashboard-verified-v27-critical-news'],
+  ['fpl-dashboard-verified-v28-deadline-monitor'],
   { revalidate: 900 },
 );
 
@@ -94,17 +105,8 @@ async function buildDashboardPayload(fast: boolean) {
   const providerStartedAt = Date.now();
   const providerTimings: Record<string, { durationMs: number; timedOut: boolean }> = {};
   const timed = async <T>(name: string, promise: Promise<T>, fallback: T, timeoutMs: number) => {
-    const startedAt = Date.now();
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    const timeoutPromise = new Promise<{ value: T; timedOut: boolean }>((resolve) => {
-      timeout = setTimeout(() => resolve({ value: fallback, timedOut: true }), timeoutMs);
-    });
-    const result = await Promise.race([
-      promise.then((value) => ({ value, timedOut: false })),
-      timeoutPromise,
-    ]);
-    if (timeout) clearTimeout(timeout);
-    providerTimings[name] = { durationMs: Date.now() - startedAt, timedOut: result.timedOut };
+    const result = await withTimeBudget(promise, fallback, timeoutMs);
+    providerTimings[name] = result.timing;
     return result.value;
   };
   const apiFootballFallback = {
@@ -253,42 +255,6 @@ async function buildDashboardPayload(fast: boolean) {
       isPreSeason,
       ...(roadmap ? { roadmap } : {}),
     }),
-  };
-}
-
-function buildCriticalNewsBrief(
-  players: ModelPlayer[],
-  primarySquad: ModelPlayer[],
-  conflicts: Array<{ playerId: number; playerName: string; topic: string; activeHeadline: string; activeSource: string; supersededHeadline: string; supersededSource: string }>,
-) {
-  const squadIds = new Set(primarySquad.map((player) => player.id));
-  const priority = (signal: ExternalNewsSignal) =>
-    (signal.severity === 'high' ? 100 : signal.severity === 'medium' ? 60 : 10) +
-    (signal.verification === 'confirmed' ? 35 : signal.verification === 'corroborated' ? 25 : signal.verification === 'single-source' ? 10 : 0) +
-    (signal.category === 'press-conference' ? 8 : 0);
-  const updates = players.flatMap((player) => (player.externalNews || [])
-    .filter((signal) => signal.category !== 'other' && (
-      signal.severity !== 'low' || signal.verification === 'confirmed' || signal.verification === 'corroborated'
-    ))
-    .map((signal) => ({
-      playerId: player.id,
-      playerName: player.name,
-      inPrimarySquad: squadIds.has(player.id),
-      category: signal.category,
-      severity: signal.severity,
-      verification: signal.verification,
-      headline: signal.headline,
-      source: signal.source,
-      url: signal.url,
-      publishedAt: signal.publishedAt,
-      priority: priority(signal) + (squadIds.has(player.id) ? 40 : 0),
-    })))
-    .sort((a, b) => b.priority - a.priority || (Date.parse(b.publishedAt) || 0) - (Date.parse(a.publishedAt) || 0))
-    .slice(0, 8);
-  return {
-    criticalCount: updates.filter((item) => item.severity === 'high' || item.severity === 'medium').length,
-    updates,
-    conflicts: conflicts.slice(0, 5),
   };
 }
 

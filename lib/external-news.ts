@@ -268,6 +268,27 @@ export function resolveSignalConflicts(
   return { signals: signals.filter((signal) => active.has(signal)), conflicts };
 }
 
+export function clusterNewsSignals(signals: ExternalNewsSignal[]): ExternalNewsSignal[] {
+  const groups = new Map<string, ExternalNewsSignal[]>();
+  for (const signal of signals) {
+    const key = claimKey(signal);
+    groups.set(key, [...(groups.get(key) || []), signal]);
+  }
+  return [...groups.values()].map((group) => {
+    const preferred = preferredSignal(group);
+    const sources = [...new Set(group.map((signal) => signal.source).filter(Boolean))];
+    return {
+      ...preferred,
+      corroboratingSourceCount: Math.max(
+        preferred.corroboratingSourceCount,
+        ...group.map((signal) => signal.corroboratingSourceCount),
+      ),
+      clusteredSourceCount: sources.length,
+      clusteredSources: sources,
+    };
+  });
+}
+
 export function playerNewsAliases(
   player: Pick<ModelPlayer, 'id' | 'name' | 'fullName'>,
   teammates: Array<Pick<ModelPlayer, 'id' | 'name' | 'fullName'>> = [],
@@ -446,7 +467,7 @@ export async function getExternalNewsSignals(
     const verified = verifySignals(matching);
     const resolved = resolveSignalConflicts(player, verified);
     conflicts.push(...resolved.conflicts);
-    if (resolved.signals.length) result.set(player.id, resolved.signals);
+    if (resolved.signals.length) result.set(player.id, clusterNewsSignals(resolved.signals));
   }
 
   const checkedIds = new Set([...individuallyCheckedIds, ...officialClubCheckedIds]);

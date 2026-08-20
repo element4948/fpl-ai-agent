@@ -39,6 +39,7 @@
 - Current-team mismatch, transfer uncertainty, or season-plan failure must remain visible in evidence/trust output.
 - Model Readiness reports each configured source as available, partial, or missing and exposes critical gaps. A configured adapter is not counted as successful unless the current response contains usable evidence.
 - The dashboard critical-news brief prioritizes Best-squad players, medium/high severity, official confirmation and corroboration. The browser compares it with the last verified cache and marks newly observed items.
+- Once a live or planned squad is available, the private decision response replaces Best-draft priority with My Team first, then monitored transfer targets. Equivalent headlines sharing one semantic claim are clustered under the strongest source with a visible source count.
 
 ## API-Football season selection
 

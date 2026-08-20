@@ -18,8 +18,8 @@
 
 - Branch: `main`
 - Last committed baseline before this session: `157c16a` (stale player-evidence guard).
-- Current change set: bounded verified-provider latency, critical-news/new-item summary, trusted-claim conflict resolution and dashboard/server cache v27.
-- Verification in this workspace: `npm run typecheck`, all 64 tests, and `npm run build` pass. The production server starts successfully on port 3002; cross-session localhost curl did not reach the server in this sandbox, so re-check cold `/api/bootstrap` timing in deployment while `providerTimings` reports each budget/timeout.
+- Current change set: My Team/target monitoring, semantic news clusters, deadline decision, bounded decision enrichment, cache delivery telemetry and dashboard/server cache v28.
+- Verification in this workspace: `npm run typecheck`, all 68 tests, and `npm run build` pass. Optional provider timeout behavior, semantic claim clustering and the 11+4 deadline-decision contract have direct regression tests.
 - Working tree should be clean after the current scoped commit. Local commits are not pushed unless the owner asks.
 
 ## In progress / not finished
@@ -67,6 +67,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-21 — Added My Team-first monitoring, clustered critical news, a single deadline-decision contract/UI and response cache/latency telemetry.
 - 2026-08-20 — Added provider time budgets/timing, Best-squad-first critical updates, cached new-item detection and conservative injury/transfer contradiction resolution.
 - 2026-08-20 — Hardened official-news domains and claim corroboration; separated legal validation from evidence trust and exposed limited verified drafts as degraded.
 - 2026-08-15 — Added Fresh/Aging/Stale/Missing source tracking; expired uncorroborated first-choice evidence can no longer boost starter minutes, xP or Draft XI eligibility.

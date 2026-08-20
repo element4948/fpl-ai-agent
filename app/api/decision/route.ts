@@ -5,6 +5,8 @@ import type { Goal, ModelPlayer, RiskProfile } from '@/types/fpl';
 import { applyExternalNewsSignals, getExternalNewsSignals } from '@/lib/external-news';
 import { applyApiFootballEvidence, getApiFootballEvidence } from '@/lib/api-football';
 import { applyRecentHistoryEvidence, getRecentHistoryEvidence } from '@/lib/history-enrichment';
+import { buildCriticalNewsBrief } from '@/lib/news-brief';
+import { withTimeBudget } from '@/lib/provider-budget';
 
 // External enrichment (API-Football + news) can exceed the default 10s timeout.
 export const maxDuration = 60;
@@ -27,11 +29,34 @@ export async function POST(req: Request) {
   const next = nextEvent(boot.events);
   const completedGameweeks = boot.events.filter(event => event.finished).length;
   const basePlayers = toModelPlayers(boot.elements, boot.teams, boot.element_types, fixtures || [], next?.id, completedGameweeks);
-  const [apiFootballScan, newsScan, historyScan] = await Promise.all([
-    getApiFootballEvidence(basePlayers),
-    getExternalNewsSignals(basePlayers, plannedSquadIds),
-    getRecentHistoryEvidence(basePlayers, plannedSquadIds),
+  const apiFallback = {
+    enabled: true, matchedPlayers: 0, fixturesChecked: 0, friendlyFixturesChecked: 0,
+    oddsFixturesChecked: 0, oddsTeamsMatched: 0, identityMatched: 0, identityAmbiguous: 0,
+    identityUnmatched: 0, internationalFixturesChecked: 0, internationalPlayersMatched: 0,
+    evidence: new Map<number, never>(), error: 'API-Football exceeded the 12-second decision budget.',
+  };
+  const newsFallback = {
+    signals: new Map(), checkedIds: new Set<number>(), checkedAt: new Date().toISOString(),
+    officialClubCheckedIds: new Set<number>(), officialClubFeedsChecked: 0,
+    officialClubFeedsAttempted: 0, officialClubSignals: 0, conflicts: [], ok: false,
+  };
+  const historyFallback = {
+    analyses: new Map(), checkedIds: new Set<number>(), checkedAt: new Date().toISOString(),
+    requestedPlayers: 0, successfulPlayers: 0, ok: false,
+  };
+  const [apiResult, newsResult, historyResult] = await Promise.all([
+    withTimeBudget(getApiFootballEvidence(basePlayers), apiFallback, 12_000),
+    withTimeBudget(getExternalNewsSignals(basePlayers, plannedSquadIds), newsFallback, 8_000),
+    withTimeBudget(getRecentHistoryEvidence(basePlayers, plannedSquadIds), historyFallback, 10_000),
   ]);
+  const apiFootballScan = apiResult.value;
+  const newsScan = newsResult.value;
+  const historyScan = historyResult.value;
+  const providerTimings = {
+    apiFootball: apiResult.timing,
+    news: newsResult.timing,
+    history: historyResult.timing,
+  };
   const historyPlayers = applyRecentHistoryEvidence(basePlayers, historyScan);
   const statsPlayers = applyApiFootballEvidence(historyPlayers, apiFootballScan);
   const allPlayers = applyExternalNewsSignals(statsPlayers, newsScan);
@@ -51,6 +76,7 @@ export async function POST(req: Request) {
         isPreSeason: true,
       }),
       squadSource: plannedSquad.length === 15 ? 'planned-draft' : 'model-draft',
+      newsBrief: buildCriticalNewsBrief(allPlayers, plannedSquad, newsScan.conflicts),
       entryAvailability: entryId
         ? 'Official FPL public API does not expose the private pre-deadline squad. A saved planned draft is used until picks become public.'
         : 'No Entry ID connected.',
@@ -71,6 +97,7 @@ export async function POST(req: Request) {
         successfulPlayers: historyScan.successfulPlayers,
         checkedAt: historyScan.checkedAt,
       },
+      providerTimings,
     });
   }
 
@@ -103,6 +130,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     ...buildDecision({ allPlayers, squad, bank, freeTransfers, riskProfile, goal, isPreSeason: false }),
+    newsBrief: buildCriticalNewsBrief(allPlayers, squad, newsScan.conflicts),
     entry,
     bank,
     apiFootball: {
@@ -122,5 +150,6 @@ export async function POST(req: Request) {
       successfulPlayers: historyScan.successfulPlayers,
       checkedAt: historyScan.checkedAt,
     },
+    providerTimings,
   });
 }
