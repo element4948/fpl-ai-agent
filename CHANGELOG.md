@@ -18,6 +18,8 @@
 
 ## Unreleased
 
+- Hardened official-news hostname verification, changed corroboration from category-level to semantic claim-level, and separated unrelated headlines from availability evidence.
+- Kept legal squad validation separate from evidence trust and made verified dashboard payloads explicitly degraded while draft evidence remains incomplete.
 - Added provider-ID, current-team and full/display-name identity verification for API-Football evidence; ambiguous same-team matches are rejected before they can alter projections.
 - Expanded the existing API-Football connector with separately weighted 45-day club-friendly lineup/minutes and upcoming match-winner odds checks, plus published press-conference news detection; no new credential is required.
 - Added name-independent draft counterfactuals that compare every selected player with the strongest omitted same-position alternative and explain budget, club-limit, projection, fixture and whole-squad trade-offs.

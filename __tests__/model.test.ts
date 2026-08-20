@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeTeamStrength, fixtureAttackMultiplier, cleanSheetProbabilityFrom } from '@/lib/fpl';
-import { classifyHeadline, headlineMentionsName, playerNewsAliases, verifySignals } from '@/lib/external-news';
+import { classifyHeadline, headlineMentionsName, playerNewsAliases, sourceTier, verifySignals } from '@/lib/external-news';
 import { validateSquad } from '@/lib/rules';
 import { captainScore } from '@/lib/scoring';
 import { suggestSafeTransfers, buildTransferPlans } from '@/lib/transfers';
@@ -49,7 +49,8 @@ describe('data freshness guard', () => {
       historyCheckedAt: now.toISOString(),
       recentHistory: {
         sampleSize: 5, starts: 4, startRate: 80, averageMinutes: 76,
-        sixtyPlus: 4, sixtyPlusRate: 80, trend: 'stable', dataQuality: 'good',
+        sixtyPlusRate: 80, averagePoints: 5, recentMinutes: [90, 82, 76, 70, 62],
+        recentPoints: [6, 5, 4, 7, 3], trend: 'stable', dataQuality: 'good',
       },
       roleAssessment: {
         role: 'first-choice', confidence: 95, note: 'old', sourceLabel: 'Club',
@@ -265,12 +266,34 @@ describe('verifySignals source identity', () => {
         publishedAt: '', source: 'BBC', tier: 'reliable', category: 'injury', severity: 'high',
       },
       {
-        headline: 'Player injury confirmed', url: 'https://news.google.com/b', sourceUrl: 'https://reuters.com',
+        headline: 'Player ruled out through injury', url: 'https://news.google.com/b', sourceUrl: 'https://reuters.com',
         publishedAt: '', source: 'Reuters', tier: 'reliable', category: 'injury', severity: 'high',
       },
     ]);
     expect(signals.every((signal) => signal.verification === 'corroborated')).toBe(true);
     expect(signals[0].corroboratingSourceCount).toBe(2);
+  });
+
+  it('does not corroborate different claims that merely share a category', () => {
+    const signals = verifySignals([
+      {
+        headline: 'Player ruled out', url: 'https://news.google.com/a', sourceUrl: 'https://bbc.co.uk',
+        publishedAt: '', source: 'BBC', tier: 'reliable', category: 'injury', severity: 'high',
+      },
+      {
+        headline: 'Player remains an injury doubt', url: 'https://news.google.com/b', sourceUrl: 'https://reuters.com',
+        publishedAt: '', source: 'Reuters', tier: 'reliable', category: 'injury', severity: 'medium',
+      },
+    ]);
+    expect(signals.every((signal) => signal.verification === 'single-source')).toBe(true);
+  });
+});
+
+describe('sourceTier', () => {
+  it('requires an exact official hostname or subdomain boundary', () => {
+    expect(sourceTier('Manchester City', 'https://www.mancity.com/news')).toBe('official');
+    expect(sourceTier('Manchester City', 'https://academy.mancity.com/news')).toBe('official');
+    expect(sourceTier('Read Man City', 'https://readmancity.com/news')).toBe('secondary');
   });
 });
 
@@ -284,6 +307,12 @@ describe('classifyHeadline', () => {
   it('recognizes an official outgoing loan move as transfer risk', () => {
     expect(classifyHeadline('Player joins Championship club on loan')).toEqual({
       category: 'transfer', severity: 'high',
+    });
+  });
+
+  it('keeps unrelated headlines out of availability evidence', () => {
+    expect(classifyHeadline('Player discusses his favourite stadium')).toEqual({
+      category: 'other', severity: 'low',
     });
   });
 });

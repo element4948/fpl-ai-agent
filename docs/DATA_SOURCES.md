@@ -28,6 +28,8 @@
 - Official club/FPL information outranks media reports.
 - Official club searches are constrained to the configured current-club domain, then matched to the player with display/full-name aliases. Surname-only matching is allowed only when it is unique inside that club.
 - Google News redirect URLs are not treated as independent publishers; corroboration counts the article publisher domain from the RSS source metadata.
+- Official publishers require an exact configured hostname or subdomain boundary; lookalike domains containing an official club domain as a substring remain secondary.
+- Multi-source corroboration requires the same semantic claim (for example ruled out versus merely doubtful), not only the same broad news category. Unclassified headlines remain `other` context and never masquerade as availability evidence.
 - A high-severity external warning blocks a pick only when confirmed or corroborated according to source verification logic.
 - Source count is displayed as coverage, not added repeatedly to the player score.
 - API-Football previous-season statistics may provide a prior but cannot alone prove a current starting role.

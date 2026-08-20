@@ -210,7 +210,8 @@ export type ExternalNewsSignal = {
     | 'international'
     | 'friendly'
     | 'press-conference'
-    | 'fatigue';
+    | 'fatigue'
+    | 'other';
   severity: 'low' | 'medium' | 'high';
   verification: 'confirmed' | 'corroborated' | 'single-source' | 'unverified';
   corroboratingSourceCount: number;

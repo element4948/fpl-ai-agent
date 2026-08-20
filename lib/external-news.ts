@@ -56,23 +56,39 @@ function sourceValue(item: string) {
   };
 }
 
-function sourceTier(source: string, sourceUrl: string): ExternalNewsSignal['tier'] {
-  const text = `${source} ${sourceUrl}`.toLowerCase();
-  if (
-    text.includes('premierleague.com') ||
-    [
-      'arsenal.com', 'avfc.co.uk', 'afcb.co.uk', 'brentfordfc.com',
-      'brightonandhovealbion.com', 'chelseafc.com', 'cpfc.co.uk',
-      'evertonfc.com', 'fulhamfc.com', 'liverpoolfc.com', 'mancity.com',
-      'manutd.com', 'nufc.co.uk', 'safc.com', 'tottenhamhotspur.com',
-      'ccfc.co.uk', 'hullcitytigers.com', 'itfc.co.uk', 'leedsunited.com',
-      'nottinghamforest.co.uk',
-      'newcastleunited.com',
-      'whufc.com', 'wolves.co.uk', 'burnleyfootballclub.com',
-      'lcfc.com', 'southamptonfc.com', 'wba.co.uk', 'watfordfc.com',
-      'sufc.co.uk', 'swanseacity.com', 'thefa.com', 'uefa.com', 'fifa.com',
-    ].some((domain) => text.includes(domain))
-  ) return 'official';
+const OFFICIAL_SOURCE_DOMAINS = [
+  'premierleague.com',
+  'arsenal.com', 'avfc.co.uk', 'afcb.co.uk', 'brentfordfc.com',
+  'brightonandhovealbion.com', 'chelseafc.com', 'cpfc.co.uk',
+  'evertonfc.com', 'fulhamfc.com', 'liverpoolfc.com', 'mancity.com',
+  'manutd.com', 'nufc.co.uk', 'safc.com', 'tottenhamhotspur.com',
+  'ccfc.co.uk', 'hullcitytigers.com', 'itfc.co.uk', 'leedsunited.com',
+  'nottinghamforest.co.uk',
+  'newcastleunited.com',
+  'whufc.com', 'wolves.co.uk', 'burnleyfootballclub.com',
+  'lcfc.com', 'southamptonfc.com', 'wba.co.uk', 'watfordfc.com',
+  'sufc.co.uk', 'swanseacity.com', 'thefa.com', 'uefa.com', 'fifa.com',
+];
+
+function normalizedHostname(value: string) {
+  try {
+    const candidate = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+    return new URL(candidate).hostname.toLowerCase().replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+function hostnameMatches(hostname: string, domain: string) {
+  return hostname === domain || hostname.endsWith(`.${domain}`);
+}
+
+export function sourceTier(source: string, sourceUrl: string): ExternalNewsSignal['tier'] {
+  const hostname = normalizedHostname(sourceUrl);
+  if (hostname && OFFICIAL_SOURCE_DOMAINS.some((domain) => hostnameMatches(hostname, domain))) {
+    return 'official';
+  }
+  const text = source.trim().toLowerCase();
   if (
     text.includes('bbc') ||
     text.includes('sky sports') ||
@@ -144,7 +160,7 @@ export function classifyHeadline(headline: string): Pick<ExternalNewsSignal, 'ca
   if (/press conference|manager confirms|manager says|team news update/.test(text)) {
     return { category: 'press-conference', severity: 'low' };
   }
-  return { category: 'availability', severity: 'low' };
+  return { category: 'other', severity: 'low' };
 }
 
 function maximumAge(category: ExternalNewsSignal['category']) {
@@ -159,6 +175,29 @@ function sourceKey(signal: Pick<ExternalNewsSignal, 'source' | 'sourceUrl' | 'ur
   } catch {
     return signal.source.trim().toLowerCase();
   }
+}
+
+function claimKey(signal: Pick<ExternalNewsSignal, 'headline' | 'category' | 'severity'>) {
+  const text = signal.headline.toLowerCase();
+  if (signal.category === 'availability') return 'availability:fit';
+  if (signal.category === 'injury') {
+    if (/ruled out|sidelined|misses/.test(text)) return 'injury:out';
+    if (/doubt|fitness test|late call/.test(text)) return 'injury:doubt';
+    return `injury:${signal.severity}`;
+  }
+  if (signal.category === 'transfer') {
+    if (/completes? (a )?(move|transfer)|joins? .+ on loan|loan move|leaves? (the )?club/.test(text)) return 'transfer:move';
+    if (/agrees terms|set to leave|expected to leave|wants exit/.test(text)) return 'transfer:exit';
+    if (/transfer talks/.test(text)) return 'transfer:talks';
+  }
+  if (signal.category === 'rotation') return /dropped|left out|loses place|not first choice/.test(text)
+    ? 'rotation:place-risk'
+    : 'rotation:general';
+  if (signal.category === 'fatigue') return 'fatigue:workload';
+  if (signal.category === 'press-conference') return 'press-conference:update';
+  if (signal.category === 'international') return `international:${signal.severity}`;
+  if (signal.category === 'friendly') return `friendly:${signal.severity}`;
+  return `other:${text.replace(/[^a-z0-9]+/g, ' ').trim()}`;
 }
 
 export function playerNewsAliases(
@@ -196,7 +235,7 @@ export function verifySignals(
   return signals.map((signal) => {
     const relatedSources = new Set(
       signals
-        .filter((candidate) => candidate.category === signal.category && candidate.tier !== 'secondary')
+        .filter((candidate) => claimKey(candidate) === claimKey(signal) && candidate.tier !== 'secondary')
         .map(sourceKey),
     );
     const corroboratingSourceCount = relatedSources.size;

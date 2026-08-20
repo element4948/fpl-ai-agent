@@ -42,13 +42,13 @@ export async function GET(request: Request) {
 
 const getFastDashboard = unstable_cache(
   () => buildDashboardPayload(true),
-  ['fpl-dashboard-fast-v25-data-freshness'],
+  ['fpl-dashboard-fast-v26-news-trust'],
   { revalidate: 300 },
 );
 
 const getVerifiedDashboard = unstable_cache(
   () => buildDashboardPayload(false),
-  ['fpl-dashboard-verified-v25-data-freshness'],
+  ['fpl-dashboard-verified-v26-news-trust'],
   { revalidate: 900 },
 );
 
@@ -183,9 +183,11 @@ async function buildDashboardPayload(fast: boolean) {
       fixtures: !!fixtures?.length,
       news: fast ? 'skipped' : newsScan?.ok ? 'ok' : 'unavailable',
       apiFootball: apiFootballScan.error ? 'unavailable' : apiFootballScan.enabled ? 'ok' : 'skipped',
-      // Degraded = fixtures missing, or the verified news scan failed. The UI
-      // should warn and avoid presenting these recommendations as verified.
-      degraded: !fixtures?.length || (!fast && !newsScan?.ok),
+      evidenceLimited: !fast && drafts.some((draft) => draft.trust.status !== 'verified'),
+      // Optional providers may be unavailable without blanking the product,
+      // but a verified response with insufficient draft evidence must remain
+      // visibly degraded rather than looking final-ready.
+      degraded: !fixtures?.length || (!fast && (!newsScan?.ok || drafts.some((draft) => draft.trust.status !== 'verified'))),
     },
     topPlayers,
     topTargets: topTargetsByPosition(players),

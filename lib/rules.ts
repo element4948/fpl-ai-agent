@@ -665,10 +665,6 @@ export function buildDraft(
                 .join(', ')}.`,
         );
     }
-    if (trust.status === 'insufficient') {
-        validation.valid = false;
-        validation.errors.push('Draft evidence coverage is insufficient. Treat this squad as provisional only.');
-    }
     if (mode !== 'Differential' && flexibility.bank < flexibility.targetBank) {
         validation.valid = false;
         validation.errors.push(
