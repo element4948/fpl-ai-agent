@@ -24,6 +24,7 @@ export type DigestData = {
     note?: string;
     hasSquad: boolean;
     alerts: SquadAlert[];
+    targetAlerts: SquadAlert[];
     reports: SquadAlert[];
     captain: CaptainPick;
     vice: CaptainPick;
@@ -46,6 +47,7 @@ export async function gatherDigest(): Promise<DigestData> {
         ok: false,
         hasSquad: false,
         alerts: [],
+        targetAlerts: [],
         reports: [],
         captain: null,
         vice: null,
@@ -75,7 +77,9 @@ export async function gatherDigest(): Promise<DigestData> {
         entryId ? getEntry(entryId) : Promise.resolve(null),
     ]);
     const pickIds = picks?.picks?.map((pick) => pick.element) || [];
-    const hasSquad = pickIds.length >= 11;
+    // A personal captain/transfer decision requires the complete public squad.
+    // Never reinterpret a partial/failed picks payload as an actionable team.
+    const hasSquad = pickIds.length === 15;
 
     const relevance = (p: ModelPlayer) => p.expectedPoints + p.valueScore * 0.4 + p.ownership * 0.03;
     const targetIds = [...players]
@@ -114,16 +118,19 @@ export async function gatherDigest(): Promise<DigestData> {
     const targetAlerts = hasSquad
         ? buildSquadAlerts(enriched.filter((player) => targetIds.includes(player.id)))
             .filter((alert) => alert.severity !== 'low')
-            .map((alert) => ({ ...alert, message: `Transfer target · ${alert.message}` }))
         : [];
-    const alerts = [...squadAlerts, ...targetAlerts];
-    const reports = buildSquadReports(enriched);
+    const alerts = hasSquad ? squadAlerts : [];
+    const reports = hasSquad ? buildSquadReports(squadFocus) : buildSquadReports(enriched);
 
     const captainRanked = rankCaptainCandidates(squadFocus, 3);
     const captainFallback = [...squadFocus].filter((p) => p.position !== 'GKP').sort((a, b) => b.expectedPoints - a.expectedPoints);
     const capList = captainRanked.length ? captainRanked : captainFallback;
-    const captain: CaptainPick = capList[0] ? { name: capList[0].name, team: capList[0].team, points: capList[0].expectedPoints } : null;
-    const vice: CaptainPick = capList[1] ? { name: capList[1].name, team: capList[1].team, points: capList[1].expectedPoints } : null;
+    const captain: CaptainPick = hasSquad && capList[0]
+        ? { name: capList[0].name, team: capList[0].team, points: capList[0].expectedPoints }
+        : null;
+    const vice: CaptainPick = hasSquad && capList[1]
+        ? { name: capList[1].name, team: capList[1].team, points: capList[1].expectedPoints }
+        : null;
 
     const focusSetForDifferential = new Set(pickIds);
     const differentialPlayer = [...players]
@@ -152,7 +159,7 @@ export async function gatherDigest(): Promise<DigestData> {
         roadmap,
     });
     const chipOption = chipOptions.find((option) => option.action !== 'Hold') || chipOptions[0] || null;
-    const chip: ChipPick = chipOption
+    const chip: ChipPick = hasSquad && chipOption
         ? {
               chip: chipOption.chip,
               action: chipOption.action,
@@ -170,6 +177,7 @@ export async function gatherDigest(): Promise<DigestData> {
                   label: recommended.label,
                   moves: (recommended.moves || []).map((move: { out: string; in: string }) => `${move.out} → ${move.in}`),
                   netGain: recommended.netGain,
+                  freeTransfersAssumed: 1,
               }
             : null;
     }
@@ -223,6 +231,7 @@ export async function gatherDigest(): Promise<DigestData> {
     // reports, and global injuries all count as noteworthy items.
     const itemKeys = [
         ...alerts.filter((a) => a.severity !== 'low').map((a) => alertKey(a.playerId, a.message)),
+        ...targetAlerts.map((a) => alertKey(a.playerId, `target:${a.message}`)),
         ...reports.map((r) => alertKey(r.playerId, r.message)),
         ...globalNews.injuries.map((i) => alertKey(i.id, i.text)),
     ];
@@ -234,6 +243,7 @@ export async function gatherDigest(): Promise<DigestData> {
         note,
         hasSquad,
         alerts,
+        targetAlerts,
         reports,
         captain,
         vice,

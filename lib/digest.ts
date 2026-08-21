@@ -14,7 +14,7 @@ export type LeagueLine = {
     gapAbove: number;
 };
 export type CaptainPick = { name: string; team: string; points: number } | null;
-export type TransferPick = { label: string; moves: string[]; netGain: number } | null;
+export type TransferPick = { label: string; moves: string[]; netGain: number; freeTransfersAssumed?: number } | null;
 export type EntrySummary = {
     teamName: string;
     totalPoints: number;
@@ -60,6 +60,8 @@ export function buildDigestMessage(input: {
     deadlineIso?: string;
     nowMs: number;
     alerts: SquadAlert[];
+    targetAlerts?: SquadAlert[];
+    hasSquad?: boolean;
     captain: CaptainPick;
     vice: CaptainPick;
     transfer: TransferPick;
@@ -75,7 +77,8 @@ export function buildDigestMessage(input: {
     freshHeadline?: string;
 }): string {
     const blocks: string[] = [];
-    blocks.push(`⚽ FPL дайджест${input.eventName ? ` — ${input.eventName}` : ''}`);
+    const hasSquad = input.hasSquad ?? input.coverage?.squad ?? true;
+    blocks.push(`⚽ FPL шийдвэр${input.eventName ? ` — ${input.eventName}` : ''}`);
     if (input.freshHeadline) blocks.push(input.freshHeadline);
     if (input.note) blocks.push(input.note);
 
@@ -90,37 +93,56 @@ export function buildDigestMessage(input: {
         );
     }
 
+    if (!hasSquad) {
+        blocks.push(
+            '⚠️ Хувийн багийн шийдвэр гараагүй: Official FPL-ээс таны одоогийн 15 тоглогч хараахан нээлттэй биш байна. ' +
+            'Доорх нь зөвхөн ажиглах жагсаалт; captain эсвэл transfer заавар биш.',
+        );
+    } else {
+        const decisionLines: string[] = [];
+        if (input.captain) {
+            decisionLines.push(
+                `© Ахлагч: ${input.captain.name} (${input.captain.team}) — ${input.captain.points.toFixed(1)} таамаг оноо` +
+                (input.vice ? ` · Дэд: ${input.vice.name}` : ''),
+            );
+        } else {
+            decisionLines.push('© Ахлагч: мэдээлэл дутуу — deadline-ийн өмнө дахин шалгана');
+        }
+        if (input.transfer) {
+            const assumption = input.transfer.freeTransfersAssumed
+                ? ` · ${input.transfer.freeTransfersAssumed} үнэгүй солилцоо гэж тооцсон`
+                : '';
+            decisionLines.push(
+                input.transfer.moves.length
+                    ? `⇄ Солилцоо: ${input.transfer.moves.join(', ')} · цэвэр өсөлт +${input.transfer.netGain.toFixed(1)} таамаг оноо${assumption}`
+                    : `⇄ Солилцоо: HOLD — тодорхой цэвэр ашиг алга${assumption}`,
+            );
+        } else {
+            decisionLines.push('⇄ Солилцоо: мэдээлэл дутуу — автоматаар үйлдэл хийхгүй');
+        }
+        if (input.chip) {
+            decisionLines.push(`🎴 Chip: ${mnAction(input.chip.action)} · ${input.chip.confidence}% — ${input.chip.reason}`);
+        }
+        blocks.push(`✅ ОДОО ХИЙХ ЗҮЙЛ\n${decisionLines.join('\n')}`);
+    }
+
     if (input.alerts.length) {
         const lines = input.alerts.slice(0, 20).map((a) => `${ICON[a.severity]} ${a.name} (${a.team}): ${a.message}`);
-        blocks.push(`📋 Багийн мэдэгдэл:\n${lines.join('\n')}`);
-    } else {
-        blocks.push('📋 Багт чинь чухал шинэ мэдээ алга ✅');
+        blocks.push(`🚨 ТАНЫ БАГИЙН ЭРСДЭЛ:\n${lines.join('\n')}`);
+    } else if (hasSquad) {
+        blocks.push('🚨 Таны багт одоогоор чухал эрсдэлийн мэдээ алга ✅');
     }
 
-    if (input.captain) {
-        const viceText = input.vice ? ` · Vice: ${input.vice.name}` : '';
-        blocks.push(`© Captain: ${input.captain.name} (${input.captain.team}) — ${input.captain.points.toFixed(1)} xP${viceText}`);
-    }
-
-    if (input.transfer) {
-        blocks.push(
-            input.transfer.moves.length
-                ? `⇄ Transfer: ${input.transfer.moves.join(', ')} (+${input.transfer.netGain.toFixed(1)} net · ${input.transfer.label})`
-                : '⇄ Transfer: Hold — энэ долоо хоног тодорхой ашиг алга',
-        );
+    if (input.targetAlerts?.length) {
+        const lines = input.targetAlerts.slice(0, 8).map((a) => `${ICON[a.severity]} ${a.name} (${a.team}): ${a.message}`);
+        blocks.push(`👀 АЖИГЛАЖ БУЙ СОЛИЛЦООНЫ БАЙ:\n${lines.join('\n')}`);
     }
 
     if (input.differential) {
         blocks.push(
-            `💎 Differential: ${input.differential.name} (${input.differential.team}) · ` +
-                `${input.differential.ownership.toFixed(1)}% owned · ${input.differential.points.toFixed(1)} xP · ` +
-                `next 5 ${input.differential.nextFive.toFixed(1)} xP`,
-        );
-    }
-
-    if (input.chip) {
-        blocks.push(
-            `🎴 Chip: ${input.chip.chip} — ${input.chip.action} (${input.chip.confidence}%)\n${input.chip.reason}`,
+            `💎 ${hasSquad ? 'Дифференциал санал' : 'Ажиглах бага эзэмшилтэй тоглогч'}: ${input.differential.name} (${input.differential.team}) · ` +
+                `${input.differential.ownership.toFixed(1)}% эзэмшил · ${input.differential.points.toFixed(1)} таамаг оноо · ` +
+                `дараагийн 5-д ${input.differential.nextFive.toFixed(1)}`,
         );
     }
 
@@ -148,7 +170,7 @@ export function buildDigestMessage(input: {
 
     if (input.reports.length) {
         const lines = input.reports.slice(0, 8).map((r) => `⚪ ${r.name} (${r.team}): ${r.message}`);
-        blocks.push(`📰 Мэдээ (баталгаажаагүй — шалгах):\n${lines.join('\n')}`);
+        blocks.push(`📰 Баталгаажаагүй мэдээ — шийдвэр гаргахаас өмнө шалгах:\n${lines.join('\n')}`);
     }
 
     if (input.globalNews && hasGlobalNews(input.globalNews)) {
@@ -162,13 +184,18 @@ export function buildDigestMessage(input: {
               ? 'league ID алга'
               : 'league data алга';
         blocks.push(
-            `🔎 Data coverage: Official FPL ${input.coverage.officialFpl ? '✓' : '✗'} · ` +
-                `fixture ${input.coverage.fixtures ? '✓' : '✗'} · squad ${input.coverage.squad ? '✓' : '✗'} · ` +
-                `news ${input.coverage.externalChecked}/${input.coverage.externalTarget} · ${league}`,
+            `🔎 Мэдээллийн хамрах хүрээ: Official FPL ${input.coverage.officialFpl ? '✓' : '✗'} · ` +
+                `тоглолт ${input.coverage.fixtures ? '✓' : '✗'} · хувийн баг ${input.coverage.squad ? '✓' : '✗'} · ` +
+                `мэдээ ${input.coverage.externalChecked}/${input.coverage.externalTarget} · ${league}`,
         );
     }
 
     return blocks.join('\n\n');
+}
+
+function mnAction(action: string) {
+    if (action.toLowerCase() === 'hold') return 'HOLD — одоохондоо ашиглахгүй';
+    return action;
 }
 
 // FPL-wide important news (not just the owner's squad). Source snippets are kept

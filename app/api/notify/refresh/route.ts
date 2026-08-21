@@ -3,14 +3,13 @@ import { cookies } from 'next/headers';
 import { buildDigestMessage } from '@/lib/digest';
 import { sendTelegramMessage, telegramConfigured, telegramStatus } from '@/lib/telegram';
 import { gatherDigest } from '@/lib/notify-core';
-import { getLastDigest, markAlertSent, setLastDigest, wasAlertSent } from '@/lib/alert-store';
+import { markAlertSent, setLastDigest, wasAlertSent } from '@/lib/alert-store';
 import { sessionIsValid } from '@/lib/cloud-profile-server';
 
-// On-demand "get the latest news" button target. It does two things the user
-// asked for, in one click:
-//   1. Re-sends the most recently sent digest (verbatim), if we have one stored.
-//   2. Sends a fresh digest built from the CURRENT state, headed with how many
-//      items are genuinely NEW since that last send.
+// On-demand "get the latest news" button target.
+// Sends one fresh digest from the CURRENT state, headed with how many items are
+// genuinely new since the last send. It deliberately does not re-send the old
+// digest first; two near-identical messages made the action hard to interpret.
 // A short KV cooldown stops rapid double-clicks from spamming Telegram.
 export const maxDuration = 60;
 
@@ -37,15 +36,7 @@ async function handle() {
     const data = await gatherDigest();
     if (!data.ok) return NextResponse.json({ ok: false, error: data.reason || 'FPL API unavailable' });
 
-    // (1) Re-send the previous digest verbatim, if one is stored.
-    const previous = await getLastDigest();
-    let resentPrevious = false;
-    if (previous) {
-        const resend = await sendTelegramMessage(`🔁 Өмнөх мэдэгдэл (давтан илгээв):\n\n${previous}`);
-        resentPrevious = resend.ok;
-    }
-
-    // (2) Work out what is NEW since the last send (unseen dedup keys).
+    // Work out what is NEW since the last send (unseen dedup keys).
     let newCount = 0;
     for (const key of data.itemKeys) {
         if (!(await wasAlertSent(key))) newCount += 1;
@@ -60,7 +51,9 @@ async function handle() {
         note: data.note,
         deadlineIso: data.deadlineIso,
         nowMs: Date.now(),
+        hasSquad: data.hasSquad,
         alerts: data.alerts,
+        targetAlerts: data.targetAlerts,
         captain: data.captain,
         vice: data.vice,
         transfer: data.transfer,
@@ -86,7 +79,7 @@ async function handle() {
 
     return NextResponse.json({
         ok: result.ok,
-        resentPrevious,
+        resentPrevious: false,
         newSinceLast: newCount,
         mode: data.hasSquad ? 'squad' : 'watchlist',
         ...(result.error ? { error: result.error } : {}),

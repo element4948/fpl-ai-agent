@@ -25,12 +25,16 @@ export function buildDeadlineAlert(input: {
     highRiskCount: number;
 }): { key: string; message: string } {
     const captain = input.captain
-        ? `${input.captain.name}${input.vice ? ` · Vice ${input.vice.name}` : ''}`
-        : 'Squad мэдээлэл нээгдээгүй';
+        ? `${input.captain.name}${input.vice ? ` · Дэд ${input.vice.name}` : ''}`
+        : 'Хувийн багийн мэдээлэл нээгдээгүй';
+    const transferAssumption = input.transfer?.freeTransfersAssumed
+        ? ` (${input.transfer.freeTransfersAssumed} үнэгүй солилцоо гэж тооцсон)`
+        : '';
     const transfer = input.transfer
-        ? input.transfer.moves.length ? input.transfer.moves.join(', ') : 'Hold'
+        ? input.transfer.moves.length ? `${input.transfer.moves.join(', ')}${transferAssumption}` : `HOLD${transferAssumption}`
         : 'Шийдвэр гараагүй';
-    const chip = input.chip ? `${input.chip.chip}: ${input.chip.action}` : 'Hold / шийдвэр гараагүй';
+    const chipAction = input.chip?.action.toLowerCase() === 'hold' ? 'HOLD — ашиглахгүй' : input.chip?.action;
+    const chip = input.chip ? `${input.chip.chip}: ${chipAction}` : 'HOLD / шийдвэр гараагүй';
     const risk = input.highRiskCount > 0 ? `${input.highRiskCount} өндөр эрсдэлтэй мэдээ байна` : 'Өндөр эрсдэлтэй шинэ мэдээ алга';
     const signature = [captain, transfer, chip, input.highRiskCount].join('|');
     const event = input.eventName || 'next-gameweek';
@@ -39,8 +43,8 @@ export function buildDeadlineAlert(input: {
         key: `fpldeadline:${event}:${input.window}:${stableHash(signature)}`,
         message: [
             `⏰ ${event} deadline — ${input.window} үлдлээ`,
-            `© Captain: ${captain}`,
-            `⇄ Transfer: ${transfer}`,
+            `© Ахлагч: ${captain}`,
+            `⇄ Солилцоо: ${transfer}`,
             `🎴 Chip: ${chip}`,
             `🚨 ${risk}`,
             'Official FPL дээр хэрэгжүүлэхээсээ өмнө бүрэлдэхүүнээ эцэслэн шалгана уу.',

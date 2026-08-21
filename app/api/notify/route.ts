@@ -27,7 +27,9 @@ export async function GET(request: Request) {
         note: data.note,
         deadlineIso: data.deadlineIso,
         nowMs: Date.now(),
+        hasSquad: data.hasSquad,
         alerts: data.alerts,
+        targetAlerts: data.targetAlerts,
         captain: data.captain,
         vice: data.vice,
         transfer: data.transfer,
@@ -56,6 +58,7 @@ export async function GET(request: Request) {
         mode: data.hasSquad ? 'squad' : 'watchlist',
         sections: {
             alerts: data.alerts.length,
+            targetAlerts: data.targetAlerts.length,
             reports: data.reports.length,
             priceChanges: data.priceChanges.length,
             league: Boolean(data.league),

@@ -84,9 +84,52 @@ describe('buildDigestMessage FPL-wide section', () => {
         });
         expect(message).toContain('My XI: 123 оноо');
         expect(message).toContain('Overall #4,567');
-        expect(message).toContain('Differential: Upside');
-        expect(message).toContain('Chip: Triple Captain — Hold');
-        expect(message).toContain('news 15/15');
+        expect(message).toContain('Дифференциал санал: Upside');
+        expect(message).toContain('Chip: HOLD — одоохондоо ашиглахгүй');
+        expect(message).toContain('мэдээ 15/15');
+    });
+
+    it('does not present watchlist players as personal captain or transfer advice', () => {
+        const message = buildDigestMessage({
+            eventName: 'Gameweek 1',
+            nowMs: 0,
+            hasSquad: false,
+            alerts: [],
+            captain: { name: 'Wrong Captain', team: 'ARS', points: 8 },
+            vice: null,
+            transfer: { label: 'Move', moves: ['Out → In'], netGain: 2 },
+            differential: { name: 'Watch', team: 'LIV', ownership: 5, points: 6, nextFive: 28 },
+            chip: null,
+            priceChanges: [],
+            league: null,
+            reports: [],
+        });
+        expect(message).toContain('Хувийн багийн шийдвэр гараагүй');
+        expect(message).toContain('Ажиглах бага эзэмшилтэй тоглогч: Watch');
+        expect(message).not.toContain('Ахлагч: Wrong Captain');
+        expect(message).not.toContain('Out → In');
+    });
+
+    it('separates squad risk from transfer-target risk and states the free-transfer assumption', () => {
+        const squadAlert = { playerId: 1, name: 'Owned', team: 'ARS', kind: 'injury' as const, severity: 'high' as const, message: 'Гэмтэл' };
+        const targetAlert = { playerId: 2, name: 'Target', team: 'LIV', kind: 'rotation' as const, severity: 'medium' as const, message: 'Гарааны эргэлзээ' };
+        const message = buildDigestMessage({
+            nowMs: 0,
+            hasSquad: true,
+            alerts: [squadAlert],
+            targetAlerts: [targetAlert],
+            captain: { name: 'Captain', team: 'MCI', points: 7.1 },
+            vice: { name: 'Vice', team: 'LIV', points: 6.2 },
+            transfer: { label: 'No hit', moves: ['Owned → Target'], netGain: 1.8, freeTransfersAssumed: 1 },
+            chip: null,
+            priceChanges: [],
+            league: null,
+            reports: [],
+        });
+        expect(message).toContain('ОДОО ХИЙХ ЗҮЙЛ');
+        expect(message).toContain('1 үнэгүй солилцоо гэж тооцсон');
+        expect(message).toMatch(/ТАНЫ БАГИЙН ЭРСДЭЛ:[\s\S]*Owned/);
+        expect(message).toMatch(/АЖИГЛАЖ БУЙ СОЛИЛЦООНЫ БАЙ:[\s\S]*Target/);
     });
 
     it('renders the global section and a fresh-since-last headline', () => {

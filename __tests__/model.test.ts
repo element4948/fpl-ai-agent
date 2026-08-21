@@ -762,7 +762,7 @@ describe('digest formatting', () => {
       reports: [],
     });
     expect(msg).toContain('Gameweek 3');
-    expect(msg).toContain('Captain: Salah');
+    expect(msg).toContain('Ахлагч: Salah');
     expect(msg).toContain('X → Y');
     expect(msg).toContain('Friends');
     expect(msg).not.toContain('баталгаажаагүй');
@@ -791,8 +791,8 @@ describe('deadline reminders', () => {
     const first = buildDeadlineAlert(base);
     expect(buildDeadlineAlert(base).key).toBe(first.key);
     expect(buildDeadlineAlert({ ...base, highRiskCount: 1 }).key).not.toBe(first.key);
-    expect(first.message).toContain('Captain: Salah');
-    expect(first.message).toContain('Transfer: Hold');
+    expect(first.message).toContain('Ахлагч: Salah');
+    expect(first.message).toContain('Солилцоо: HOLD');
   });
 });
 

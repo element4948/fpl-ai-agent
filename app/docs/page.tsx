@@ -199,7 +199,7 @@ export default function DocsPage() {
           <div className="doc-card warning-card"><h3>Deadline-ийн өмнө шалгах</h3><ul><li>Шинэ гэмтэл гарсан эсэх</li><li>Дасгалжуулагчийн мэдэгдэл</li><li>Тоглогчийг өөр клуб рүү шилжүүлэх мэдээ</li><li>Европын тэмцээний минут ба ядаргаа</li><li>Starting XI алдагдах эрсдэл</li></ul></div>
           <div className="doc-card warning-card"><h3>Шууд дагаж болохгүй нөхцөл</h3><ul><li>Data шинэчлэгдээгүй</li><li>Confidence бага</li><li>Risk өндөр</li><li>Шинэ мэдээ AI-д хараахан орж ирээгүй</li><li>Санал таны төсөв, үнэгүй солилцоотой зөрчилдөж байвал</li></ul></div>
         </div>
-        <p className="doc-note">Official FPL дүрмээр ашиглаагүй free transfer-ийг тав хүртэл хадгалж болно. Иймээс тодорхой ашиггүй үед transfer хийхээс илүү хадгалах, харин тавд хүрсэн үед ашигтай transfer олдвол storage cap-д үрэхгүй ашиглах логик хэрэглэнэ. Үнэгүй transfer-ээс илүү хийсэн transfer бүр −4 оноо тул default нь no-hit байна.</p>
+        <p className="doc-note">Official FPL дүрмээр ашиглаагүй free transfer-ийг тав хүртэл хадгалж болно. Иймээс тодорхой ашиггүй үед transfer хийхээс илүү хадгалах, харин тавд хүрсэн үед ашигтай transfer олдвол storage cap-д үрэхгүй ашиглах логик хэрэглэнэ. Үнэгүй transfer-ээс илүү хийсэн transfer бүр −4 оноо тул default нь no-hit байна. Telegram мэдэгдэл public API-аас хадгалсан free transfer-ийн яг тоог мэдэх боломжгүй учраас нэг free transfer гэж тооцсоноо ил тод бичнэ; сайт дээрх өөрийн утгатай зөрвөл Telegram-ийн transfer саналыг шууд дагахгүй.</p>
       </section>
 
       <section className="doc-section" id="status">

@@ -18,8 +18,8 @@
 
 - Branch: `main`
 - Last committed baseline before this session: `157c16a` (stale player-evidence guard).
-- Current change set: added an evidence-based new-club role-transition gate after the verified draft showed historical starts could overstate a recent arrival's current-team role.
-- Verification in this workspace: `npm run typecheck`, all 74 tests, and `npm run build` pass. Real fast bootstrap returned a valid 15-player 2/5/5/3 squad, max two per club, £99.5m spend/£0.5m bank, legal 3-4-3 XI, 11+4 split, four emergency-cover candidates, and £18.0m bench below its £18.5m target.
+- Current change set: corrected Telegram decision semantics and reorganized the digest into one action-first message with separate My Team and transfer-target risk sections.
+- Verification in this workspace: `npm run typecheck`, all 76 tests, and `npm run build` pass. The latest real fast bootstrap check returned a valid 15-player 2/5/5/3 squad, max two per club, £99.5m spend/£0.5m bank, legal 3-4-3 XI, 11+4 split, four emergency-cover candidates, and £18.0m bench below its £18.5m target.
 - Working tree should be clean after the current scoped commit. Local commits are not pushed unless the owner asks.
 
 ## In progress / not finished
@@ -67,6 +67,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-22 — Corrected Telegram decision semantics and formatting: one fresh action-first digest, separate squad/target risk, explicit free-transfer assumption, and no personal captain claim when public picks are unavailable.
 - 2026-08-22 — Audited the live verified Best draft and added a destination-aware new-club role gate; current-club arrivals are no longer mistaken for transfer-away warnings, and current-team role proof releases the cap.
 - 2026-08-22 — Diagnosed production still on `79c40f5` while `7e8799a` had Vercel failure; moved the unsupported frequent Vercel cron to GitHub Actions.
 - 2026-08-21 — Fixed an optimizer objective mismatch: completed squads and starter reinvestment now share a 72/28 immediate-versus-durable score.
