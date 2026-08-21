@@ -64,6 +64,8 @@ Every player also carries per-source freshness metadata. The strict XI gate reje
 
 Position signals inform projection and selection explanations. Do not multiply the same fixture/xG/minutes signal again in every ranking layer.
 
+Previous-club starts and minutes do not prove a role after a transfer. When a current, trusted headline explicitly places a player at the current FPL club but no current-team role assessment exists, the verified model applies a role-transition gate: capped starter confidence/minutes, rotation label, higher risk and a conservative projection factor. A confirmed arrival at the player's current club is excluded from transfer-away penalties. The cap is released once fresh dated first-choice assessment, identity-verified current-team competitive evidence, or a sufficiently strong recent Official FPL history sample proves the new role; no player-name blacklist is used.
+
 ## Draft construction
 
 FPL hard rules:

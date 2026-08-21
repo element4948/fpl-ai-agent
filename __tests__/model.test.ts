@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeTeamStrength, fixtureAttackMultiplier, cleanSheetProbabilityFrom } from '@/lib/fpl';
-import { classifyHeadline, clusterNewsSignals, headlineMentionsName, playerNewsAliases, resolveSignalConflicts, sourceTier, verifySignals } from '@/lib/external-news';
+import { applyExternalNewsSignals, classifyHeadline, clusterNewsSignals, headlineMentionsName, playerNewsAliases, resolveSignalConflicts, sourceTier, verifySignals } from '@/lib/external-news';
 import { validateSquad } from '@/lib/rules';
 import { captainScore } from '@/lib/scoring';
 import { suggestSafeTransfers, buildTransferPlans } from '@/lib/transfers';
@@ -364,6 +364,88 @@ describe('classifyHeadline', () => {
     expect(classifyHeadline('Manager confirms Player will stay at the club')).toEqual({
       category: 'transfer', severity: 'low',
     });
+  });
+});
+
+describe('new-club role transition', () => {
+  it('does not inherit a nailed role from the previous club without current-team proof', () => {
+    const player = makePlayer({
+      name: 'Example', fullName: 'Example Player', team: 'TOT', teamName: 'Tottenham Hotspur',
+      starterConfidence: 90, predictedMinutes: 84, starterLabel: 'nailed', expectedPoints: 5,
+    });
+    const checkedAt = new Date().toISOString();
+    const enriched = applyExternalNewsSignals([player], {
+      signals: new Map([[player.id, [{
+        headline: 'Example Player to Tottenham Hotspur: tactical analysis',
+        url: 'https://news.example/item', sourceUrl: 'https://news.example', publishedAt: checkedAt,
+        source: 'Reliable News', tier: 'reliable', category: 'other', severity: 'low',
+        verification: 'single-source', corroboratingSourceCount: 1,
+      }]]]),
+      checkedIds: new Set([player.id]), officialClubCheckedIds: new Set<number>(), checkedAt,
+      officialClubFeedsChecked: 0, officialClubFeedsAttempted: 0, officialClubSignals: 0,
+      ok: true, conflicts: [],
+    })[0];
+
+    expect(enriched.starterLabel).toBe('rotation');
+    expect(enriched.starterConfidence).toBe(70);
+    expect(enriched.predictedMinutes).toBe(62);
+    expect(enriched.expectedPoints).toBe(4.2);
+    expect(enriched.risk).toBeGreaterThanOrEqual(36);
+  });
+
+  it('does not mistake a confirmed move to the current club for a transfer-away warning', () => {
+    const player = makePlayer({
+      name: 'Example', fullName: 'Example Player', team: 'TOT', teamName: 'Tottenham Hotspur',
+      starterConfidence: 90, predictedMinutes: 84, starterLabel: 'nailed', expectedPoints: 5,
+    });
+    const checkedAt = new Date().toISOString();
+    const enriched = applyExternalNewsSignals([player], {
+      signals: new Map([[player.id, [{
+        headline: 'Example Player completes transfer to Tottenham Hotspur',
+        url: 'https://tottenhamhotspur.com/item', sourceUrl: 'https://tottenhamhotspur.com', publishedAt: checkedAt,
+        source: 'Tottenham Hotspur', tier: 'official', category: 'transfer', severity: 'high',
+        verification: 'confirmed', corroboratingSourceCount: 1,
+      }]]]),
+      checkedIds: new Set([player.id]), officialClubCheckedIds: new Set([player.id]), checkedAt,
+      officialClubFeedsChecked: 1, officialClubFeedsAttempted: 1, officialClubSignals: 1,
+      ok: true, conflicts: [],
+    })[0];
+
+    expect(enriched.expectedPoints).toBe(4.2);
+    expect(enriched.starterConfidence).toBe(70);
+    expect(enriched.risk).toBe(36);
+  });
+
+  it('removes the transition cap after current-team competitive role proof exists', () => {
+    const player = makePlayer({
+      name: 'Example', fullName: 'Example Player', team: 'TOT', teamName: 'Tottenham Hotspur',
+      starterConfidence: 90, predictedMinutes: 84, starterLabel: 'nailed', expectedPoints: 5,
+      apiFootball: {
+        matches: 3, starts: 3, minutes: 85, rating: 7, shots: 0, keyPasses: 0, tackles: 0, saves: 0,
+        checkedAt: new Date().toISOString(), season: 2026, currentSeason: true, currentTeamMatched: true,
+        friendlyMatches: 0, friendlyStarts: 0, friendlyMinutes: 0,
+        competitiveMatches: 3, competitiveStarts: 3, competitiveMinutes: 85,
+        internationalMatches: 0, internationalStarts: 0, internationalMinutes: 0,
+        internationalFatigueRisk: 0, identityVerified: true,
+      },
+    });
+    const checkedAt = new Date().toISOString();
+    const enriched = applyExternalNewsSignals([player], {
+      signals: new Map([[player.id, [{
+        headline: 'Example Player completes transfer to Tottenham Hotspur',
+        url: 'https://tottenhamhotspur.com/item', sourceUrl: 'https://tottenhamhotspur.com', publishedAt: checkedAt,
+        source: 'Tottenham Hotspur', tier: 'official', category: 'transfer', severity: 'high',
+        verification: 'confirmed', corroboratingSourceCount: 1,
+      }]]]),
+      checkedIds: new Set([player.id]), officialClubCheckedIds: new Set([player.id]), checkedAt,
+      officialClubFeedsChecked: 1, officialClubFeedsAttempted: 1, officialClubSignals: 1,
+      ok: true, conflicts: [],
+    })[0];
+
+    expect(enriched.expectedPoints).toBe(5);
+    expect(enriched.starterConfidence).toBe(90);
+    expect(enriched.predictedMinutes).toBe(84);
+    expect(enriched.risk).toBe(player.risk);
   });
 });
 

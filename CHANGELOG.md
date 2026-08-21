@@ -18,6 +18,7 @@
 
 ## Unreleased
 
+- Added a destination-aware new-club role-transition gate so previous-club starts/minutes cannot make a recent arrival an automatic XI pick before current-team role evidence exists; a move to the current club is not treated as a transfer-away warning, and current-team role proof releases the cap.
 - Moved the 30-minute urgent monitor from Vercel cron to GitHub Actions so Hobby-plan production deployments are not rejected; the daily Vercel jobs remain unchanged.
 - Aligned completed-squad ranking and bench-savings reinvestment on one starter objective, preserving next-deadline priority while applying mode-specific multi-Gameweek value to close selection decisions.
 - Rebuilt Starting XI pitch cards as a consistent compact view with readable name/price, three decision metrics, the full next-five fixture run, risk warning and one detail action; dense audit content remains available outside the pitch.

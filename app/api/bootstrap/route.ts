@@ -54,13 +54,13 @@ export async function GET(request: Request) {
 
 const getFastDashboard = unstable_cache(
   () => buildDashboardPayload(true),
-  ['fpl-dashboard-fast-v29-starter-objective'],
+  ['fpl-dashboard-fast-v30-role-transition'],
   { revalidate: 300 },
 );
 
 const getVerifiedDashboard = unstable_cache(
   () => buildDashboardPayload(false),
-  ['fpl-dashboard-verified-v29-starter-objective'],
+  ['fpl-dashboard-verified-v30-role-transition'],
   { revalidate: 900 },
 );
 

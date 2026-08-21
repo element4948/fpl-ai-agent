@@ -12,6 +12,7 @@
 | API-Football | current-team lineup/minutes/stat corroboration, bounded PL club-friendly lineups, recent structured international minutes, normalized upcoming match-winner odds | Optional secondary | Continue with Official FPL and mark each enrichment unavailable. |
 | Official club news search | one bounded Google News RSS site-query per shortlisted player's current club; injury, availability, transfer and press-conference headlines from the club domain | Official supporting evidence | Per-club feed success is reported; missing results never equal confirmation or zero risk. |
 | Recent news scan | player-specific injury, role, transfer, suspension and published press-conference context | Supporting evidence | Missing news never equals confirmation or zero risk. |
+| Trusted new-club report | detects that historical starts belong to a previous role context | Supporting safety gate | Caps role/minutes until current-team evidence confirms the new role; never assumes a transfer itself makes the player unavailable. |
 
 ## Freshness
 

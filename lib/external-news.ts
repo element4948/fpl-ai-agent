@@ -111,6 +111,48 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function normalizedWords(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function signalMovesPlayerToCurrentClub(signal: ExternalNewsSignal, player: ModelPlayer) {
+  if (signal.tier === 'secondary' || signal.verification === 'unverified') return false;
+  const teamName = normalizedWords(player.teamName || '');
+  if (!teamName) return false;
+  const headline = normalizedWords(signal.headline);
+  const escapedTeam = escapeRegExp(teamName);
+  return new RegExp(`(?:\\bto|joins?|signs? (?:for|with)|transfer(?:red)? to) ${escapedTeam}\\b`).test(headline);
+}
+
+function hasCurrentTeamRoleProof(player: ModelPlayer, now: number) {
+  const apiRole = Boolean(
+    player.apiFootball?.identityVerified &&
+    player.apiFootball.currentSeason &&
+    player.apiFootball.currentTeamMatched &&
+    player.apiFootball.competitiveMatches >= 2,
+  );
+  const officialRole = Boolean(
+    player.recentHistory &&
+    player.recentHistory.sampleSize >= 3 &&
+    player.recentHistory.startRate >= 60 &&
+    player.recentHistory.averageMinutes >= 55,
+  );
+  const roleCheckedAt = Date.parse(player.roleAssessment?.checkedAt || '');
+  const roleExpiresAt = player.roleAssessment?.expiresAt
+    ? Date.parse(player.roleAssessment.expiresAt.length <= 10
+      ? `${player.roleAssessment.expiresAt}T23:59:59Z`
+      : player.roleAssessment.expiresAt)
+    : Number.POSITIVE_INFINITY;
+  const assessedRole = Boolean(
+    player.roleAssessment?.role === 'first-choice' &&
+    player.roleAssessment.confidence >= 75 &&
+    Number.isFinite(roleCheckedAt) &&
+    now - roleCheckedAt <= 7 * 24 * 60 * 60 * 1000 &&
+    now <= roleExpiresAt,
+  );
+  return apiRole || officialRole || assessedRole;
+}
+
 /**
  * Whole-name match instead of raw substring. `"son".includes` matched
  * "Johnson"/"reason" and slashed the wrong player's projection; requiring the
@@ -493,24 +535,36 @@ export function applyExternalNewsSignals(
 ) {
   return players.map((player) => {
     const externalNews = scan.signals.get(player.id) || [];
+    const currentClubMoveSignals = new Set(
+      externalNews.filter((signal) => signalMovesPlayerToCurrentClub(signal, player)),
+    );
+    const warningNews = externalNews.filter((signal) => !currentClubMoveSignals.has(signal));
     const newsCheckedAt = scan.checkedIds.has(player.id) ? scan.checkedAt : undefined;
     const officialClubNewsCheckedAt = scan.officialClubCheckedIds.has(player.id)
       ? scan.checkedAt
       : undefined;
-    const trustedHigh = externalNews.some(
+    const trustedHigh = warningNews.some(
       (signal) => signal.severity === 'high' && (signal.verification === 'confirmed' || signal.verification === 'corroborated'),
     );
-    const trustedMedium = externalNews.some(
+    const trustedMedium = warningNews.some(
       (signal) => signal.severity === 'medium' && (signal.verification === 'confirmed' || signal.verification === 'corroborated'),
     );
-    const singleReliableWarning = externalNews.some(
+    const singleReliableWarning = warningNews.some(
       (signal) => signal.tier === 'reliable' && signal.verification === 'single-source' && signal.severity !== 'low',
     );
+    const trustedNewClubSignal = currentClubMoveSignals.size > 0 &&
+      !hasCurrentTeamRoleProof(player, Date.parse(scan.checkedAt) || Date.now());
     if (!externalNews.length) return newsCheckedAt
       ? { ...player, newsCheckedAt, officialClubNewsCheckedAt }
       : player;
 
-    const projectionFactor = trustedHigh ? 0.45 : trustedMedium ? 0.72 : singleReliableWarning ? 0.9 : 1;
+    const projectionFactor = trustedHigh
+      ? 0.45
+      : trustedMedium
+        ? 0.72
+        : trustedNewClubSignal
+          ? 0.84
+          : singleReliableWarning ? 0.9 : 1;
     // Keep every availability-dependent field consistent. Previously the
     // points/minutes were reduced while appearanceProbability stayed high,
     // allowing warned players back into captain, lineup and bench models.
@@ -524,6 +578,8 @@ export function applyExternalNewsSignals(
       ? Math.max(player.risk, 62)
       : trustedMedium
         ? Math.max(player.risk, 42)
+        : trustedNewClubSignal
+          ? Math.max(player.risk, 36)
         : singleReliableWarning
           ? Math.max(player.risk, 28)
           : player.risk;
@@ -554,17 +610,26 @@ export function applyExternalNewsSignals(
         ? Math.min(player.confidence, 45)
         : trustedMedium
           ? Math.min(player.confidence, 60)
+          : trustedNewClubSignal
+            ? Math.min(player.confidence, 65)
           : player.confidence,
       starterConfidence: trustedHigh
         ? Math.min(player.starterConfidence, 38)
         : trustedMedium
           ? Math.min(player.starterConfidence, 55)
+          : trustedNewClubSignal
+            ? Math.min(player.starterConfidence, 70)
           : player.starterConfidence,
       predictedMinutes: trustedHigh
         ? Math.min(player.predictedMinutes, 40)
         : trustedMedium
           ? Math.min(player.predictedMinutes, 52)
+          : trustedNewClubSignal
+            ? Math.min(player.predictedMinutes, 62)
           : player.predictedMinutes,
+      starterLabel: trustedNewClubSignal && player.starterLabel !== 'unavailable'
+        ? 'rotation' as const
+        : player.starterLabel,
       risk,
       riskBreakdown: player.riskBreakdown ? {
         ...player.riskBreakdown,
