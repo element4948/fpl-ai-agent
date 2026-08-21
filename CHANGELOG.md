@@ -18,6 +18,7 @@
 
 ## Unreleased
 
+- Moved the 30-minute urgent monitor from Vercel cron to GitHub Actions so Hobby-plan production deployments are not rejected; the daily Vercel jobs remain unchanged.
 - Aligned completed-squad ranking and bench-savings reinvestment on one starter objective, preserving next-deadline priority while applying mode-specific multi-Gameweek value to close selection decisions.
 - Rebuilt Starting XI pitch cards as a consistent compact view with readable name/price, three decision metrics, the full next-five fixture run, risk warning and one detail action; dense audit content remains available outside the pitch.
 - Corrected the Starting XI pitch order and center-line orientation; forwards now appear ahead of midfield, defence, and goalkeeper on every responsive layout.

@@ -18,7 +18,7 @@
 
 - Branch: `main`
 - Last committed baseline before this session: `157c16a` (stale player-evidence guard).
-- Current change set: aligned optimizer final-state and bench-reinvestment scoring on a next-deadline-first, mode-aware multi-Gameweek starter objective; UI and deadline monitoring changes remain complete.
+- Current change set: removed a Vercel Hobby deployment blocker by moving the 30-minute urgent monitor to GitHub Actions; optimizer/UI/deadline logic remains complete.
 - Verification in this workspace: `npm run typecheck`, all 71 tests, and `npm run build` pass. Real fast bootstrap returned a valid 15-player 2/5/5/3 squad, max two per club, £99.5m spend/£0.5m bank, legal 3-4-3 XI, 11+4 split, and £18.0m bench below its £18.5m target.
 - Working tree should be clean after the current scoped commit. Local commits are not pushed unless the owner asks.
 
@@ -67,6 +67,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-22 — Diagnosed production still on `79c40f5` while `7e8799a` had Vercel failure; moved the unsupported frequent Vercel cron to GitHub Actions.
 - 2026-08-21 — Fixed an optimizer objective mismatch: completed squads and starter reinvestment now share a 72/28 immediate-versus-durable score.
 - 2026-08-21 — Replaced dense, variable Starting XI cards with a uniform readable pitch-specific card while retaining the full next-five fixture run; detailed evidence remains one click away.
 - 2026-08-21 — Used the owner's local screenshot to identify intrinsic grid-column overflow; constrained formation rows/cards to the pitch so Starting XI no longer shifts right over the bench.

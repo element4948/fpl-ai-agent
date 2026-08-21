@@ -31,12 +31,13 @@ The only reliable completion signal is a successful TypeScript/build result. A d
 ## Telegram notifications
 
 - The scheduled digest runs every day at `17:00 Asia/Ulaanbaatar` (`09:00 UTC`) through `vercel.json`.
-- The urgent monitor runs every 30 minutes. It sends only unseen high-severity squad/target changes and decision reminders in the 24-hour, 6-hour, and 90-minute deadline windows.
+- The urgent monitor runs every 30 minutes through `.github/workflows/urgent-monitor.yml`, avoiding Vercel Hobby's frequent-cron deployment restriction. Configure GitHub Actions repository secrets `PRODUCTION_URL` (the stable production origin) and `CRON_SECRET`. It sends only unseen high-severity squad/target changes and decision reminders in the 24-hour, 6-hour, and 90-minute deadline windows.
 - Configure `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and `CRON_SECRET` in Vercel Production environment variables. Never commit their values.
 - Long reports are split into Telegram-safe chunks and numbered before delivery, so the 4096-character platform limit does not silently drop a digest.
 - The decision digest includes the owner's team/rank when public, captain and vice, transfer/hold advice, a differential candidate, chip advice, risk/news and price signals, league context, and a concise data-coverage line. Missing sections are reported as unavailable rather than fabricated.
 - The dashboard's manual send button requires a valid owner session in production. The cron route remains protected by `CRON_SECRET`.
 - Deadline reminders require KV/Upstash deduplication. Without it the urgent route still reports its state, but skips reminders so a frequent cron cannot spam Telegram. Provider quota usage should be monitored after deployment.
+- Do not add the 30-minute urgent schedule to `vercel.json` on a Hobby project; Vercel rejects deployments containing cron jobs that run more than once per day.
 
 ## Profile sync
 
