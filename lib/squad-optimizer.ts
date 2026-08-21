@@ -114,6 +114,14 @@ function candidatePool(
     .sort((a, b) => scorePlayer(b) - scorePlayer(a));
 }
 
+/** Shared value for a Starting XI slot across final ranking and reinvestment. */
+export function starterSquadScore(
+  player: ModelPlayer,
+  scorePlayer: (candidate: ModelPlayer) => number,
+) {
+  return lineupProjection(player) * 0.72 + scorePlayer(player) * 0.28;
+}
+
 /*
  * A fantasy squad is not 15 equal starters. Re-rank completed states by the
  * strongest legal XI, while the bench receives only a cover value. This keeps
@@ -138,7 +146,10 @@ function completedSquadScore(
     if (starters.length !== 11) continue;
     const ids = new Set(starters.map((player) => player.id));
     const bench = players.filter((player) => !ids.has(player.id));
-    const starterScore = starters.reduce((sum, player) => sum + lineupProjection(player), 0);
+    const starterScore = starters.reduce(
+      (sum, player) => sum + starterSquadScore(player, scorePlayer),
+      0,
+    );
     const captainCandidates = starters
       .filter((player) => player.position !== 'GKP')
       .sort((a, b) => lineupProjection(b) - lineupProjection(a));

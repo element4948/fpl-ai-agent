@@ -19,6 +19,7 @@ import { applyDataFreshnessGuard, freshnessStatus, hasFreshRoleEvidence } from '
 import { withTimeBudget } from '@/lib/provider-budget';
 import { buildDecision } from '@/lib/decision';
 import { buildDeadlineAlert, deadlineWindow } from '@/lib/deadline-alert';
+import { starterSquadScore } from '@/lib/squad-optimizer';
 
 describe('data freshness guard', () => {
   const now = new Date('2026-08-15T09:00:00Z');
@@ -83,6 +84,17 @@ describe('data freshness guard', () => {
       officialCheckedAt: now.toISOString(), fixturesAvailable: true, verified: true, now,
     })[0];
     expect(guarded.dataFreshness?.sources.find((item) => item.id === 'api-football')?.status).toBe('aging');
+  });
+});
+
+describe('starter squad objective', () => {
+  it('keeps immediate points dominant while durable mode value can decide a close call', () => {
+    const baseProjection = makePlayer().projection;
+    const immediate = makePlayer({ expectedPoints: 6, projection: { ...baseProjection, next3: 18, next5: 30 } });
+    const durable = makePlayer({ id: 2, expectedPoints: 5.8, projection: { ...baseProjection, next3: 19, next5: 33 } });
+
+    expect(starterSquadScore(immediate, () => 10)).toBeGreaterThan(starterSquadScore(durable, () => 10));
+    expect(starterSquadScore(durable, () => 14)).toBeGreaterThan(starterSquadScore(immediate, () => 10));
   });
 });
 

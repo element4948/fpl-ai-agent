@@ -18,8 +18,8 @@
 
 - Branch: `main`
 - Last committed baseline before this session: `157c16a` (stale player-evidence guard).
-- Current change set: rebuilt Starting XI as uniform compact cards and constrained formation rows inside the pitch; scheduled deadline-window/critical-change Telegram monitoring is also complete.
-- Verification in this workspace: `npm run typecheck`, all 70 tests, and `npm run build` pass. Browser visual QA was unavailable because no in-app/external browser binding was connected; desktop and mobile pitch rules were both inspected directly.
+- Current change set: aligned optimizer final-state and bench-reinvestment scoring on a next-deadline-first, mode-aware multi-Gameweek starter objective; UI and deadline monitoring changes remain complete.
+- Verification in this workspace: `npm run typecheck`, all 71 tests, and `npm run build` pass. Real fast bootstrap returned a valid 15-player 2/5/5/3 squad, max two per club, £99.5m spend/£0.5m bank, legal 3-4-3 XI, 11+4 split, and £18.0m bench below its £18.5m target.
 - Working tree should be clean after the current scoped commit. Local commits are not pushed unless the owner asks.
 
 ## In progress / not finished
@@ -67,6 +67,7 @@ route try/catch, optimizer beam-width/labeling, `any` cleanup in page.tsx.
 
 ## Recent activity (newest first)
 
+- 2026-08-21 — Fixed an optimizer objective mismatch: completed squads and starter reinvestment now share a 72/28 immediate-versus-durable score.
 - 2026-08-21 — Replaced dense, variable Starting XI cards with a uniform readable pitch-specific card while retaining the full next-five fixture run; detailed evidence remains one click away.
 - 2026-08-21 — Used the owner's local screenshot to identify intrinsic grid-column overflow; constrained formation rows/cards to the pitch so Starting XI no longer shifts right over the bench.
 - 2026-08-21 — Corrected pitch row/marking orientation and added deduplicated 24h/6h/90m deadline reminders to the scheduled critical monitor.

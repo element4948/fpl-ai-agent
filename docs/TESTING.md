@@ -60,6 +60,7 @@ Request `/api/bootstrap` and repeat for Best, Alternative, Differential, and Saf
 26. Starting XI pitch: rows render FWD, MID, DEF, GKP from top to bottom, remain horizontally centered, show each card without vertical clipping, and keep the center line horizontal on desktop and mobile.
 27. Deadline reminders: 24h/6h/90m windows select correctly, expired deadlines do not send, and an unchanged decision produces the same dedup key.
 28. Pitch-card readability: every starter card has the same compact hierarchy (identity, xP/starter/risk, all five upcoming fixtures, details), long names truncate safely, and optional warnings do not hide the core metrics.
+29. Optimizer objective alignment: immediate projection remains the largest starter signal, but a materially stronger mode-specific multi-Gameweek score can win a close comparison; completed-state ranking and bench reinvestment use the same objective.
 
 ## Transfer checks
 

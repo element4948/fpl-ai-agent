@@ -3,7 +3,7 @@ import { buildDraftTrust } from '@/lib/evidence';
 import { calculateDraftFlexibility, maximumDraftSpend } from '@/lib/flexibility';
 import { isReliableStarter } from '@/lib/starter';
 import { positionMetricChecks } from '@/lib/position-model';
-import { optimizeSquadGlobally } from '@/lib/squad-optimizer';
+import { optimizeSquadGlobally, starterSquadScore } from '@/lib/squad-optimizer';
 import type { DraftTeam, ModelPlayer, SquadValidation } from '@/types/fpl';
 
 const TOTAL_BUDGET = 100;
@@ -179,7 +179,9 @@ function rebalanceBench(
             position,
             allPlayers
                 .filter((player) => player.position === position && isReliableStarter(player))
-                .sort((a, b) => playerScore(b, mode) - playerScore(a, mode))
+                .sort((a, b) =>
+                    starterSquadScore(b, (player) => playerScore(player, mode)) -
+                    starterSquadScore(a, (player) => playerScore(player, mode)))
                 .slice(0, 18),
         ]),
     ) as Record<string, ModelPlayer[]>;
@@ -213,7 +215,9 @@ function rebalanceBench(
             for (const candidate of candidatePools[current.position]) {
                 const replacements = [{ index, player: candidate }];
                 if (!moveIsLegal(replacements)) continue;
-                const gain = playerScore(candidate, mode) - playerScore(current, mode);
+                const gain =
+                    starterSquadScore(candidate, (player) => playerScore(player, mode)) -
+                    starterSquadScore(current, (player) => playerScore(player, mode));
                 if (gain > 0.001 && (!bestMove || gain > bestMove.gain)) {
                     bestMove = { replacements, gain };
                 }
@@ -230,9 +234,11 @@ function rebalanceBench(
                             { index: second, player: secondCandidate },
                         ];
                         if (!moveIsLegal(replacements)) continue;
+                        const score = (player: ModelPlayer) =>
+                            starterSquadScore(player, (candidate) => playerScore(candidate, mode));
                         const gain =
-                            playerScore(firstCandidate, mode) + playerScore(secondCandidate, mode) -
-                            playerScore(firstCurrent, mode) - playerScore(secondCurrent, mode);
+                            score(firstCandidate) + score(secondCandidate) -
+                            score(firstCurrent) - score(secondCurrent);
                         if (gain > 0.001 && (!bestMove || gain > bestMove.gain)) {
                             bestMove = { replacements, gain };
                         }

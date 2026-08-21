@@ -76,6 +76,8 @@ FPL hard rules:
 
 `lib/squad-optimizer.ts` performs a bounded beam search over eligible candidates, preserves score and budget-efficient paths, and re-ranks completed squads by their strongest legal XI rather than treating all 15 players equally. It is an approximation, not a mathematical proof of the global optimum.
 
+Completed squads and post-optimizer starter upgrades share one Starting XI objective: 72% immediate lineup projection and 28% mode-specific multi-Gameweek score. The next deadline therefore remains dominant, while durable next-3/5/8 value, risk and mode preferences decide close calls. Candidate generation, final ranking and bench-savings reinvestment must not optimize conflicting objectives.
+
 ## Lean bench policy
 
 The bench is emergency cover, not four extra premium starters.
